@@ -1,20 +1,20 @@
 # Build the manager binary
-FROM docker.io/golang:1.24 AS builder
+FROM golang:1.24.4-bullseye AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
-ARG GITHUB_HOST
-ARG GITHUB_USER
-ARG GITHUB_TOKEN
+### BEGIN GHE Configurations ###
+ENV GOPRIVATE="github.com/platform-mesh"
+ENV GOSUMDB=off
 
-ENV GITHUB_HOST=${GITHUB_HOST}
-ENV GITHUB_USER=${GITHUB_USER}
-ENV GITHUB_TOKEN=${GITHUB_TOKEN}
-
-# Setting up .netrc file for pulling go private packadjes
-RUN printf  "machine %s\nlogin %s\npassword %s\n" \
-    "GITHUB_HOST" "GITHUB_USER" "GITHUB_TOKEN" > ~/.netrc && \
-    chmod 600 ~/.netrc
+RUN --mount=type=secret,id=platformmesh_token \
+    if [ -f /run/secrets/platformmesh_token ]; then \
+        git config --global credential.helper store && \
+        echo "https://openmfp:$(cat /run/secrets/platformmesh_token)@github.com" >> /root/.git-credentials; \
+        echo "Updated git credentials for platformmesh"; \
+    else \
+        echo "Secrets not found, skipping git credentials setup"; \
+    fi
 
 WORKDIR /workspace
 
