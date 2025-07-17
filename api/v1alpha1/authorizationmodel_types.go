@@ -1,7 +1,7 @@
 package v1alpha1
 
 import (
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/api"
+	lifecycleapi "github.com/platform-mesh/golang-commons/controller/lifecycle/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -46,7 +46,7 @@ func (in *AuthorizationModel) SetConditions(conditions []metav1.Condition) {
 	in.Status.Conditions = conditions
 }
 
-var _ api.RuntimeObjectConditions = &AuthorizationModel{}
+var _ lifecycleapi.RuntimeObjectConditions = &AuthorizationModel{}
 
 // +kubebuilder:object:root=true
 

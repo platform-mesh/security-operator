@@ -5,7 +5,7 @@ import (
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/controllerruntime"
+	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/controllerruntime"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -17,7 +17,7 @@ import (
 
 func NewAPIBindingReconciler(cl client.Client, logger *logger.Logger, lcClientFunc subroutine.NewLogicalClusterClientFunc) *APIBindingReconciler {
 	return &APIBindingReconciler{
-		lifecycle: controllerruntime.NewLifecycleManager(
+		lifecycle: lifecyclecontrollerruntime.NewLifecycleManager(
 			[]lifecyclesubroutine.Subroutine{
 				subroutine.NewAuthorizationModelGenerationSubroutine(cl, lcClientFunc),
 			},
@@ -30,7 +30,7 @@ func NewAPIBindingReconciler(cl client.Client, logger *logger.Logger, lcClientFu
 }
 
 type APIBindingReconciler struct {
-	lifecycle *controllerruntime.LifecycleManager
+	lifecycle *lifecyclecontrollerruntime.LifecycleManager
 }
 
 func (r *APIBindingReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {

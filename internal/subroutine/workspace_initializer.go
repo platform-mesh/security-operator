@@ -9,8 +9,8 @@ import (
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
+	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 
 	"github.com/platform-mesh/golang-commons/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -42,7 +42,7 @@ func NewWorkspaceInitializer(cl, orgsClient client.Client, restCfg *rest.Config,
 	}
 }
 
-var _ subroutine.Subroutine = &workspaceInitializer{}
+var _ lifecyclesubroutine.Subroutine = &workspaceInitializer{}
 
 type workspaceInitializer struct {
 	cl         client.Client
@@ -51,7 +51,7 @@ type workspaceInitializer struct {
 	coreModule string
 }
 
-func (w *workspaceInitializer) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (w *workspaceInitializer) Finalize(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	// TODO: implement once finalizing workspaces are a thing
 	return ctrl.Result{}, nil
 }
@@ -60,7 +60,7 @@ func (w *workspaceInitializer) Finalizers() []string { return nil }
 
 func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" }
 
-func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
 
 	path, ok := lc.ObjectMeta.Annotations["kcp.io/path"]

@@ -16,7 +16,7 @@ import (
 	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/controllerruntime"
+	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/controllerruntime"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
@@ -25,14 +25,14 @@ import (
 
 // StoreReconciler reconciles a Store object
 type StoreReconciler struct {
-	lifecycle    *controllerruntime.LifecycleManager
+	lifecycle    *lifecyclecontrollerruntime.LifecycleManager
 	lcClientFunc subroutine.NewLogicalClusterClientFunc
 }
 
 func NewStoreReconciler(log *logger.Logger, clt client.Client, fga openfgav1.OpenFGAServiceClient, lcClientFunc subroutine.NewLogicalClusterClientFunc) *StoreReconciler {
 	return &StoreReconciler{
 		lcClientFunc: lcClientFunc,
-		lifecycle: controllerruntime.NewLifecycleManager(
+		lifecycle: lifecyclecontrollerruntime.NewLifecycleManager(
 			[]lifecyclesubroutine.Subroutine{
 				subroutine.NewStoreSubroutine(fga, clt, lcClientFunc),
 				subroutine.NewAuthorizationModelSubroutine(fga, clt, lcClientFunc),

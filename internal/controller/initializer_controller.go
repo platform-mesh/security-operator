@@ -5,7 +5,7 @@ import (
 
 	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/controllerruntime"
+	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/controllerruntime"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
 	"k8s.io/client-go/rest"
@@ -18,12 +18,12 @@ import (
 )
 
 type LogicalClusterReconciler struct {
-	lifecycle *controllerruntime.LifecycleManager
+	lifecycle *lifecyclecontrollerruntime.LifecycleManager
 }
 
 func NewLogicalClusterReconciler(log *logger.Logger, restCfg *rest.Config, cl, orgClient client.Client, cfg config.Config) *LogicalClusterReconciler {
 	return &LogicalClusterReconciler{
-		lifecycle: controllerruntime.NewLifecycleManager(
+		lifecycle: lifecyclecontrollerruntime.NewLifecycleManager(
 			[]lifecyclesubroutine.Subroutine{
 				subroutine.NewWorkspaceInitializer(cl, orgClient, restCfg, cfg),
 			},

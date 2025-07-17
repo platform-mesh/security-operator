@@ -7,12 +7,12 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
+	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/fga/helpers"
 	"github.com/platform-mesh/golang-commons/logger"
+	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -26,7 +26,7 @@ type tupleSubroutine struct {
 }
 
 // Finalize implements lifecycle.Subroutine.
-func (t *tupleSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (t *tupleSubroutine) Finalize(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	var storeID string
@@ -106,7 +106,7 @@ func (t *tupleSubroutine) Finalizers() []string { return []string{"core.platform
 func (t *tupleSubroutine) GetName() string { return "TupleSubroutine" }
 
 // Process implements lifecycle.Subroutine.
-func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (t *tupleSubroutine) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	var storeID string
@@ -221,4 +221,4 @@ func NewTupleSubroutine(fga openfgav1.OpenFGAServiceClient, k8s client.Client, l
 	}
 }
 
-var _ subroutine.Subroutine = &tupleSubroutine{}
+var _ lifecyclesubroutine.Subroutine = &tupleSubroutine{}

@@ -10,8 +10,8 @@ import (
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
+	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,7 +32,7 @@ func NewAuthorizationModelGenerationSubroutine(cl client.Client, lcClientFunc Ne
 	}
 }
 
-var _ subroutine.Subroutine = &AuthorizationModelGenerationSubroutine{}
+var _ lifecyclesubroutine.Subroutine = &AuthorizationModelGenerationSubroutine{}
 
 type AuthorizationModelGenerationSubroutine struct {
 	cl           client.Client
@@ -69,7 +69,7 @@ type modelInput struct {
 }
 
 // Finalize implements lifecycle.Subroutine.
-func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	bindingToDelete := instance.(*kcpv1alpha1.APIBinding)
@@ -149,7 +149,7 @@ func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 }
 
 // Process implements lifecycle.Subroutine.
-func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	binding := instance.(*kcpv1alpha1.APIBinding)
 
 	bindingWsClient, err := a.lcClientFunc(logicalcluster.From(binding))

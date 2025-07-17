@@ -3,7 +3,7 @@ package v1alpha1
 import (
 	"fmt"
 
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/api"
+	lifecycleapi "github.com/platform-mesh/golang-commons/controller/lifecycle/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -59,7 +59,7 @@ func (in *Store) SetConditions(conditions []metav1.Condition) {
 	in.Status.Conditions = conditions
 }
 
-var _ api.RuntimeObjectConditions = &Store{}
+var _ lifecycleapi.RuntimeObjectConditions = &Store{}
 
 // +kubebuilder:object:root=true
 
