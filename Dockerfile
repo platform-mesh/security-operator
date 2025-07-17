@@ -3,14 +3,33 @@ FROM docker.io/golang:1.24 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 
+ARG GITHUB_HOST
+ARG GITHUB_USER
+ARG GITHUB_TOKEN
+
+ENV GITHUB_HOST=${GITHUB_HOST}
+ENV GITHUB_USER=${GITHUB_USER}
+ENV GITHUB_TOKEN=${GITHUB_TOKEN}
+
+# Setting up .netrc file for pulling go private packadjes
+RUN printf  "machine %s\nlogin %s\npassword %s\n" \
+    "GITHUB_HOST" "GITHUB_USER" "GITHUB_TOKEN" > ~/.netrc && \
+    chmod 600 ~/.netrc
+
 WORKDIR /workspace
+
+# Copy your local .netrc file
+COPY .netrc /root/.netrc
+RUN chmod 600 /root/.netrc
+
+ENV GOPRIVATE=github.com/
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source changes don't invalidate our downloaded layer
 RUN go mod download
-
+RUN rm -rf ~/.netrc
 # Copy the go source
 COPY cmd/ cmd/
 COPY api/ api/
