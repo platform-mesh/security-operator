@@ -9,10 +9,11 @@ import (
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
-	accountv1alpha1 "github.com/openmfp/account-operator/api/v1alpha1"
-	"github.com/openmfp/golang-commons/controller/lifecycle"
-	"github.com/openmfp/golang-commons/errors"
-	"github.com/openmfp/golang-commons/logger"
+	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/errors"
+	"github.com/platform-mesh/golang-commons/logger"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -21,7 +22,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	fgav1alpha1 "github.com/openmfp/fga-operator/api/v1alpha1"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
 func NewAuthorizationModelGenerationSubroutine(cl client.Client, lcClientFunc NewLogicalClusterClientFunc) *AuthorizationModelGenerationSubroutine {
@@ -31,7 +32,7 @@ func NewAuthorizationModelGenerationSubroutine(cl client.Client, lcClientFunc Ne
 	}
 }
 
-var _ lifecycle.Subroutine = &AuthorizationModelGenerationSubroutine{}
+var _ subroutine.Subroutine = &AuthorizationModelGenerationSubroutine{}
 
 type AuthorizationModelGenerationSubroutine struct {
 	cl           client.Client
@@ -40,7 +41,7 @@ type AuthorizationModelGenerationSubroutine struct {
 
 var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
 
-extend type core_openmfp_org_account
+extend type core_platform_mesh_org_account
 	relations
 		define create_{{ .Group }}_{{ .Name }}: member
 		define list_{{ .Group }}_{{ .Name }}: member
@@ -68,7 +69,7 @@ type modelInput struct {
 }
 
 // Finalize implements lifecycle.Subroutine.
-func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, instance lifecycle.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	bindingToDelete := instance.(*kcpv1alpha1.APIBinding)
@@ -122,7 +123,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 		return ctrl.Result{}, nil
 	}
 
-	err = a.cl.Delete(ctx, &fgav1alpha1.AuthorizationModel{
+	err = a.cl.Delete(ctx, &securityv1alpha1.AuthorizationModel{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: fmt.Sprintf("%s-%s", bindingToDelete.Spec.Reference.Export.Name, bindingToDelete.Spec.Reference.Export.Path),
 		},
@@ -148,7 +149,7 @@ func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 }
 
 // Process implements lifecycle.Subroutine.
-func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, instance lifecycle.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	binding := instance.(*kcpv1alpha1.APIBinding)
 
 	bindingWsClient, err := a.lcClientFunc(logicalcluster.From(binding))
@@ -171,8 +172,8 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
-	if binding.Spec.Reference.Export.Name == "core.openmfp.org" || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
-		// If the APIExport is the core.openmfp.org, we can skip the model generation.
+	if binding.Spec.Reference.Export.Name == "core.platform-mesh.io" || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
+		// If the APIExport is the core.platform-mesh.io, we can skip the model generation.
 		return ctrl.Result{}, nil
 	}
 
@@ -207,16 +208,16 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}
 
-		model := fgav1alpha1.AuthorizationModel{
+		model := securityv1alpha1.AuthorizationModel{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: fmt.Sprintf("%s-%s", resourceSchema.Spec.Names.Plural, accountInfo.Spec.Organization.Name),
 			},
 		}
 
 		_, err = controllerutil.CreateOrUpdate(ctx, apiExportClient, &model, func() error {
-			model.Spec = fgav1alpha1.AuthorizationModelSpec{
+			model.Spec = securityv1alpha1.AuthorizationModelSpec{
 				Model: buffer.String(),
-				StoreRef: fgav1alpha1.WorkspaceStoreRef{
+				StoreRef: securityv1alpha1.WorkspaceStoreRef{
 					Name: accountInfo.Spec.Organization.Name,
 					Path: accountInfo.Spec.Organization.OriginClusterId,
 				},
