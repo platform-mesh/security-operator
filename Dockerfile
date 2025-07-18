@@ -7,15 +7,8 @@ ARG TARGETARCH
 ENV GOPRIVATE="github.com/platform-mesh"
 ENV GOSUMDB=off
 
-RUN --mount=type=secret,id=platformmesh_token \
-    if [ -f /run/secrets/platformmesh_token ]; then \
-        git config --global credential.helper store && \
-        echo "https://platform-mesh:$(cat /run/secrets/platformmesh_token)@github.com" >> /root/.git-credentials; \
-        echo "Updated git credentials for platformmesh"; \
-    else \
-        echo "Secrets not found, skipping git credentials setup"; \
-    fi
-
+RUN git config --global credential.helper store
+RUN --mount=type=secret,id=github_token git config echo "https://gha:$(cat /run/secrets/github_token)@github.com" >> /root/.git-credentials
 WORKDIR /workspace
 
 # Copy the Go Modules manifests
