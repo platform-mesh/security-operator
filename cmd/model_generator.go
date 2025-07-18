@@ -45,7 +45,7 @@ var modelGeneratorCmd = &cobra.Command{
 			},
 			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
 			LeaderElection:         defaultCfg.LeaderElection.Enabled,
-			LeaderElectionID:       "security-operator-generator.platform-mesh.org",
+			LeaderElectionID:       "security-operator-generator.platform-mesh.io",
 			BaseContext:            func() context.Context { return ctx },
 		}
 		if defaultCfg.LeaderElection.Enabled {

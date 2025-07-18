@@ -97,7 +97,7 @@ var operatorCmd = &cobra.Command{
 			},
 			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
 			LeaderElection:         defaultCfg.LeaderElection.Enabled,
-			LeaderElectionID:       "security-operator.platform-mesh.org",
+			LeaderElectionID:       "security-operator.platform-mesh.io",
 			BaseContext:            func() context.Context { return ctx },
 		}
 		if defaultCfg.LeaderElection.Enabled {

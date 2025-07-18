@@ -25,7 +25,7 @@ var initializerCmd = &cobra.Command{
 		mgrOpts := ctrl.Options{
 			Scheme:                 scheme,
 			LeaderElection:         defaultCfg.LeaderElection.Enabled,
-			LeaderElectionID:       "security-operator-initializer.platform-mesh.org",
+			LeaderElectionID:       "security-operator-initializer.platform-mesh.io",
 			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
 			Metrics: server.Options{
 				BindAddress: defaultCfg.Metrics.BindAddress,
