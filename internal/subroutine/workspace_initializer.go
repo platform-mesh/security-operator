@@ -81,7 +81,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleru
 					User:     "user:*",
 				},
 				{
-					Object:   fmt.Sprintf("account:%s/%s", lc.Spec.Owner.Cluster, lc.Spec.Owner.Name),
+					Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", lc.Spec.Owner.Cluster, lc.Spec.Owner.Name),
 					Relation: "member",
 					User:     "role:authenticated#assignee",
 				},

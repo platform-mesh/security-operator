@@ -10,7 +10,7 @@ ENV GOSUMDB=off
 RUN --mount=type=secret,id=platformmesh_token \
     if [ -f /run/secrets/platformmesh_token ]; then \
         git config --global credential.helper store && \
-        echo "https://openmfp:$(cat /run/secrets/platformmesh_token)@github.com" >> /root/.git-credentials; \
+        echo "https://platform-mesh:$(cat /run/secrets/platformmesh_token)@github.com" >> /root/.git-credentials; \
         echo "Updated git credentials for platformmesh"; \
     else \
         echo "Secrets not found, skipping git credentials setup"; \
@@ -18,18 +18,12 @@ RUN --mount=type=secret,id=platformmesh_token \
 
 WORKDIR /workspace
 
-# Copy your local .netrc file
-COPY .netrc /root/.netrc
-RUN chmod 600 /root/.netrc
-
-ENV GOPRIVATE=github.com/
 # Copy the Go Modules manifests
 COPY go.mod go.mod
 COPY go.sum go.sum
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source changes don't invalidate our downloaded layer
 RUN go mod download
-RUN rm -rf ~/.netrc
 # Copy the go source
 COPY cmd/ cmd/
 COPY api/ api/
