@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"os"
 
-	"github.com/kcp-dev/logicalcluster/v3" // lint-ignore:typecheck
+	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
