@@ -1,8 +1,6 @@
 module github.com/platform-mesh/security-operator
 
-go 1.24.3
-
-toolchain go1.24.5
+go 1.24.5
 
 replace (
 	k8s.io/api => k8s.io/api v0.32.4
