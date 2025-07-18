@@ -10,7 +10,7 @@ require (
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/openfga/api/proto v0.0.0-20250528161632-e53c69cc5531
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20240926131254-992b301a003f
-	github.com/openmfp/account-operator v0.169.13
+	github.com/openmfp/account-operator v0.170.15
 	github.com/openmfp/golang-commons v0.147.8
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
