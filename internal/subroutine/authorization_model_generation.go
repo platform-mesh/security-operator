@@ -47,6 +47,14 @@ extend type core_platform-mesh_io_account
 		define list_{{ .Group }}_{{ .Name }}: member
 		define watch_{{ .Group }}_{{ .Name }}: member
 
+{{ if eq .Scope "Namespaced" }}
+extend type core_namespace
+	relations
+		define create_{{ .Group }}_{{ .Name }}: member
+		define list_{{ .Group }}_{{ .Name }}: member
+		define watch_{{ .Group }}_{{ .Name }}: member
+{{ end }}
+
 type {{ .Group }}_{{ .Singular }}
 	relations
 		define parent: [account]
@@ -66,6 +74,7 @@ type modelInput struct {
 	Name     string
 	Group    string
 	Singular string
+	Scope    string
 }
 
 // Finalize implements lifecycle.Subroutine.
@@ -203,6 +212,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 			Name:     resourceSchema.Spec.Names.Plural,
 			Group:    strings.ReplaceAll(group, ".", "_"),
 			Singular: resourceSchema.Spec.Names.Singular,
+			Scope:    string(resourceSchema.Spec.Scope),
 		})
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)

@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 )
 
 // Additional helpers for mocking
@@ -75,6 +76,38 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					rs.Spec.Group = "group"
 					rs.Spec.Names.Plural = "foos"
 					rs.Spec.Names.Singular = "foo"
+					return nil
+				}).Once()
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+				kcpClient.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Maybe()
+				kcpClient.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
+			},
+		},
+		{
+			name: "generate model in Process with namespaced scope",
+			binding: &kcpv1alpha1.APIBinding{
+				Spec: kcpv1alpha1.APIBindingSpec{
+					Reference: kcpv1alpha1.BindingReference{
+						Export: &kcpv1alpha1.ExportBindingReference{
+							Name: "foo",
+							Path: "bar",
+						},
+					},
+				},
+			},
+			mockSetup: func(kcpClient *mocks.MockClient) {
+				mockAccountInfo(kcpClient, "org", "origin")
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					apiExport := o.(*kcpv1alpha1.APIExport)
+					apiExport.Spec.LatestResourceSchemas = []string{"schema1"}
+					return nil
+				}).Once()
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					rs := o.(*kcpv1alpha1.APIResourceSchema)
+					rs.Spec.Group = "group"
+					rs.Spec.Names.Plural = "foos"
+					rs.Spec.Names.Singular = "foo"
+					rs.Spec.Scope = apiextensionsv1.NamespaceScoped
 					return nil
 				}).Once()
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(nil)
