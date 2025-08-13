@@ -4,9 +4,13 @@ import (
 	"crypto/tls"
 	"os"
 
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
+	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/spf13/cobra"
 	"helm.sh/helm/v3/pkg/action"
+	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -53,6 +57,11 @@ var initializerCmd = &cobra.Command{
 			setupLog.Error(err, "Failed to create manager")
 			os.Exit(1)
 		}
+
+		runtimeScheme := runtime.NewScheme()
+		utilruntime.Must(sourcev1.AddToScheme(runtimeScheme))
+		utilruntime.Must(helmv2.AddToScheme(runtimeScheme))
+
 
 		orgClient, err := logicalClusterClientFromKey(mgr, log)(logicalcluster.Name("root:orgs"))
 		if err != nil {
