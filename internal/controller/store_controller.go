@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	logicalclusterv3 "github.com/kcp-dev/logicalcluster/v3"
+	"github.com/kcp-dev/logicalcluster/v3" // lint-ignore:typecheck
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/controllerruntime"
@@ -65,7 +65,7 @@ func (r *StoreReconciler) SetupWithManager(mgr ctrl.Manager, cfg *platformeshcon
 			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
 				model := obj.(*corev1alpha1.AuthorizationModel)
 
-				lcClient, err := r.lcClientFunc(logicalclusterv3.Name(model.Spec.StoreRef.Path))
+				lcClient, err := r.lcClientFunc(logicalcluster.Name(model.Spec.StoreRef.Path))
 				if err != nil {
 					log.Error().Err(err).Msg("failed to get logical cluster client")
 					return nil
