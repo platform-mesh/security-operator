@@ -8,18 +8,17 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/spf13/cobra"
-	"helm.sh/helm/v3/pkg/action"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/kcp"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/platform-mesh/security-operator/internal/controller"
-	"github.com/platform-mesh/security-operator/internal/subroutine"
 )
 
 var initializerCmd = &cobra.Command{
@@ -62,7 +61,6 @@ var initializerCmd = &cobra.Command{
 		utilruntime.Must(sourcev1.AddToScheme(runtimeScheme))
 		utilruntime.Must(helmv2.AddToScheme(runtimeScheme))
 
-
 		orgClient, err := logicalClusterClientFromKey(mgr, log)(logicalcluster.Name("root:orgs"))
 		if err != nil {
 			setupLog.Error(err, "Failed to create org client")
@@ -74,23 +72,18 @@ var initializerCmd = &cobra.Command{
 		kubeClient.BearerToken = &mgrOpts.LeaderElectionConfig.BearerToken
 		kubeClient.CAFile = &mgrOpts.LeaderElectionConfig.CAFile
 
-		actionConfig := new(action.Configuration)
-
-		if err := actionConfig.Init(
-			kubeClient,
-			"",
-			"secrets",
-			func(format string, v ...interface{}) {
-				log.Info().Msgf(format, v...)
-			},
-		); err != nil {
-			setupLog.Error(err, "Failed to initialize Helm client")
+		inClusterconfig, err := rest.InClusterConfig()
+		if err != nil {
+			log.Error().Err(err).Msg("Cannot create in cluster config")
 			os.Exit(1)
 		}
 
-		helmClient := subroutine.HelmClient{Configuration: actionConfig}
+		inClusterClient, err := client.New(inClusterconfig, client.Options{Scheme: scheme})
+		if err != nil {
+			panic(err)
+		}
 
-		if err := controller.NewLogicalClusterReconciler(log, mgrCfg, mgr.GetClient(), orgClient, appCfg, helmClient).SetupWithManager(mgr, defaultCfg, log); err != nil {
+		if err := controller.NewLogicalClusterReconciler(log, mgrCfg, mgr.GetClient(), orgClient, appCfg, inClusterClient).SetupWithManager(mgr, defaultCfg, log); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")
 			os.Exit(1)
 		}

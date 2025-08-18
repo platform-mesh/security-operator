@@ -21,12 +21,12 @@ type LogicalClusterReconciler struct {
 	lifecycle *lifecyclecontrollerruntime.LifecycleManager
 }
 
-func NewLogicalClusterReconciler(log *logger.Logger, restCfg *rest.Config, cl, orgClient client.Client, cfg config.Config, helmClient subroutine.HelmClient) *LogicalClusterReconciler {
+func NewLogicalClusterReconciler(log *logger.Logger, restCfg *rest.Config, cl, orgClient client.Client, cfg config.Config, inClusterClient client.Client) *LogicalClusterReconciler {
 	return &LogicalClusterReconciler{
 		lifecycle: lifecyclecontrollerruntime.NewLifecycleManager(
 			[]lifecyclesubroutine.Subroutine{
 				subroutine.NewWorkspaceInitializer(cl, orgClient, restCfg, cfg),
-				subroutine.NewRealmSubroutine(cl, orgClient),
+				subroutine.NewRealmSubroutine(inClusterClient),
 			},
 			"logicalcluster",
 			"LogicalClusterReconciler",
