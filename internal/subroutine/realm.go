@@ -3,6 +3,7 @@ package subroutine
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -37,6 +38,7 @@ func NewRealmSubroutine(k8s client.Client) *realmSubroutine {
 }
 
 const (
+	//TODO move it in operator config
 	manifestsPath = "/operator/manifests/"
 )
 
@@ -57,13 +59,36 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 	log := logger.LoadLoggerFromContext(ctx)
 
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
-	
+
 	realmName := getWorkspaceName(lc)
-	log.Info().Msg(fmt.Sprintf("realm name -- %s", realmName))
+
+	values := apiextensionsv1.JSON{}
+
+	patch := map[string]interface{}{
+		"crossplane": map[string]interface{}{
+			"realm": map[string]interface{}{
+				"name":        realmName,
+				"displayName": realmName,
+			},
+		},
+		"clients": map[string]interface{}{
+			"organization": map[string]interface{}{
+				"name": realmName,
+			},
+		},
+	}
+
+	marshalledPatch, err := json.Marshal(patch)
+	if err != nil {
+		log.Err(err).Msg("cannot marshall path map")
+		return ctrl.Result{}, nil
+	}
+
+	values.Raw = marshalledPatch
 
 	OCIpath := manifestsPath + "organizationIDP/repository.yaml"
 
-	err := applyManifestFromFileWithMergedValues(ctx, OCIpath, r.k8s, nil)
+	err = applyManifestFromFileWithMergedValues(ctx, OCIpath, r.k8s, nil)
 	if err != nil {
 		log.Error().Err(err).Msg("Cannot create OCI repository")
 		return ctrl.Result{}, nil
@@ -71,7 +96,7 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 
 	ReleasePath := manifestsPath + "organizationIDP/helmrelease.yaml"
 
-	err = applyReleaseWithValues(ctx, ReleasePath, r.k8s, apiextensionsv1.JSON{})
+	err = applyReleaseWithValues(ctx, ReleasePath, r.k8s, values, realmName)
 	if err != nil {
 		log.Error().Err(err).Msg("Cannot create helm release")
 		return ctrl.Result{}, nil
@@ -103,13 +128,19 @@ func applyManifestFromFileWithMergedValues(ctx context.Context, path string, k8s
 	return nil
 }
 
-func applyReleaseWithValues(ctx context.Context, path string, k8sClient client.Client, values apiextensionsv1.JSON) error {
+func applyReleaseWithValues(ctx context.Context, path string, k8sClient client.Client, values apiextensionsv1.JSON, orgName string) error {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	obj, err := unstructuredFromFile(path, map[string]string{}, log)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get unstructuredFromFile")
 	}
+	obj.SetName(orgName)
+
+	if err := unstructured.SetNestedField(obj.Object, orgName, "spec", "releaseName"); err != nil {
+		return errors.Wrap(err, "failed to set spec.releaseName")
+	}
+
 	obj.Object["spec"].(map[string]interface{})["values"] = values
 
 	err = k8sClient.Patch(ctx, &obj, client.Apply, client.FieldOwner("security-operator"))
