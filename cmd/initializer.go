@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,18 +66,13 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		kubeClient := genericclioptions.NewConfigFlags(true)
-		kubeClient.APIServer = &mgrOpts.LeaderElectionConfig.Host
-		kubeClient.BearerToken = &mgrOpts.LeaderElectionConfig.BearerToken
-		kubeClient.CAFile = &mgrOpts.LeaderElectionConfig.CAFile
-
-		inClusterconfig, err := rest.InClusterConfig()
+		inClusterConfig, err := rest.InClusterConfig()
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create in cluster config")
 			os.Exit(1)
 		}
 
-		inClusterClient, err := client.New(inClusterconfig, client.Options{Scheme: scheme})
+		inClusterClient, err := client.New(inClusterConfig, client.Options{Scheme: scheme})
 		if err != nil {
 			panic(err)
 		}
