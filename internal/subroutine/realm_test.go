@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-func TestApplyReleaseWithValues_TableDriven(t *testing.T) {
+func TestApplyReleaseWithValues(t *testing.T) {
 	cases := []struct {
 		name       string
 		setupMocks func(m *mocks.MockClient)
@@ -80,7 +80,7 @@ func TestApplyReleaseWithValues_TableDriven(t *testing.T) {
 	}
 }
 
-func TestApplyManifestWithMergedValues_TableDriven(t *testing.T) {
+func TestApplyManifestWithMergedValues(t *testing.T) {
 	cases := []struct {
 		name       string
 		setupMocks func(m *mocks.MockClient)
@@ -129,7 +129,7 @@ func TestApplyManifestWithMergedValues_TableDriven(t *testing.T) {
 	}
 }
 
-func TestRealmSubroutine_Process_TableDriven(t *testing.T) {
+func TestRealmSubroutine_Process(t *testing.T) {
 	cases := []struct {
 		name       string
 		lc         *kcpv1alpha1.LogicalCluster
@@ -177,7 +177,7 @@ func TestRealmSubroutine_Process_TableDriven(t *testing.T) {
 			name: "oci apply fails - process returns operator error",
 			lc: func() *kcpv1alpha1.LogicalCluster {
 				l := &kcpv1alpha1.LogicalCluster{}
-				l.ObjectMeta.Annotations = map[string]string{"kcp.io/path": "root:myrealm"}
+				l.ObjectMeta.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
 				return l
 			}(),
 			setupMocks: func(m *mocks.MockClient) {
@@ -222,7 +222,7 @@ func TestRealmSubroutine_Process_TableDriven(t *testing.T) {
 	}
 }
 
-func TestReplaceTemplateAndUnstructured_TableDriven(t *testing.T) {
+func TestReplaceTemplateAndUnstructured(t *testing.T) {
 	log, _ := logger.New(logger.DefaultConfig())
 
 	cases := []struct {
@@ -286,7 +286,7 @@ func TestReplaceTemplateAndUnstructured_TableDriven(t *testing.T) {
 	}
 }
 
-func TestFinalize_TableDriven(t *testing.T) {
+func TestFinalize(t *testing.T) {
 	cases := []struct {
 		name       string
 		setupMocks func(m *mocks.MockClient)
@@ -329,7 +329,7 @@ func TestFinalize_TableDriven(t *testing.T) {
 			}
 			rs := NewRealmSubroutine(clientMock)
 			lc := &kcpv1alpha1.LogicalCluster{}
-			lc.ObjectMeta.Annotations = map[string]string{"kcp.io/path": "root:orgs:realm-test"}
+			lc.ObjectMeta.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
 			ctx := context.Background()
 
 			res, opErr := rs.Finalize(ctx, lc)
@@ -340,6 +340,29 @@ func TestFinalize_TableDriven(t *testing.T) {
 				require.Nil(t, opErr)
 				require.Equal(t, ctrl.Result{}, res)
 			}
+		})
+	}
+}
+
+func TestGetWorkspaceNameVariations(t *testing.T) {
+	cases := []struct {
+		name string
+		path string
+		want string
+	}{
+		{"multi element path", "root:orgs:test", "test"},
+		{"single element path", "single", "single"},
+		{"missing annotation", "", ""},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			lc := &kcpv1alpha1.LogicalCluster{}
+			if tc.path != "" {
+				lc.ObjectMeta.Annotations = map[string]string{"kcp.io/path": tc.path}
+			}
+			got := getWorkspaceName(lc)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }
