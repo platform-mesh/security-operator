@@ -74,7 +74,7 @@ var initializerCmd = &cobra.Command{
 
 		inClusterconfig, err := rest.InClusterConfig()
 		if err != nil {
-			log.Error().Err(err).Msg("Cannot create in cluster config")
+			log.Error().Err(err).Msg("Failed to create in cluster config")
 			os.Exit(1)
 		}
 

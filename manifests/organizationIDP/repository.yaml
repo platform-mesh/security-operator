@@ -10,3 +10,4 @@ spec:
     semver: "0.1.0"
   secretRef:
     name: github
+    

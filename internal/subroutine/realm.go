@@ -14,6 +14,7 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"helm.sh/helm/v3/pkg/action"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -28,30 +29,53 @@ type HelmClient struct {
 }
 
 type realmSubroutine struct {
-	k8s client.Client
+	k8s           client.Client
+	manifestsPath string
 }
 
-func NewRealmSubroutine(k8s client.Client) *realmSubroutine {
+func NewRealmSubroutine(k8s client.Client, operatorCfg config.Config) *realmSubroutine {
 	return &realmSubroutine{
-		k8s: k8s,
+		k8s:           k8s,
+		manifestsPath: operatorCfg.WorkspaceDir + "manifests/",
 	}
 }
 
-const (
-	//TODO move it in operator config
-	manifestsPath = "/operator/manifests/"
-)
-
 var _ lifecyclesubroutine.Subroutine = &realmSubroutine{}
 
-func (r *realmSubroutine) GetName() string { return "Store" }
+func (r *realmSubroutine) GetName() string { return "Realm" }
 
-func (r *realmSubroutine) Finalizers() []string { return []string{"core.platform-mesh.io/fga-store"} }
+func (r *realmSubroutine) Finalizers() []string { return []string{} }
 
 func (r *realmSubroutine) Finalize(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
-	// log := logger.LoadLoggerFromContext(ctx)
-	// store := instance.(*v1alpha1.Store)
+	log := logger.LoadLoggerFromContext(ctx)
 
+	lc := instance.(*kcpv1alpha1.LogicalCluster)
+	realmName := getWorkspaceName(lc)
+
+	OCIpath := r.manifestsPath + "organizationIDP/repository.yaml"
+	ociObj, err := unstructuredFromFile(OCIpath, nil, log)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to load OCI repository manifest")
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to load OCI repository manifest: %w", err), true, true)
+	}
+	if err := r.k8s.Delete(ctx, &ociObj); err != nil {
+		log.Error().Err(err).Msg("Failed to delete OCI repository")
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete OCI repository: %w", err), true, true)
+	}
+
+	ReleasePath := r.manifestsPath + "organizationIDP/helmrelease.yaml"
+	helmObj, err := unstructuredFromFile(ReleasePath, nil, log)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to load HelmRelease manifest")
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to load HelmRelease  manifest: %w", err), true, true)
+	}
+	helmObj.SetName(realmName)
+	if err := r.k8s.Delete(ctx, &helmObj); err != nil {
+		log.Error().Err(err).Msg("Failed to delete HelmRelease")
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete HelmRelease: %w", err), true, true)
+	}
+
+	log.Info().Str("realm", realmName).Msg("Successfully finalized resources")
 	return ctrl.Result{}, nil
 }
 
@@ -70,10 +94,17 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 				"name":        realmName,
 				"displayName": realmName,
 			},
+			"client": map[string]interface{}{
+				"name":        realmName,
+				"displayName": realmName,
+			},
 		},
-		"clients": map[string]interface{}{
-			"organization": map[string]interface{}{
+		"keycloakConfig": map[string]interface{}{
+			"client": map[string]interface{}{
 				"name": realmName,
+				"targetSecret": map[string]interface{}{
+					"name": fmt.Sprintf("portal-client-secret-%s", realmName),
+				},
 			},
 		},
 	}
@@ -86,20 +117,20 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 
 	values.Raw = marshalledPatch
 
-	OCIpath := manifestsPath + "organizationIDP/repository.yaml"
+	OCIpath := r.manifestsPath + "organizationIDP/repository.yaml"
 
 	err = applyManifestFromFileWithMergedValues(ctx, OCIpath, r.k8s, nil)
 	if err != nil {
 		log.Error().Err(err).Msg("Cannot create OCI repository")
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create OCI repository: %w", err), true, true)
 	}
 
-	ReleasePath := manifestsPath + "organizationIDP/helmrelease.yaml"
+	ReleasePath := r.manifestsPath + "organizationIDP/helmrelease.yaml"
 
 	err = applyReleaseWithValues(ctx, ReleasePath, r.k8s, values, realmName)
 	if err != nil {
 		log.Error().Err(err).Msg("Cannot create helm release")
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create HelmRelease: %w", err), true, true)
 	}
 
 	return ctrl.Result{}, nil
@@ -111,21 +142,6 @@ func getWorkspaceName(lc *kcpv1alpha1.LogicalCluster) string {
 		return pathElements[len(pathElements)-1]
 	}
 	return ""
-}
-
-func applyManifestFromFileWithMergedValues(ctx context.Context, path string, k8sClient client.Client, templateData map[string]string) error {
-	log := logger.LoadLoggerFromContext(ctx)
-
-	obj, err := unstructuredFromFile(path, templateData, log)
-	if err != nil {
-		return err
-	}
-
-	err = k8sClient.Patch(ctx, &obj, client.Apply, client.FieldOwner("security-operator"))
-	if err != nil {
-		return errors.Wrap(err, "Failed to apply manifest file: %s (%s/%s)", path, obj.GetKind(), obj.GetName())
-	}
-	return nil
 }
 
 func applyReleaseWithValues(ctx context.Context, path string, k8sClient client.Client, values apiextensionsv1.JSON, orgName string) error {
@@ -192,4 +208,19 @@ func ReplaceTemplate(templateData map[string]string, templateBytes []byte) ([]by
 		return []byte{}, nil
 	}
 	return result.Bytes(), nil
+}
+
+func applyManifestFromFileWithMergedValues(ctx context.Context, path string, k8sClient client.Client, templateData map[string]string) error {
+	log := logger.LoadLoggerFromContext(ctx)
+
+	obj, err := unstructuredFromFile(path, templateData, log)
+	if err != nil {
+		return err
+	}
+
+	err = k8sClient.Patch(ctx, &obj, client.Apply, client.FieldOwner("security-operator"))
+	if err != nil {
+		return errors.Wrap(err, "Failed to apply manifest file: %s (%s/%s)", path, obj.GetKind(), obj.GetName())
+	}
+	return nil
 }
