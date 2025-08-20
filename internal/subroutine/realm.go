@@ -3,9 +3,9 @@ package subroutine
 import (
 	"bytes"
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"text/template"
 
@@ -14,7 +14,6 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/security-operator/internal/config"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -24,16 +23,20 @@ import (
 )
 
 type realmSubroutine struct {
-	k8s           client.Client
-	manifestsPath string
+	k8s client.Client
 }
 
-func NewRealmSubroutine(k8s client.Client, operatorCfg config.Config) *realmSubroutine {
+func NewRealmSubroutine(k8s client.Client) *realmSubroutine {
 	return &realmSubroutine{
-		k8s:           k8s,
-		manifestsPath: operatorCfg.WorkspaceDir + "manifests/",
+		k8s: k8s,
 	}
 }
+
+//go:embed manifests/organizationIdp/repository.yaml
+var repository string
+
+//go:embed manifests/organizationIdp/helmrelease.yaml
+var helmRelease string
 
 var _ lifecyclesubroutine.Subroutine = &realmSubroutine{}
 
@@ -47,26 +50,20 @@ func (r *realmSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
 	realmName := getWorkspaceName(lc)
 
-	OCIpath := r.manifestsPath + "organizationIDP/repository.yaml"
-	ociObj, err := unstructuredFromFile(OCIpath, nil, log)
+	ociObj, err := unstructuredFromString(repository, nil, log)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to load OCI repository manifest")
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to load OCI repository manifest: %w", err), true, true)
 	}
 	if err := r.k8s.Delete(ctx, &ociObj); err != nil {
-		log.Error().Err(err).Msg("Failed to delete OCI repository")
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete OCI repository: %w", err), true, true)
 	}
 
-	ReleasePath := r.manifestsPath + "organizationIDP/helmrelease.yaml"
-	helmObj, err := unstructuredFromFile(ReleasePath, nil, log)
+	helmObj, err := unstructuredFromString(helmRelease, nil, log)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to load HelmRelease manifest")
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to load HelmRelease  manifest: %w", err), true, true)
 	}
 	helmObj.SetName(realmName)
 	if err := r.k8s.Delete(ctx, &helmObj); err != nil {
-		log.Error().Err(err).Msg("Failed to delete HelmRelease")
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete HelmRelease: %w", err), true, true)
 	}
 
@@ -75,28 +72,29 @@ func (r *realmSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 }
 
 func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
-	log := logger.LoadLoggerFromContext(ctx)
-
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
 
-	realmName := getWorkspaceName(lc)
+	workspaceName := getWorkspaceName(lc)
+	if workspaceName == "" {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get workspace path"), true, false)
+	}
 
 	patch := map[string]interface{}{
 		"crossplane": map[string]interface{}{
 			"realm": map[string]interface{}{
-				"name":        realmName,
-				"displayName": realmName,
+				"name":        workspaceName,
+				"displayName": workspaceName,
 			},
 			"client": map[string]interface{}{
-				"name":        realmName,
-				"displayName": realmName,
+				"name":        workspaceName,
+				"displayName": workspaceName,
 			},
 		},
 		"keycloakConfig": map[string]interface{}{
 			"client": map[string]interface{}{
-				"name": realmName,
+				"name": workspaceName,
 				"targetSecret": map[string]interface{}{
-					"name": fmt.Sprintf("portal-client-secret-%s", realmName),
+					"name": fmt.Sprintf("portal-client-secret-%s", workspaceName),
 				},
 			},
 		},
@@ -104,25 +102,18 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 
 	marshalledPatch, err := json.Marshal(patch)
 	if err != nil {
-		log.Err(err).Msg("cannot marshall path map")
-		return ctrl.Result{}, nil
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("cannot marshall patch map: %w", err), true, true)
 	}
 
 	values := apiextensionsv1.JSON{Raw: marshalledPatch}
 
-	OCIpath := r.manifestsPath + "organizationIDP/repository.yaml"
-
-	err = applyManifestFromFileWithMergedValues(ctx, OCIpath, r.k8s, nil)
+	err = applyManifestWithMergedValues(ctx, repository, r.k8s, nil)
 	if err != nil {
-		log.Error().Err(err).Msg("Cannot create OCI repository")
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create OCI repository: %w", err), true, true)
 	}
 
-	ReleasePath := r.manifestsPath + "organizationIDP/helmrelease.yaml"
-
-	err = applyReleaseWithValues(ctx, ReleasePath, r.k8s, values, realmName)
+	err = applyReleaseWithValues(ctx, helmRelease, r.k8s, values, workspaceName)
 	if err != nil {
-		log.Error().Err(err).Msg("Cannot create helm release")
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create HelmRelease: %w", err), true, true)
 	}
 
@@ -137,10 +128,10 @@ func getWorkspaceName(lc *kcpv1alpha1.LogicalCluster) string {
 	return ""
 }
 
-func applyReleaseWithValues(ctx context.Context, path string, k8sClient client.Client, values apiextensionsv1.JSON, orgName string) error {
+func applyReleaseWithValues(ctx context.Context, release string, k8sClient client.Client, values apiextensionsv1.JSON, orgName string) error {
 	log := logger.LoadLoggerFromContext(ctx)
 
-	obj, err := unstructuredFromFile(path, map[string]string{}, log)
+	obj, err := unstructuredFromString(release, map[string]string{}, log)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get unstructuredFromFile")
 	}
@@ -154,32 +145,29 @@ func applyReleaseWithValues(ctx context.Context, path string, k8sClient client.C
 
 	err = k8sClient.Patch(ctx, &obj, client.Apply, client.FieldOwner("security-operator"))
 	if err != nil {
-		return errors.Wrap(err, "Failed to apply manifest file: %s (%s/%s)", path, obj.GetKind(), obj.GetName())
+		return errors.Wrap(err, "Failed to apply manifest: (%s/%s)", obj.GetKind(), obj.GetName())
 	}
 	return nil
 }
 
-func unstructuredFromFile(path string, templateData map[string]string, log *logger.Logger) (unstructured.Unstructured, error) {
-	manifestBytes, err := os.ReadFile(path)
-	if err != nil {
-		return unstructured.Unstructured{}, errors.Wrap(err, "Failed to read file, pwd: %s", path)
-	}
+func unstructuredFromString(manifest string, templateData map[string]string, log *logger.Logger) (unstructured.Unstructured, error) {
+	manifestBytes := []byte(manifest)
 
 	res, err := ReplaceTemplate(templateData, manifestBytes)
 	if err != nil {
-		return unstructured.Unstructured{}, errors.Wrap(err, "Failed to replace template with path: %s", path)
+		return unstructured.Unstructured{}, errors.Wrap(err, "Failed to replace template")
 	}
 
 	var objMap map[string]interface{}
 	if err := yaml.Unmarshal(res, &objMap); err != nil {
-		return unstructured.Unstructured{}, errors.Wrap(err, "Failed to unmarshal YAML from template %s. Output:\n%s", path, string(res))
+		return unstructured.Unstructured{}, errors.Wrap(err, "Failed to unmarshal YAML from template. Output:\n%s", string(res))
 	}
 
 	log.Debug().Str("obj", fmt.Sprintf("%+v", objMap)).Msg("Unmarshalled object")
 
 	obj := unstructured.Unstructured{Object: objMap}
 
-	log.Debug().Str("file", path).Str("kind", obj.GetKind()).Str("name", obj.GetName()).Str("namespace", obj.GetNamespace()).Msg("Applying manifest")
+	log.Debug().Str("kind", obj.GetKind()).Str("name", obj.GetName()).Str("namespace", obj.GetNamespace()).Msg("Applying manifest")
 	return obj, err
 }
 
@@ -203,17 +191,17 @@ func ReplaceTemplate(templateData map[string]string, templateBytes []byte) ([]by
 	return result.Bytes(), nil
 }
 
-func applyManifestFromFileWithMergedValues(ctx context.Context, path string, k8sClient client.Client, templateData map[string]string) error {
+func applyManifestWithMergedValues(ctx context.Context, manifest string, k8sClient client.Client, templateData map[string]string) error {
 	log := logger.LoadLoggerFromContext(ctx)
 
-	obj, err := unstructuredFromFile(path, templateData, log)
+	obj, err := unstructuredFromString(manifest, templateData, log)
 	if err != nil {
 		return err
 	}
 
 	err = k8sClient.Patch(ctx, &obj, client.Apply, client.FieldOwner("security-operator"))
 	if err != nil {
-		return errors.Wrap(err, "Failed to apply manifest file: %s (%s/%s)", path, obj.GetKind(), obj.GetName())
+		return errors.Wrap(err, "Failed to apply manifest (%s/%s)", obj.GetKind(), obj.GetName())
 	}
 	return nil
 }

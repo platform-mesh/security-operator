@@ -7,7 +7,6 @@ import (
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -33,11 +32,7 @@ func (s *DeployTestSuite) SetupTest() {
 	s.clientMock = new(mocks.MockClient)
 	s.log, _ = logger.New(logger.DefaultConfig())
 
-	operatorCfg := config.Config{
-		WorkspaceDir: "../../",
-	}
-
-	s.testObj = NewRealmSubroutine(s.clientMock, operatorCfg)
+	s.testObj = NewRealmSubroutine(s.clientMock)
 }
 
 func (s *DeployTestSuite) Test_applyReleaseWithValues() {
@@ -71,7 +66,7 @@ func (s *DeployTestSuite) Test_applyReleaseWithValues() {
 		},
 	).Once()
 
-	err := applyReleaseWithValues(ctx, "../../manifests/organizationIDP/helmrelease.yaml", s.clientMock, apiextensionsv1.JSON{}, "test")
+	err := applyReleaseWithValues(ctx, helmRelease, s.clientMock, apiextensionsv1.JSON{}, "test")
 	s.Assert().NoError(err, "ApplyReleaseWithValues should not return an error")
 }
 
@@ -86,7 +81,7 @@ func (s *DeployTestSuite) Test_applyOciRepository() {
 		},
 	).Once()
 
-	err := applyManifestFromFileWithMergedValues(ctx, "../../manifests/organizationIDP/repository.yaml", s.clientMock, nil)
+	err := applyManifestWithMergedValues(ctx, repository, s.clientMock, nil)
 	s.Assert().NoError(err, "ApplyReleaseWithValues should not return an error")
 }
 
