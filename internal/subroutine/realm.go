@@ -81,8 +81,6 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 
 	realmName := getWorkspaceName(lc)
 
-	values := apiextensionsv1.JSON{}
-
 	patch := map[string]interface{}{
 		"crossplane": map[string]interface{}{
 			"realm": map[string]interface{}{
@@ -110,7 +108,7 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 		return ctrl.Result{}, nil
 	}
 
-	values.Raw = marshalledPatch
+	values := apiextensionsv1.JSON{Raw: marshalledPatch}
 
 	OCIpath := r.manifestsPath + "organizationIDP/repository.yaml"
 
