@@ -22,6 +22,14 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+var (
+	//go:embed manifests/organizationIdp/repository.yaml
+	repository string
+
+	//go:embed manifests/organizationIdp/helmrelease.yaml
+	helmRelease string
+)
+
 type realmSubroutine struct {
 	k8s client.Client
 }
@@ -31,12 +39,6 @@ func NewRealmSubroutine(k8s client.Client) *realmSubroutine {
 		k8s: k8s,
 	}
 }
-
-//go:embed manifests/organizationIdp/repository.yaml
-var repository string
-
-//go:embed manifests/organizationIdp/helmrelease.yaml
-var helmRelease string
 
 var _ lifecyclesubroutine.Subroutine = &realmSubroutine{}
 
@@ -48,7 +50,10 @@ func (r *realmSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 	log := logger.LoadLoggerFromContext(ctx)
 
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
-	realmName := getWorkspaceName(lc)
+	workspaceName := getWorkspaceName(lc)
+	if workspaceName == "" {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace path"), true, false)
+	}
 
 	ociObj, err := unstructuredFromString(repository, nil, log)
 	if err != nil {
@@ -62,12 +67,12 @@ func (r *realmSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to load HelmRelease  manifest: %w", err), true, true)
 	}
-	helmObj.SetName(realmName)
+	helmObj.SetName(workspaceName)
 	if err := r.k8s.Delete(ctx, &helmObj); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete HelmRelease: %w", err), true, true)
 	}
 
-	log.Info().Str("realm", realmName).Msg("Successfully finalized resources")
+	log.Info().Str("realm", workspaceName).Msg("Successfully finalized resources")
 	return ctrl.Result{}, nil
 }
 
@@ -76,7 +81,7 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 
 	workspaceName := getWorkspaceName(lc)
 	if workspaceName == "" {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get workspace path"), true, false)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace path"), true, false)
 	}
 
 	patch := map[string]interface{}{
@@ -102,7 +107,7 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 
 	marshalledPatch, err := json.Marshal(patch)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("cannot marshall patch map: %w", err), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to marshall patch map: %w", err), true, true)
 	}
 
 	values := apiextensionsv1.JSON{Raw: marshalledPatch}
