@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/platform-mesh/golang-commons/errors"
@@ -212,20 +213,34 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 	t.Run("Finalize - delete scenarios", func(t *testing.T) {
 		t.Parallel()
 		cases := []struct {
-			name       string
-			setupMocks func(m *mocks.MockClient)
-			expectErr  bool
+			name           string
+			setupMocks     func(m *mocks.MockClient)
+			expectErr      bool
+			expectedResult ctrl.Result
 		}{
-			{"OCI delete error", func(m *mocks.MockClient) {
-				m.EXPECT().Delete(mock.Anything, mock.Anything).Return(errors.New("failed to delete oci repository")).Once()
-			}, true},
-			{"HelmRelease delete error", func(m *mocks.MockClient) {
-				m.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Once()
-				m.EXPECT().Delete(mock.Anything, mock.Anything).Return(errors.New("failed to delete helmRelease")).Once()
-			}, true},
-			{"Both deletes succeed", func(m *mocks.MockClient) {
-				m.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Twice()
-			}, false},
+			{
+				"OCI delete error",
+				func(m *mocks.MockClient) {
+					m.EXPECT().Delete(mock.Anything, mock.Anything).Return(errors.New("failed to delete oci repository")).Once()
+				},
+				true,
+				ctrl.Result{},
+			},
+			{
+				"HelmRelease delete error",
+				func(m *mocks.MockClient) {
+					m.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Once()
+					m.EXPECT().Delete(mock.Anything, mock.Anything).Return(errors.New("failed to delete helmRelease")).Once()
+				},
+				true,
+				ctrl.Result{},
+			},
+			{
+				"Both deletes succeed",
+				func(m *mocks.MockClient) { m.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Twice() },
+				false,
+				ctrl.Result{RequeueAfter: 5 * time.Second},
+			},
 		}
 
 		for _, tc := range cases {
@@ -241,10 +256,11 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 				} else {
 					require.Nil(t, opErr)
 				}
-				require.Equal(t, ctrl.Result{}, res)
+				require.Equal(t, tc.expectedResult, res)
 			})
 		}
 	})
+
 }
 
 func TestReplaceTemplateAndUnstructured(t *testing.T) {
