@@ -6,7 +6,7 @@ import (
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	"github.com/kcp-dev/logicalcluster/v3" // lint-ignore:typecheck
+	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
