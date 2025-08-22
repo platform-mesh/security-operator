@@ -74,7 +74,8 @@ var initializerCmd = &cobra.Command{
 
 		inClusterClient, err := client.New(inClusterConfig, client.Options{Scheme: scheme})
 		if err != nil {
-			panic(err)
+			log.Error().Err(err).Msg("Failed to create in cluster client")
+			os.Exit(1)
 		}
 
 		if err := controller.NewLogicalClusterReconciler(log, mgrCfg, mgr.GetClient(), orgClient, appCfg, inClusterClient).SetupWithManager(mgr, defaultCfg, log); err != nil {

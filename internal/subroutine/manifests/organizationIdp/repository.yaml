@@ -5,7 +5,7 @@ metadata:
   namespace: default
 spec:
   interval: 5m
-  url: oci://ghcr.io/openmfp/helm-charts-priv/organization-idp/organization-idp
+  url: oci://ghcr.io/platform-mesh/helm-charts/organization-idp
   ref:
     semver: "0.1.0"
   secretRef:

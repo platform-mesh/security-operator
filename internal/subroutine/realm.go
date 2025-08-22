@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
+	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
@@ -73,7 +74,7 @@ func (r *realmSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 	}
 
 	log.Info().Str("realm", workspaceName).Msg("Successfully finalized resources")
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 }
 
 func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
@@ -111,13 +112,14 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 	}
 
 	values := apiextensionsv1.JSON{Raw: marshalledPatch}
+	releaseName := fmt.Sprintf("%s-idp", workspaceName)
 
 	err = applyManifestWithMergedValues(ctx, repository, r.k8s, nil)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create OCI repository: %w", err), true, true)
 	}
 
-	err = applyReleaseWithValues(ctx, helmRelease, r.k8s, values, workspaceName)
+	err = applyReleaseWithValues(ctx, helmRelease, r.k8s, values, releaseName)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create HelmRelease: %w", err), true, true)
 	}
@@ -133,16 +135,16 @@ func getWorkspaceName(lc *kcpv1alpha1.LogicalCluster) string {
 	return ""
 }
 
-func applyReleaseWithValues(ctx context.Context, release string, k8sClient client.Client, values apiextensionsv1.JSON, orgName string) error {
+func applyReleaseWithValues(ctx context.Context, release string, k8sClient client.Client, values apiextensionsv1.JSON, releaseName string) error {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	obj, err := unstructuredFromString(release, map[string]string{}, log)
 	if err != nil {
 		return errors.Wrap(err, "Failed to get unstructuredFromFile")
 	}
-	obj.SetName(orgName)
+	obj.SetName(releaseName)
 
-	if err := unstructured.SetNestedField(obj.Object, orgName, "spec", "releaseName"); err != nil {
+	if err := unstructured.SetNestedField(obj.Object, releaseName, "spec", "releaseName"); err != nil {
 		return errors.Wrap(err, "failed to set spec.releaseName")
 	}
 
