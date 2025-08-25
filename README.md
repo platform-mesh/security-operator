@@ -2,7 +2,7 @@
 > This Repository is under development and not ready for productive use. It is in an alpha stage. That means APIs and concepts may change on short notice including breaking changes or complete removal of apis.
 
 # platform-mesh - security-operator
-![Build Status](https://github.com/platform-mesh/security-operator/actions/workflows/pipeline.yml/badge.svg)
+![build status](https://github.com/platform-mesh/security-operator/actions/workflows/pipeline.yaml/badge.svg)
 
 ## Description
 The platform-mesh security-operator is the component responsible for security configuration. It automaticly configures and updates isolated authorization models for platform mesh utializing OpenFGA, KeyClock and KCP.
