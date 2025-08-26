@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
-	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
@@ -74,7 +73,7 @@ func (r *realmSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 	}
 
 	log.Info().Str("realm", workspaceName).Msg("Successfully finalized resources")
-	return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	return ctrl.Result{}, nil
 }
 
 func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {

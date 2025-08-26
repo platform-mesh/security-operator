@@ -4,7 +4,6 @@ import (
 	"context"
 	"strings"
 	"testing"
-	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/platform-mesh/golang-commons/errors"
@@ -239,7 +238,7 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 				"Both deletes succeed",
 				func(m *mocks.MockClient) { m.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Twice() },
 				false,
-				ctrl.Result{RequeueAfter: 5 * time.Second},
+				ctrl.Result{},
 			},
 		}
 
