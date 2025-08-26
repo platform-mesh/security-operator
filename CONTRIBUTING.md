@@ -29,36 +29,43 @@ To let tests run locally, run `go test ./...` in the root directory of the repos
 - kubectl version v1.11.3+.
 - Access to a Kubernetes v1.11.3+ cluster.
 
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
+### To Deploy in the local cluster
+**Run the platform-mesh locally in the cluster:**
 
-```sh
-make docker-build docker-push IMG=<some-registry>/security-operator:tag
+To deploy the platform to kubernetes locally, please refer to the [helm-charts](https://github.com/platform-mesh/helm-charts) repository. 
+
+**Build and push your image to the local kind cluster where the platform-mesh system is deployed:**
+
+For that you can or spot which version is currently being used in the cluster and execute next commands:
+
+```bash
+docker build -t <image name which is used in the cluster with the tag> .
+
+kind load docker-image <image name which is used in the cluster with the tag> --name=platform-mesh
 ```
+After it you need to restart security operator's pods and they will fetch a local image automaticly
 
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
+If you want to use another image name and tag use this approach
+
+```bash
+docker build -t security-operator:latest . && \
+kind load docker-image security-operator:latest --name=platform-mesh && \
+kubectl patch deployment platform-mesh-security-operator -n platform-mesh-system --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/imagePullPolicy", "value": "IfNotPresent"}]' && \
+kubectl patch deployment platform-mesh-security-operator -n platform-mesh-system --type='json' -p='[{"op": "replace", "path": "/spec/template/spec/containers/0/image", "value": "security-operator:latest"}]' && \
+kubectl rollout restart deployment platform-mesh-security-operator -n platform-mesh-system && \
+kubectl rollout status deployment platform-mesh-security-operator -n platform-mesh-system
+```
 
 **Install the CRDs into the cluster:**
 
-```sh
-make install
+```bash
+task install
 ```
-
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
-
-```sh
-make deploy IMG=<some-registry>/security-operator:tag
-```
-
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
 
 **Create instances of your solution**
 You can apply the samples (examples) from the config/sample:
 
-```sh
+```bash
 kubectl apply -k config/samples/
 ```
 
@@ -67,69 +74,33 @@ kubectl apply -k config/samples/
 ### To Uninstall
 **Delete the instances (CRs) from the cluster:**
 
-```sh
+```bash
 kubectl delete -k config/samples/
 ```
 
 **Delete the APIs(CRDs) from the cluster:**
 
-```sh
-make uninstall
+```bash
+task uninstall
 ```
 
-**UnDeploy the controller from the cluster:**
-
-```sh
-make undeploy
+## Useful commands:
+### Run linter
+```bash
+task lint
 ```
-
-## Project Distribution
-
-Following the options to release and provide this solution to the users.
-
-### By providing a bundle with all YAML files
-
-1. Build the installer for the image built and published in the registry:
-
-```sh
-make build-installer IMG=<some-registry>/security-operator:tag
+### Coverage check
+```bash
+task cover
 ```
-
-**NOTE:** The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without its
-dependencies.
-
-2. Using the installer
-
-Users can just run 'kubectl apply -f <URL for YAML BUNDLE>' to install
-the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/security-operator/<tag or branch>/dist/install.yaml
+### Run tests
+```bash
+task test
 ```
-
-### By providing a Helm Chart
-
-1. Build the chart using the optional helm plugin
-
-```sh
-kubebuilder edit --plugins=helm/v1-alpha
+### Check tests and linter
+```bash
+task validate
 ```
-
-2. See that a chart was generated under 'dist/chart', and users
-can obtain this solution from there.
-
-**NOTE:** If you change the project, you need to update the Helm Chart
-using the same command above to sync the latest changes. Furthermore,
-if you create webhooks, you need to use the above command with
-the '--force' flag and manually ensure that any custom configuration
-previously added to 'dist/chart/values.yaml' or 'dist/chart/manager/manager.yaml'
-is manually re-applied afterwards.
-
-**NOTE:** Run `make help` for more information on all potential `make` targets
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
 
 ## Issues
 We use GitHub issues to track bugs. Please ensure your description is

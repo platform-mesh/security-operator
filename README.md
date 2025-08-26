@@ -7,6 +7,12 @@
 ## Description
 The platform-mesh security-operator is the component responsible for security configuration. It automaticly configures and updates isolated authorization models for platform mesh utializing OpenFGA, KeyClock and KCP.
 
+It consists of 3 parts: initializer, generator and security-operator.
+- Initializer will be triggered when a new workspace with workspace type which extends "security" workspace type appears. It reconciles this new workspase and creates store in OpenFGA, add a new realm with a client, etc.
+- Generator reconciles apibinding resource from kcp and generates OpenFGA model for it
+- Security-operator reconciles store and authorization model resources from kcp
+
+
 ## Features
 - Stores, tupels and authorization models management in OpenFGA
 - Instantiation of Stores and authorization models resources in KCP
