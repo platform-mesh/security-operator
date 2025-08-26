@@ -19,7 +19,7 @@ It consists of 3 parts: initializer, generator and security-operator.
 - KeyClock realms and clients management in Keyclock
 - Instantiation of Realms and Clients resources in deployment cluster
 
-# Getting started
+## Getting started
 
 - For running and building the security-operator, please refer to the [CONTRIBUTING.md](CONTRIBUTING.md) file in this repository.
 - To deploy the security-operator to kubernetes, please refer to the [helm-charts](https://github.com/platform-mesh/helm-charts) repository. 
