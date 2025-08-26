@@ -30,6 +30,13 @@ require (
 )
 
 require (
+	github.com/evanphx/json-patch v5.9.11+incompatible // indirect
+	github.com/fluxcd/pkg/apis/acl v0.7.0 // indirect
+	github.com/fluxcd/pkg/apis/kustomize v1.10.0 // indirect
+	github.com/fluxcd/pkg/apis/meta v1.12.0 // indirect
+)
+
+require (
 	github.com/99designs/gqlgen v0.17.78 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
@@ -39,6 +46,8 @@ require (
 	github.com/emicklei/go-restful/v3 v3.12.1 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
+	github.com/fluxcd/helm-controller/api v1.3.0
+	github.com/fluxcd/source-controller/api v1.6.2
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.8.0 // indirect
 	github.com/getsentry/sentry-go v0.35.1 // indirect
@@ -118,6 +127,6 @@ require (
 	k8s.io/utils v0.0.0-20250820121507-0af2bda4dd1d // indirect
 	sigs.k8s.io/json v0.0.0-20241014173422-cfa47c3a1cc8 // indirect
 	sigs.k8s.io/randfill v1.0.0 // indirect
-	sigs.k8s.io/structured-merge-diff/v4 v4.6.0 // indirect
-	sigs.k8s.io/yaml v1.6.0 // indirect
+	sigs.k8s.io/structured-merge-diff/v4 v4.7.0 // indirect
+	sigs.k8s.io/yaml v1.6.0
 )
