@@ -16,7 +16,7 @@ require (
 	github.com/openfga/api/proto v0.0.0-20250814141243-c0b62b28b14d
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20250428093642-7aeebe78bbfe
 	github.com/platform-mesh/account-operator v0.1.26
-	github.com/platform-mesh/golang-commons v0.1.27
+	github.com/platform-mesh/golang-commons v0.1.28
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.11.1
@@ -111,7 +111,7 @@ require (
 	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/oauth2 v0.30.0 // indirect
+	golang.org/x/oauth2 v0.31.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/term v0.34.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
