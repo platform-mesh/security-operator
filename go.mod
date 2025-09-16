@@ -15,7 +15,7 @@ require (
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/openfga/api/proto v0.0.0-20250909173124-0ac19aac54f2
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20250428093642-7aeebe78bbfe
-	github.com/platform-mesh/account-operator v0.1.30
+	github.com/platform-mesh/account-operator v0.2.0
 	github.com/platform-mesh/golang-commons v0.1.32
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.21.0
