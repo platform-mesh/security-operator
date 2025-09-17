@@ -69,11 +69,9 @@ func (r *workspaceAuthSubroutine) createWorkspaceAuthConfiguration(ctx context.C
 					ClaimMappings: kcptenancyv1alphav1.ClaimMappings{
 						Groups: kcptenancyv1alphav1.PrefixedClaimOrExpression{
 							Claim:  "groups",
-							Prefix: nil,
 						},
 						Username: kcptenancyv1alphav1.PrefixedClaimOrExpression{
 							Claim:  "email",
-							Prefix: nil,
 						},
 					},
 				},
