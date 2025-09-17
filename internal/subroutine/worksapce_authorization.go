@@ -45,9 +45,7 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance lifecycl
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace path"), true, false)
 	}
 
-	authConfigName := fmt.Sprintf("%s-auth", workspaceName)
-
-	err := r.createWorkspaceAuthConfiguration(ctx, authConfigName)
+	err := r.createWorkspaceAuthConfiguration(ctx, workspaceName)
 	if err != nil {
 		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err), true, true)
 	}
