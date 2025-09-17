@@ -52,10 +52,30 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance lifecycl
 	return ctrl.Result{}, nil
 }
 
-func (r *workspaceAuthSubroutine) createWorkspaceAuthConfiguration(ctx context.Context, resourceName string) error {
-	obj := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: resourceName}}
-	//TODO configure spec.jwt section
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, obj, nil)
+func (r *workspaceAuthSubroutine) createWorkspaceAuthConfiguration(ctx context.Context, workspaceName string) error {
+	obj := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
+
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, obj, func() error {
+		obj.Spec = kcptenancyv1alphav1.WorkspaceAuthenticationConfigurationSpec{
+			JWT: []kcptenancyv1alphav1.JWTAuthenticator{
+				{
+					Issuer: kcptenancyv1alphav1.Issuer{
+						URL:                 fmt.Sprintf("https://portal.dev.local:8443/keycloak/realms/%s", workspaceName),
+						Audiences:           []string{workspaceName},
+						AudienceMatchPolicy: kcptenancyv1alphav1.AudienceMatchPolicyMatchAny,
+					},
+					ClaimMappings: kcptenancyv1alphav1.ClaimMappings{
+						Groups: kcptenancyv1alphav1.PrefixedClaimOrExpression{
+							Claim:  "groups",
+							Prefix: nil,
+						},
+					},
+				},
+			},
+		}
+
+		return nil
+	})
 	if err != nil {
 		return err
 	}
