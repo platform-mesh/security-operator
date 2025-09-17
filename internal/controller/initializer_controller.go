@@ -27,6 +27,7 @@ func NewLogicalClusterReconciler(log *logger.Logger, restCfg *rest.Config, cl, o
 			[]lifecyclesubroutine.Subroutine{
 				subroutine.NewWorkspaceInitializer(cl, orgClient, restCfg, cfg),
 				subroutine.NewRealmSubroutine(inClusterClient),
+				subroutine.NewWorkspaceAuthConfigurationSubroutine(cl),
 			},
 			"logicalcluster",
 			"LogicalClusterReconciler",
