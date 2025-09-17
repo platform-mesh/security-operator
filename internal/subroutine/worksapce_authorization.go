@@ -18,11 +18,13 @@ import (
 
 type workspaceAuthSubroutine struct {
 	client client.Client
+	baseDomain string
 }
 
-func NewWorkspaceAuthConfigurationSubroutine(client client.Client) *workspaceAuthSubroutine {
+func NewWorkspaceAuthConfigurationSubroutine(client client.Client, baseDomain string) *workspaceAuthSubroutine {
 	return &workspaceAuthSubroutine{
 		client: client,
+		baseDomain: baseDomain,
 	}
 }
 
@@ -44,7 +46,7 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance lifecycl
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace path"), true, false)
 	}
 
-	err := r.createWorkspaceAuthConfiguration(ctx, workspaceName)
+	err := r.createWorkspaceAuthConfiguration(ctx, workspaceName, r.baseDomain)
 	if err != nil {
 		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err), true, true)
 	}
@@ -52,7 +54,7 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance lifecycl
 	return ctrl.Result{}, nil
 }
 
-func (r *workspaceAuthSubroutine) createWorkspaceAuthConfiguration(ctx context.Context, workspaceName string) error {
+func (r *workspaceAuthSubroutine) createWorkspaceAuthConfiguration(ctx context.Context, workspaceName, baseDomain string) error {
 	obj := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
 
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, obj, func() error {
@@ -60,13 +62,17 @@ func (r *workspaceAuthSubroutine) createWorkspaceAuthConfiguration(ctx context.C
 			JWT: []kcptenancyv1alphav1.JWTAuthenticator{
 				{
 					Issuer: kcptenancyv1alphav1.Issuer{
-						URL:                 fmt.Sprintf("https://portal.dev.local:8443/keycloak/realms/%s", workspaceName),
+						URL:                 fmt.Sprintf("https://%s:8443/keycloak/realms/%s", baseDomain, workspaceName),
 						Audiences:           []string{workspaceName},
 						AudienceMatchPolicy: kcptenancyv1alphav1.AudienceMatchPolicyMatchAny,
 					},
 					ClaimMappings: kcptenancyv1alphav1.ClaimMappings{
 						Groups: kcptenancyv1alphav1.PrefixedClaimOrExpression{
 							Claim:  "groups",
+							Prefix: nil,
+						},
+						Username: kcptenancyv1alphav1.PrefixedClaimOrExpression{
+							Claim:  "email",
 							Prefix: nil,
 						},
 					},

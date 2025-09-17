@@ -26,7 +26,7 @@ func NewLogicalClusterReconciler(log *logger.Logger, restCfg *rest.Config, cl, o
 		lifecycle: lifecyclecontrollerruntime.NewLifecycleManager(
 			[]lifecyclesubroutine.Subroutine{
 				subroutine.NewWorkspaceInitializer(cl, orgClient, restCfg, cfg),
-				subroutine.NewWorkspaceAuthConfigurationSubroutine(cl),
+				subroutine.NewWorkspaceAuthConfigurationSubroutine(cl,cfg.BaseDomain),
 				subroutine.NewRealmSubroutine(inClusterClient, cfg.BaseDomain),
 			},
 			"logicalcluster",
