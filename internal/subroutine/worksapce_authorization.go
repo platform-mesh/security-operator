@@ -2,7 +2,6 @@ package subroutine
 
 import (
 	"context"
-	_ "embed"
 	"fmt"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
