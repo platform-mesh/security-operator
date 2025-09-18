@@ -9,6 +9,7 @@ import (
 	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
+	"github.com/platform-mesh/security-operator/internal/config"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,13 +19,13 @@ import (
 
 type workspaceAuthSubroutine struct {
 	client client.Client
-	baseDomain string
+	cfg    config.Config
 }
 
-func NewWorkspaceAuthConfigurationSubroutine(client client.Client, baseDomain string) *workspaceAuthSubroutine {
+func NewWorkspaceAuthConfigurationSubroutine(client client.Client, cfg config.Config) *workspaceAuthSubroutine {
 	return &workspaceAuthSubroutine{
 		client: client,
-		baseDomain: baseDomain,
+		cfg:    cfg,
 	}
 }
 
@@ -46,7 +47,7 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance lifecycl
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace path"), true, false)
 	}
 
-	err := r.createWorkspaceAuthConfiguration(ctx, workspaceName, r.baseDomain)
+	err := r.createWorkspaceAuthConfiguration(ctx, workspaceName, r.cfg.BaseDomain)
 	if err != nil {
 		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err), true, true)
 	}
@@ -67,10 +68,10 @@ func (r *workspaceAuthSubroutine) createWorkspaceAuthConfiguration(ctx context.C
 					},
 					ClaimMappings: kcptenancyv1alphav1.ClaimMappings{
 						Groups: kcptenancyv1alphav1.PrefixedClaimOrExpression{
-							Claim:  "groups",
+							Claim: r.cfg.GroupClaim,
 						},
 						Username: kcptenancyv1alphav1.PrefixedClaimOrExpression{
-							Claim:  "email",
+							Claim: r.cfg.UserClaim,
 						},
 					},
 				},
