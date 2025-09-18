@@ -62,7 +62,7 @@ func (r *workspaceAuthSubroutine) createWorkspaceAuthConfiguration(ctx context.C
 			JWT: []kcptenancyv1alphav1.JWTAuthenticator{
 				{
 					Issuer: kcptenancyv1alphav1.Issuer{
-						URL:                 fmt.Sprintf("https://%s:8443/keycloak/realms/%s", baseDomain, workspaceName),
+						URL:                 fmt.Sprintf("https://%s/keycloak/realms/%s", baseDomain, workspaceName),
 						Audiences:           []string{workspaceName},
 						AudienceMatchPolicy: kcptenancyv1alphav1.AudienceMatchPolicyMatchAny,
 					},
