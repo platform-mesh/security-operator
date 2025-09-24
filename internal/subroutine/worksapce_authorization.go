@@ -3,6 +3,7 @@ package subroutine
 import (
 	"context"
 	"fmt"
+	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	kcptenancyv1alphav1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
@@ -46,8 +47,11 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance lifecycl
 	if workspaceName == "" {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace path"), true, false)
 	}
-
-	err := r.createWorkspaceAuthConfiguration(ctx, workspaceName, r.cfg.BaseDomain)
+	//TODO use ctx after migrating to multi-cluster runtime
+	ctxWithTimeout,cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	err := r.createWorkspaceAuthConfiguration(ctxWithTimeout, workspaceName, r.cfg.BaseDomain)
 	if err != nil {
 		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err), true, true)
 	}
@@ -57,7 +61,6 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance lifecycl
 
 func (r *workspaceAuthSubroutine) createWorkspaceAuthConfiguration(ctx context.Context, workspaceName, baseDomain string) error {
 	obj := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
-
 	_, err := controllerutil.CreateOrUpdate(ctx, r.client, obj, func() error {
 		obj.Spec = kcptenancyv1alphav1.WorkspaceAuthenticationConfigurationSpec{
 			JWT: []kcptenancyv1alphav1.JWTAuthenticator{

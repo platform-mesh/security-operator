@@ -2,6 +2,8 @@ module github.com/platform-mesh/security-operator
 
 go 1.24.5
 
+replace sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.19.0-kcp.1
+
 replace (
 	k8s.io/api => github.com/kcp-dev/kubernetes/staging/src/k8s.io/api v0.0.0-20250903080753-82bf1892069b
 	k8s.io/apimachinery => github.com/kcp-dev/kubernetes/staging/src/k8s.io/apimachinery v0.0.0-20250903080753-82bf1892069b
@@ -33,12 +35,11 @@ replace (
 	k8s.io/sample-apiserver => github.com/kcp-dev/kubernetes/staging/src/k8s.io/sample-apiserver v0.0.0-20250903080753-82bf1892069b
 	k8s.io/sample-cli-plugin => github.com/kcp-dev/kubernetes/staging/src/k8s.io/sample-cli-plugin v0.0.0-20250903080753-82bf1892069b
 	k8s.io/sample-controller => github.com/kcp-dev/kubernetes/staging/src/k8s.io/sample-controller v0.0.0-20250903080753-82bf1892069b
-	sigs.k8s.io/controller-runtime => github.com/kcp-dev/controller-runtime v0.19.0-kcp.1
 )
 
 require (
 	github.com/go-logr/logr v1.4.3
-	github.com/kcp-dev/kcp/sdk v0.28.1-0.20250916082048-c4ec6adc94e5
+	github.com/kcp-dev/kcp/sdk v0.28.1-0.20250915073746-2b42b96efc54
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/openfga/api/proto v0.0.0-20250909173124-0ac19aac54f2
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20250428093642-7aeebe78bbfe

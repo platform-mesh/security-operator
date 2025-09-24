@@ -109,8 +109,8 @@ github.com/kcp-dev/apimachinery/v2 v2.0.1-0.20250728122101-adbf20db3e51 h1:l38RD
 github.com/kcp-dev/apimachinery/v2 v2.0.1-0.20250728122101-adbf20db3e51/go.mod h1:rF1jfvUfPjFXs+HV/LN1BtPzAz1bfjJOwVa+hAVfroQ=
 github.com/kcp-dev/controller-runtime v0.19.0-kcp.1 h1:mbCyVzWuJpg+pkzIkIKLltiOgOSiQ3bqWmHi2mftzgc=
 github.com/kcp-dev/controller-runtime v0.19.0-kcp.1/go.mod h1:jwK5sBnpu/xJJ+xdpSzzI0aM52E/EvF0uLF9bR61h/Y=
-github.com/kcp-dev/kcp/sdk v0.28.1-0.20250916082048-c4ec6adc94e5 h1:ADIGzVMQmkK0BUIpYZ3+NfL2PUBvhqGlVFVtNUKfZNQ=
-github.com/kcp-dev/kcp/sdk v0.28.1-0.20250916082048-c4ec6adc94e5/go.mod h1:aC2BPGPvy8QtkI2gQNH9NfW6xpfGIKZkR93gy9O02BE=
+github.com/kcp-dev/kcp/sdk v0.28.1-0.20250915073746-2b42b96efc54 h1:CUfnrqLukdY9a1KbZs0Lh0lzxeWOex5oZ+yEdHziNEs=
+github.com/kcp-dev/kcp/sdk v0.28.1-0.20250915073746-2b42b96efc54/go.mod h1:aC2BPGPvy8QtkI2gQNH9NfW6xpfGIKZkR93gy9O02BE=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/api v0.0.0-20250903080753-82bf1892069b h1:SAsTR0XUNZXsqwbUL8HlDYCKOLLsQShhXGv9fdG6Yok=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/api v0.0.0-20250903080753-82bf1892069b/go.mod h1:uiagPCm7MlCfQpIm2xwPTRf8727wbCZCMgHI9uHcMpg=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/apimachinery v0.0.0-20250903080753-82bf1892069b h1:tQ+jGfVfr308sUo47dLhl4ywPcneKjcVyNkviX0qXu0=
