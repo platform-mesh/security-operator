@@ -119,8 +119,8 @@ github.com/kcp-dev/kubernetes/staging/src/k8s.io/apiserver v0.0.0-20250816165010
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/apiserver v0.0.0-20250816165010-ffe1d7c8649b/go.mod h1:STCgTiD+xCCHsfLOPHn5sNVsyktakX/ctW3dMv3erh0=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/client-go v0.0.0-20250816165010-ffe1d7c8649b h1:kEieYK/XCUycPf5DCEUZNPvDVHr4ao+rxZvdOQXlMQk=
 github.com/kcp-dev/kubernetes/staging/src/k8s.io/client-go v0.0.0-20250816165010-ffe1d7c8649b/go.mod h1:omt22adyHpxAelVTfG1bssg+xoAUc+Cg+0CXn0Oaim0=
-github.com/kcp-dev/kubernetes/staging/src/k8s.io/component-base v0.0.0-20250903080753-82bf1892069b h1:F2J0FI8baFBZuMLATCW+8JT2lUOWOlygf+OwL3atqws=
-github.com/kcp-dev/kubernetes/staging/src/k8s.io/component-base v0.0.0-20250903080753-82bf1892069b/go.mod h1:Z+AmCbP/esJzSqF5Otj149NR+8fqJHWBgokGrRp0a1c=
+github.com/kcp-dev/kubernetes/staging/src/k8s.io/component-base v0.0.0-20250816165010-ffe1d7c8649b h1:OazHpbyl1+WvViAUEZw2PxMZNrd5LOPDD+bhnfL5cQM=
+github.com/kcp-dev/kubernetes/staging/src/k8s.io/component-base v0.0.0-20250816165010-ffe1d7c8649b/go.mod h1:Z+AmCbP/esJzSqF5Otj149NR+8fqJHWBgokGrRp0a1c=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5 h1:JbYakokb+5Uinz09oTXomSUJVQsqfxEvU4RyHUYxHOU=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5/go.mod h1:EWBUBxdr49fUB1cLMO4nOdBWmYifLbP1LfoL20KkXYY=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
