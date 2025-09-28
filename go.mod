@@ -27,7 +27,7 @@ replace (
 	k8s.io/kube-proxy => github.com/kcp-dev/kubernetes/staging/src/k8s.io/kube-proxy v0.0.0-20250816165010-ffe1d7c8649b
 	k8s.io/kube-scheduler => github.com/kcp-dev/kubernetes/staging/src/k8s.io/kube-scheduler v0.0.0-20250816165010-ffe1d7c8649b
 	k8s.io/kubectl => github.com/kcp-dev/kubernetes/staging/src/k8s.io/kubectl v0.0.0-20250816165010-ffe1d7c8649b
-	k8s.io/kubelet => github.com/kcp-dev/kubernetes/staging/src/k8s.io/kubelet v0.0.0-20250903080753-82bf1892069b
+	k8s.io/kubelet => github.com/kcp-dev/kubernetes/staging/src/k8s.io/kubelet v0.0.0-20250816165010-ffe1d7c8649b
 	k8s.io/kubernetes => github.com/kcp-dev/kubernetes v0.0.0-20250903080753-82bf1892069b
 	k8s.io/metrics => github.com/kcp-dev/kubernetes/staging/src/k8s.io/metrics v0.0.0-20250903080753-82bf1892069b
 	k8s.io/mount-utils => github.com/kcp-dev/kubernetes/staging/src/k8s.io/mount-utils v0.0.0-20250903080753-82bf1892069b
