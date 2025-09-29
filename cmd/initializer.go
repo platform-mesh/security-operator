@@ -66,19 +66,17 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// inClusterConfig, err := rest.InClusterConfig()
-		// if err != nil {
-		// 	log.Error().Err(err).Msg("Failed to create in cluster config")
-		// 	os.Exit(1)
-		// }
+		inClusterConfig, err := rest.InClusterConfig()
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create in cluster config")
+			os.Exit(1)
+		}
 
-		// inClusterClient, err := client.New(inClusterConfig, client.Options{Scheme: scheme})
-		// if err != nil {
-		// 	log.Error().Err(err).Msg("Failed to create in cluster client")
-		// 	os.Exit(1)
-		// }
-
-		var inClusterClient client.Client = nil
+		inClusterClient, err := client.New(inClusterConfig, client.Options{Scheme: scheme})
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create in cluster client")
+			os.Exit(1)
+		}
 
 		if err := controller.NewLogicalClusterReconciler(log, mgrCfg, mgr.GetClient(), orgClient, appCfg, inClusterClient).SetupWithManager(mgr, defaultCfg, log); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")
