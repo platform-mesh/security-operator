@@ -25,10 +25,11 @@ type workspaceAuthSubroutine struct {
 	cfg           config.Config
 }
 
-func NewWorkspaceAuthConfigurationSubroutine(client client.Client, cfg config.Config) *workspaceAuthSubroutine {
+func NewWorkspaceAuthConfigurationSubroutine(client client.Client, runtimeClient client.Client, cfg config.Config) *workspaceAuthSubroutine {
 	return &workspaceAuthSubroutine{
-		client: client,
-		cfg:    cfg,
+		client:        client,
+		runtimeClient: runtimeClient,
+		cfg:           cfg,
 	}
 }
 
