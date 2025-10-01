@@ -2,13 +2,11 @@ package cmd
 
 import (
 	"crypto/tls"
-	"fmt"
 	"os"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
-	//"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/initializingworkspaces"
 	"github.com/spf13/cobra"
@@ -55,11 +53,6 @@ var initializerCmd = &cobra.Command{
 			mgrOpts.LeaderElectionConfig = inClusterCfg
 		}
 
-		//initializingCfg := rest.CopyConfig(mgrCfg)
-		log.Println(fmt.Sprintf("base HOST --- %s", mgrCfg.Host))
-		// TODO change this to dynamic configuration
-		//initializingCfg.Host = "https://frontproxy-front-proxy:6443/services/initializingworkspaces/root:security"
-
 		provider, err := initializingworkspaces.New(mgrCfg, initializingworkspaces.Options{
 			InitializerName: "root:security",
 			Scheme:          mgrOpts.Scheme,
@@ -69,17 +62,11 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		//initializingCfg.Host = "https://frontproxy-front-proxy:6443/services/initializingworkspaces/root:root"
-
 		mgr, err := mcmanager.New(mgrCfg, provider, mgrOpts)
 		if err != nil {
 			setupLog.Error(err, "Failed to create manager")
 			os.Exit(1)
 		}
-		// mgr, err := ctrl.NewManager(opts.Config, opts.ManagerOpts)
-		// if err != nil {
-		// 	return nil, err
-		// }
 
 		runtimeScheme := runtime.NewScheme()
 		utilruntime.Must(sourcev1.AddToScheme(runtimeScheme))
@@ -90,21 +77,6 @@ var initializerCmd = &cobra.Command{
 			setupLog.Error(err, "Failed to create org client")
 			os.Exit(1)
 		}
-
-		// c, err := mgr.GetManager(context.Background(), "1lgaxdm72p6k8zce")
-		// if err != nil {
-		// 	setupLog.Error(err, "Failed to create org client")
-		// 	os.Exit(1)
-		// }
-
-		// cl, err := mgr.GetCluster(context.Background(), "1lgaxdm72p6k8zce")
-		// if err != nil {
-		// 	setupLog.Error(err, "Failed to create org client")
-		// 	os.Exit(1)
-		// }
-		// orgClient := cl.GetClient()
-
-		// setupLog.Info("org client host -- %s", cl.GetConfig().Host)
 
 		inClusterConfig, err := rest.InClusterConfig()
 		if err != nil {
