@@ -48,7 +48,7 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance lifecycl
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace path"), true, false)
 	}
 	//TODO use ctx after migrating to multi-cluster runtime
-	ctxWithTimeout,cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	
 	err := r.createWorkspaceAuthConfiguration(ctxWithTimeout, workspaceName, r.cfg.BaseDomain)

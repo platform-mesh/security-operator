@@ -11,6 +11,7 @@ import (
 	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
+	"github.com/kcp-dev/multicluster-provider/apiexport"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -23,8 +24,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
-	"sigs.k8s.io/controller-runtime/pkg/kcp"
+
+	// "sigs.k8s.io/controller-runtime/pkg/kcp"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshcontext "github.com/platform-mesh/golang-commons/context"
@@ -43,6 +46,7 @@ var (
 	scheme = runtime.NewScheme()
 )
 
+// TODO try to use multi-cluster runtime for client creation
 func logicalClusterClientFromKey(mgr ctrl.Manager, log *logger.Logger) subroutine.NewLogicalClusterClientFunc {
 	return func(clusterKey logicalcluster.Name) (client.Client, error) {
 		cfg := rest.CopyConfig(mgr.GetConfig())
@@ -110,9 +114,22 @@ var operatorCmd = &cobra.Command{
 			mgrOpts.LeaderElectionConfig = inClusterCfg
 		}
 
-		mgr, err := kcp.NewClusterAwareManager(cfg, mgrOpts)
+		if mgrOpts.Scheme == nil {
+			log.Error().Err(fmt.Errorf("scheme should not be nil")).Msg("scheme should not be nil")
+			return fmt.Errorf("scheme should not be nil")
+		}
+
+		provider, err := apiexport.New(cfg, apiexport.Options{
+			Scheme: mgrOpts.Scheme,
+		})
 		if err != nil {
-			log.Error().Err(err).Msg("unable to start manager")
+			setupLog.Error(err, "unable to construct cluster provider")
+			return err
+		}
+
+		mgr, err := mcmanager.New(cfg, provider, mgrOpts)
+		if err != nil {
+			setupLog.Error(err, "Failed to create manager")
 			return err
 		}
 
@@ -124,14 +141,14 @@ var operatorCmd = &cobra.Command{
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-		if err = controller.NewStoreReconciler(log, mgr.GetClient(), fga, logicalClusterClientFromKey(mgr, log)).
-			SetupWithManager(mgr, defaultCfg, log); err != nil {
+		if err = controller.NewStoreReconciler(log, mgr.GetLocalManager().GetClient(), fga, logicalClusterClientFromKey(mgr.GetLocalManager(), log), mgr).
+			SetupWithManager(mgr.GetLocalManager(), defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
 			return err
 		}
 		if err = controller.
-			NewAuthorizationModelReconciler(log, mgr.GetClient(), fga, logicalClusterClientFromKey(mgr, log)).
-			SetupWithManager(mgr, defaultCfg, log); err != nil {
+			NewAuthorizationModelReconciler(log, mgr.GetLocalManager().GetClient(), fga, logicalClusterClientFromKey(mgr.GetLocalManager(), log), mgr, provider).
+			SetupWithManager(mgr.GetLocalManager(), defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
 			return err
 		}

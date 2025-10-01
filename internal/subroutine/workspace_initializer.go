@@ -73,7 +73,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleru
 		ObjectMeta: metav1.ObjectMeta{Name: generateStoreName(lc)},
 	}
 	//TODO use ctx after migrating to multi-cluster runtime
-	ctxWithTimeout,cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	_, err := controllerutil.CreateOrUpdate(ctxWithTimeout, w.orgsClient, &store, func() error {

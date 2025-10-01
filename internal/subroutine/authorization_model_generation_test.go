@@ -41,7 +41,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 			binding: &kcpv1alpha1.APIBinding{
 				Spec: kcpv1alpha1.APIBindingSpec{Reference: kcpv1alpha1.BindingReference{Export: &kcpv1alpha1.ExportBindingReference{Name: "foo", Path: "bar"}}},
 			},
-			mockSetup: func(kcpClient *mocks.MockClient) {},
+			mockSetup:   func(kcpClient *mocks.MockClient) {},
 			expectError: true,
 		},
 		{
