@@ -13,11 +13,11 @@ import (
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
-	"github.com/platform-mesh/security-operator/internal/kontext"
 	"google.golang.org/protobuf/encoding/protojson"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
 
 const schemaVersion = "1.2"
@@ -50,12 +50,12 @@ type NewLogicalClusterClientFunc func(clusterKey logicalcluster.Name) (client.Cl
 
 func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store *v1alpha1.Store, lcCLientFunc NewLogicalClusterClientFunc) (v1alpha1.AuthorizationModelList, error) {
 
-	storeClusterKey, ok := kontext.ClusterFrom(ctx)
+	storeClusterKey, ok := mccontext.ClusterFrom(ctx)
 	if !ok {
 		return v1alpha1.AuthorizationModelList{}, fmt.Errorf("unable to get cluster key from context")
 	}
 
-	lcClient, err := lcCLientFunc(storeClusterKey)
+	lcClient, err := lcCLientFunc(logicalcluster.Name(storeClusterKey))
 	if err != nil {
 		return v1alpha1.AuthorizationModelList{}, err
 	}
@@ -68,7 +68,7 @@ func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store
 
 	storeWorkspacePath := lc.Annotations["kcp.io/cluster"]
 
-	allCtx := kontext.WithCluster(ctx, "")
+	allCtx := mccontext.WithCluster(ctx, "")
 	allAuthorizationModels := v1alpha1.AuthorizationModelList{}
 
 	if err := k8s.List(allCtx, &allAuthorizationModels); err != nil {

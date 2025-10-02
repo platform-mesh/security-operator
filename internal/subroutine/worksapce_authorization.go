@@ -50,7 +50,7 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance lifecycl
 	//TODO use ctx after migrating to multi-cluster runtime
 	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	err := r.createWorkspaceAuthConfiguration(ctxWithTimeout, workspaceName, r.cfg.BaseDomain)
 	if err != nil {
 		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err), true, true)

@@ -13,10 +13,10 @@ import (
 	"github.com/platform-mesh/golang-commons/fga/helpers"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
-	"github.com/platform-mesh/security-operator/internal/kontext"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
 
 type tupleSubroutine struct {
@@ -52,7 +52,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}
 
-		storeCtx := kontext.WithCluster(ctx, logicalcluster.Name(lc.Annotations[logicalcluster.AnnotationKey]))
+		storeCtx := mccontext.WithCluster(ctx, string(logicalcluster.Name(lc.Annotations[logicalcluster.AnnotationKey])))
 
 		var store v1alpha1.Store
 		err = t.k8s.Get(storeCtx, types.NamespacedName{
@@ -136,7 +136,7 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance lifecycleruntime
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}
 
-		storeCtx := kontext.WithCluster(ctx, logicalcluster.Name(lc.Annotations[logicalcluster.AnnotationKey]))
+		storeCtx := mccontext.WithCluster(ctx, string(logicalcluster.Name(lc.Annotations[logicalcluster.AnnotationKey])))
 
 		var store v1alpha1.Store
 		err = t.k8s.Get(storeCtx, types.NamespacedName{

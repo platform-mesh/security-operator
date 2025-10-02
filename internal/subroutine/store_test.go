@@ -8,7 +8,6 @@ import (
 	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
-	"github.com/platform-mesh/security-operator/internal/kontext"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
@@ -17,6 +16,7 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
 
 func TestGetName(t *testing.T) {
@@ -284,7 +284,7 @@ func TestFinalize(t *testing.T) {
 				return k8s, nil
 			})
 
-			ctx := kontext.WithCluster(context.Background(), logicalcluster.Name("a"))
+			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("a")))
 
 			_, err := subroutine.Finalize(ctx, test.store)
 			if test.expectError {

@@ -10,7 +10,6 @@ import (
 	language "github.com/openfga/language/pkg/go/transformer"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
-	"github.com/platform-mesh/security-operator/internal/kontext"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
@@ -20,6 +19,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
 
 var coreModule = `
@@ -327,8 +327,7 @@ func TestAuthorizationModelProcess(t *testing.T) {
 			subroutine := subroutine.NewAuthorizationModelSubroutine(fga, k8s, func(clusterKey logicalcluster.Name) (client.Client, error) {
 				return k8s, nil
 			})
-
-			ctx := kontext.WithCluster(context.Background(), logicalcluster.Name("a"))
+			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("a")))
 
 			_, err := subroutine.Process(ctx, test.store)
 			if test.expectError {

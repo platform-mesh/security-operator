@@ -6,6 +6,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
@@ -17,7 +18,6 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
-	"github.com/platform-mesh/security-operator/internal/kontext"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -47,8 +47,7 @@ func (r *StoreReconciler) Reconcile(ctx context.Context, req mcreconcile.Request
 		return ctrl.Result{}, err
 	}
 	clusterClient := cluster.GetClient()
-	//TODO use kontext from multi-cluster runtime as it suggested in Complete function
-	ctx = kontext.WithCluster(ctx, logicalcluster.Name(req.ClusterName))
+	// //TODO use kontext from multi-cluster runtime as it suggested in Complete function
 
 	lm := lifecyclecontrollerruntime.NewLifecycleManager(
 		[]lifecyclesubroutine.Subroutine{
@@ -58,16 +57,17 @@ func (r *StoreReconciler) Reconcile(ctx context.Context, req mcreconcile.Request
 		},
 		"store",
 		"StoreReconciler",
-		clusterClient,
+		cluster.GetClient(),
 		r.log,
-	)
-	return lm.Reconcile(ctx, req.Request, &corev1alpha1.Store{})
+	).WithConditionManagement()
+
+	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
+	return lm.Reconcile(ctxWithCluster, req.Request, &corev1alpha1.Store{})
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *StoreReconciler) SetupWithManager(mgr ctrl.Manager, cfg *platformeshconfig.CommonServiceConfig, log *logger.Logger) error { // coverage-ignore
 	builder := mcbuilder.ControllerManagedBy(r.mcMgr).For(&corev1alpha1.Store{})
-	//TODO check withCOnditionManager() because it had been used before
 	return builder.
 		Watches(
 			&corev1alpha1.AuthorizationModel{},
@@ -92,7 +92,6 @@ func (r *StoreReconciler) SetupWithManager(mgr ctrl.Manager, cfg *platformeshcon
 						NamespacedName: types.NamespacedName{
 							Name: model.Spec.StoreRef.Name,
 						},
-						//ClusterName: lc.Annotations["kcp.io/cluster"],
 					},
 				}
 			}),

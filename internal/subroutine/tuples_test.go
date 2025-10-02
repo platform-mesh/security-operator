@@ -7,7 +7,6 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
-	"github.com/platform-mesh/security-operator/internal/kontext"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
@@ -15,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
 
 func TestTupleGetName(t *testing.T) {
@@ -309,7 +309,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				return k8s, nil
 			})
 
-			ctx := kontext.WithCluster(context.Background(), logicalcluster.Name("a"))
+			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("a")))
 
 			_, err := subroutine.Process(ctx, test.store)
 			if test.expectError {
@@ -384,7 +384,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 				return k8s, nil
 			})
 
-			ctx := kontext.WithCluster(context.Background(), logicalcluster.Name("a"))
+			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("a")))
 
 			_, err := subroutine.Finalize(ctx, test.store)
 			if test.expectError {
