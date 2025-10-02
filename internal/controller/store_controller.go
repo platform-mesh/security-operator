@@ -3,19 +3,11 @@ package controller
 import (
 	"context"
 
-	// "k8s.io/apimachinery/pkg/types"
-
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
-
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/multicluster-runtime/pkg/handler"
-
-	// kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
@@ -27,6 +19,9 @@ import (
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/kontext"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/multicluster-runtime/pkg/handler"
 )
 
 // StoreReconciler reconciles a Store object
@@ -52,6 +47,7 @@ func (r *StoreReconciler) Reconcile(ctx context.Context, req mcreconcile.Request
 		return ctrl.Result{}, err
 	}
 	clusterClient := cluster.GetClient()
+	//TODO use kontext from multi-cluster runtime as it suggested in Complete function
 	ctx = kontext.WithCluster(ctx, logicalcluster.Name(req.ClusterName))
 
 	lm := lifecyclecontrollerruntime.NewLifecycleManager(
