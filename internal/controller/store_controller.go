@@ -47,7 +47,6 @@ func (r *StoreReconciler) Reconcile(ctx context.Context, req mcreconcile.Request
 		return ctrl.Result{}, err
 	}
 	clusterClient := cluster.GetClient()
-	// //TODO use kontext from multi-cluster runtime as it suggested in Complete function
 
 	lm := lifecyclecontrollerruntime.NewLifecycleManager(
 		[]lifecyclesubroutine.Subroutine{
