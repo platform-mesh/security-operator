@@ -5,7 +5,7 @@ import (
 
 	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/multicluster-provider/initializingworkspaces"
-	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/controllerruntime"
+	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
 	"k8s.io/client-go/rest"
@@ -23,16 +23,18 @@ type LogicalClusterReconciler struct {
 	mcMgr           mcmanager.Manager
 	provider        *initializingworkspaces.Provider
 	cfg             config.Config
+	restCfg         *rest.Config
 	log             *logger.Logger
 	inClusterClient client.Client
 	orgClient       client.Client
 }
 
-func NewLogicalClusterReconciler(log *logger.Logger, restCfg *rest.Config, cl, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mcMgr mcmanager.Manager, provider *initializingworkspaces.Provider) *LogicalClusterReconciler {
+func NewLogicalClusterReconciler(log *logger.Logger, restCfg *rest.Config, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mcMgr mcmanager.Manager, provider *initializingworkspaces.Provider) *LogicalClusterReconciler {
 	return &LogicalClusterReconciler{
 		mcMgr:           mcMgr,
 		provider:        provider,
 		cfg:             cfg,
+		restCfg:         restCfg,
 		log:             log,
 		inClusterClient: inClusterClient,
 		orgClient:       orgClient,
@@ -54,10 +56,10 @@ func (r *LogicalClusterReconciler) Reconcile(ctx context.Context, req mcreconcil
 		},
 		"logicalcluster",
 		"LogicalClusterReconciler",
-		clusterClient,
+		r.mcMgr,
 		r.log,
 	)
-	return lm.Reconcile(ctx, req.Request, &kcpcorev1alpha1.LogicalCluster{})
+	return lm.Reconcile(ctx, req, &kcpcorev1alpha1.LogicalCluster{})
 }
 func (r *LogicalClusterReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	err := mcbuilder.ControllerManagedBy(r.mcMgr).

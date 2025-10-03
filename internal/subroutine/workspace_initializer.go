@@ -3,23 +3,28 @@ package subroutine
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
-	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/logger"
+	"github.com/rs/zerolog/log"
 
 	"github.com/platform-mesh/golang-commons/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/kcp-dev/kcp/sdk/apis/tenancy/initialization"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
 )
@@ -62,6 +67,7 @@ func (w *workspaceInitializer) Finalizers() []string { return nil }
 func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" }
 
 func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	log := logger.LoadLoggerFromContext(ctx)
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
 
 	path, ok := lc.Annotations["kcp.io/path"]
@@ -72,11 +78,8 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleru
 	store := v1alpha1.Store{
 		ObjectMeta: metav1.ObjectMeta{Name: generateStoreName(lc)},
 	}
-	//TODO use ctx after migrating to multi-cluster runtime
-	ctxWithTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
 
-	_, err := controllerutil.CreateOrUpdate(ctxWithTimeout, w.orgsClient, &store, func() error {
+	_, err := controllerutil.CreateOrUpdate(ctx, w.orgsClient, &store, func() error {
 		store.Spec = v1alpha1.StoreSpec{
 			Tuples: []v1alpha1.Tuple{
 				{
@@ -105,9 +108,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleru
 	}
 
 	// Update accountInfo with storeid
-	wsCfg := rest.CopyConfig(w.restCfg)
-	wsCfg.Host = strings.ReplaceAll(wsCfg.Host, "/services/initializingworkspaces/root:security", "/clusters/"+path)
-	wsClient, err := client.New(wsCfg, client.Options{Scheme: w.cl.Scheme()})
+	wsClient, err := GetLogicalClusterClient(w.restCfg, w.cl.Scheme(), path)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to create client: %w", err), true, true)
 	}
@@ -115,7 +116,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleru
 	accountInfo := accountsv1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
 	}
-	_, err = controllerutil.CreateOrUpdate(ctxWithTimeout, wsClient, &accountInfo, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctx, wsClient, &accountInfo, func() error {
 		accountInfo.Spec.FGA.Store.Id = store.Status.StoreID
 		return nil
 	})
@@ -123,15 +124,19 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleru
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to create/update accountInfo: %w", err), true, true)
 	}
 
-	original := lc.DeepCopy()
-	lc.Status.Initializers = slices.DeleteFunc(lc.Status.Initializers, func(s kcpv1alpha1.LogicalClusterInitializer) bool {
-		return s == initializerName
-	})
+	initializer := kcpv1alpha1.LogicalClusterInitializer(initializerName)
 
-	err = w.cl.Status().Patch(ctx, lc, client.MergeFrom(original))
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to patch out initializers: %w", err), true, true)
+	if !slices.Contains(lc.Status.Initializers, initializer) {
+		log.Info().Msg("Initializer already absent, skipping patch")
+		return reconcile.Result{}, nil
 	}
+	patch := client.MergeFrom(lc.DeepCopy())
+
+	lc.Status.Initializers = initialization.EnsureInitializerAbsent(initializer, lc.Status.Initializers)
+	if err := w.cl.Status().Patch(ctx, lc, patch); err != nil {
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("unable to patch out initializers: %w", err), true, true)
+	}
+	log.Info().Msg(fmt.Sprintf("Removed initializer from LogicalCluster status, name %s,uuid %s", lc.Name, lc.UID))
 
 	return ctrl.Result{}, nil
 }
@@ -142,4 +147,22 @@ func generateStoreName(lc *kcpv1alpha1.LogicalCluster) string {
 		return pathElements[len(pathElements)-1]
 	}
 	return ""
+}
+
+func GetLogicalClusterClient(cfg *rest.Config, scheme *runtime.Scheme, clusterKey string) (client.Client, error) {
+	config := rest.CopyConfig(cfg)
+
+	parsed, err := url.Parse(config.Host)
+	if err != nil {
+		log.Error().Err(err).Msg("unable to parse host")
+		return nil, err
+	}
+
+	parsed.Path = fmt.Sprintf("/clusters/%s", clusterKey)
+
+	cfg.Host = parsed.String()
+
+	return client.New(config, client.Options{
+		Scheme: scheme,
+	})
 }

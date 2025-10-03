@@ -90,7 +90,7 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if err := controller.NewLogicalClusterReconciler(log, mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetClient(), orgClient, appCfg, inClusterClient, mgr, provider).SetupWithManager(mgr.GetLocalManager()); err != nil {
+		if err := controller.NewLogicalClusterReconciler(log, mgr.GetLocalManager().GetConfig(), orgClient, appCfg, inClusterClient, mgr, provider).SetupWithManager(mgr.GetLocalManager()); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")
 			os.Exit(1)
 		}
