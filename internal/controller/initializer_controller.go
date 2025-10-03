@@ -51,7 +51,7 @@ func (r *LogicalClusterReconciler) Reconcile(ctx context.Context, req mcreconcil
 	lm := lifecyclecontrollerruntime.NewLifecycleManager(
 		[]lifecyclesubroutine.Subroutine{
 			subroutine.NewWorkspaceInitializer(clusterClient, r.orgClient, cluster.GetConfig(), r.cfg),
-			subroutine.NewWorkspaceAuthConfigurationSubroutine(r.orgClient, r.cfg),
+			subroutine.NewWorkspaceAuthConfigurationSubroutine(r.orgClient,r.inClusterClient, r.cfg),
 			subroutine.NewRealmSubroutine(r.inClusterClient, r.cfg.BaseDomain),
 		},
 		"logicalcluster",

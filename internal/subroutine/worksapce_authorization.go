@@ -51,21 +51,16 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance lifecycl
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace path"), true, false)
 	}
 
-	err := r.createWorkspaceAuthConfiguration(ctx, workspaceName, r.cfg.BaseDomain)
-	if err != nil {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err), true, true)
-	}
-
 	var domainCASecret corev1.Secret
 	if r.cfg.DomainCALookup {
-		err := r.runtimeClient.Get(ctxWithTimeout, client.ObjectKey{Name: "domain-certificate-ca", Namespace: "platform-mesh-system"}, &domainCASecret)
+		err := r.runtimeClient.Get(ctx, client.ObjectKey{Name: "domain-certificate-ca", Namespace: "platform-mesh-system"}, &domainCASecret)
 		if err != nil {
 			return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get domain CA secret: %w", err), true, false)
 		}
 	}
 
 	obj := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
-	_, err := controllerutil.CreateOrUpdate(ctxWithTimeout, r.client, obj, func() error {
+	_, err := controllerutil.CreateOrUpdate(ctx, r.client, obj, func() error {
 		obj.Spec = kcptenancyv1alphav1.WorkspaceAuthenticationConfigurationSpec{
 			JWT: []kcptenancyv1alphav1.JWTAuthenticator{
 				{
