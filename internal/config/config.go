@@ -11,4 +11,5 @@ type Config struct {
 	BaseDomain                 string `mapstructure:"base-domain" default:"portal.dev.local"`
 	GroupClaim                 string `mapstructure:"group-claim" default:"groups"`
 	UserClaim                  string `mapstructure:"user-claim" default:"email"`
+	InitializerName            string `mapstructure:"initializer-name" default:"root:security"`
 }

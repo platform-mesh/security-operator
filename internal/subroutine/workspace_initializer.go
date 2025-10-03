@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/kcp-dev/kcp/sdk/apis/cache/initialization"
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
@@ -22,14 +23,10 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/kcp-dev/kcp/sdk/apis/tenancy/initialization"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
 )
-
-const initializerName = "root:security"
 
 func NewWorkspaceInitializer(cl, orgsClient client.Client, restCfg *rest.Config, cfg config.Config) *workspaceInitializer {
 	coreModulePath := cfg.CoreModulePath
@@ -41,20 +38,22 @@ func NewWorkspaceInitializer(cl, orgsClient client.Client, restCfg *rest.Config,
 	}
 
 	return &workspaceInitializer{
-		cl:         cl,
-		orgsClient: orgsClient,
-		restCfg:    restCfg,
-		coreModule: string(res),
+		cl:              cl,
+		orgsClient:      orgsClient,
+		restCfg:         restCfg,
+		coreModule:      string(res),
+		initializerName: cfg.InitializerName,
 	}
 }
 
 var _ lifecyclesubroutine.Subroutine = &workspaceInitializer{}
 
 type workspaceInitializer struct {
-	cl         client.Client
-	orgsClient client.Client
-	restCfg    *rest.Config
-	coreModule string
+	cl              client.Client
+	orgsClient      client.Client
+	restCfg         *rest.Config
+	coreModule      string
+	initializerName string
 }
 
 func (w *workspaceInitializer) Finalize(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
@@ -69,7 +68,6 @@ func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" 
 func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
-
 	path, ok := lc.Annotations["kcp.io/path"]
 	if !ok {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get workspace path"), true, false)
@@ -124,17 +122,17 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleru
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to create/update accountInfo: %w", err), true, true)
 	}
 
-	initializer := kcpv1alpha1.LogicalClusterInitializer(initializerName)
+	initializer := kcpv1alpha1.LogicalClusterInitializer(w.initializerName)
 
 	if !slices.Contains(lc.Status.Initializers, initializer) {
 		log.Info().Msg("Initializer already absent, skipping patch")
-		return reconcile.Result{}, nil
+		return ctrl.Result{}, nil
 	}
 	patch := client.MergeFrom(lc.DeepCopy())
 
 	lc.Status.Initializers = initialization.EnsureInitializerAbsent(initializer, lc.Status.Initializers)
 	if err := w.cl.Status().Patch(ctx, lc, patch); err != nil {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("unable to patch out initializers: %w", err), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to patch out initializers: %w", err), true, true)
 	}
 	log.Info().Msg(fmt.Sprintf("Removed initializer from LogicalCluster status, name %s,uuid %s", lc.Name, lc.UID))
 

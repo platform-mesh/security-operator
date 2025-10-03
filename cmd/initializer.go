@@ -54,7 +54,7 @@ var initializerCmd = &cobra.Command{
 		}
 
 		provider, err := initializingworkspaces.New(mgrCfg, initializingworkspaces.Options{
-			InitializerName: "root:security",
+			InitializerName: appCfg.InitializerName,
 			Scheme:          mgrOpts.Scheme,
 		})
 		if err != nil {
