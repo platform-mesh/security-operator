@@ -14,6 +14,7 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
+	"github.com/platform-mesh/security-operator/internal/config"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,12 +34,14 @@ var (
 type realmSubroutine struct {
 	k8s        client.Client
 	baseDomain string
+	cfg        *config.Config
 }
 
-func NewRealmSubroutine(k8s client.Client, baseDomain string) *realmSubroutine {
+func NewRealmSubroutine(k8s client.Client, cfg *config.Config, baseDomain string) *realmSubroutine {
 	return &realmSubroutine{
 		k8s,
 		baseDomain,
+		cfg,
 	}
 }
 
@@ -86,13 +89,13 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace path"), true, false)
 	}
 
-	patch := map[string]interface{}{
-		"crossplane": map[string]interface{}{
-			"realm": map[string]interface{}{
+	patch := map[string]any{
+		"crossplane": map[string]any{
+			"realm": map[string]any{
 				"name":        workspaceName,
 				"displayName": workspaceName,
 			},
-			"client": map[string]interface{}{
+			"client": map[string]any{
 				"name":        workspaceName,
 				"displayName": workspaceName,
 				"validRedirectUris": []string{
@@ -100,14 +103,39 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 				},
 			},
 		},
-		"keycloakConfig": map[string]interface{}{
-			"client": map[string]interface{}{
+		"keycloakConfig": map[string]any{
+			"client": map[string]any{
 				"name": workspaceName,
-				"targetSecret": map[string]interface{}{
+				"targetSecret": map[string]any{
 					"name": fmt.Sprintf("portal-client-secret-%s", workspaceName),
 				},
 			},
 		},
+	}
+
+	if r.cfg.IDP != nil {
+		err := unstructured.SetNestedField(patch, map[string]any{
+			"host":     r.cfg.IDP.SMTPServer,
+			"port":     r.cfg.IDP.SMTPPort,
+			"from":     r.cfg.IDP.FromAddress,
+			"ssl":      r.cfg.IDP.SSL,
+			"starttls": r.cfg.IDP.StartTLS,
+		}, "crossplane", "realm", "smtpServer")
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to set SMTP server config: %w", err), true, true)
+		}
+
+		err = unstructured.SetNestedField(patch, map[string]any{
+			"username": r.cfg.IDP.SMTPUser,
+			"passwordSecretRef": map[string]any{
+				"namespace": "platform-mesh-system",
+				"name":      r.cfg.IDP.SMTPPasswordSecretName,
+				"key":       r.cfg.IDP.SMTPPasswordSecretKey,
+			},
+		}, "crossplane", "realm", "smtpServer", "auth")
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to set SMTP auth config: %w", err), true, true)
+		}
 	}
 
 	marshalledPatch, err := json.Marshal(patch)
