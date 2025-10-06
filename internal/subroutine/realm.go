@@ -102,6 +102,9 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 					fmt.Sprintf("https://%s.%s/callback*", workspaceName, r.baseDomain),
 				},
 			},
+			"organization": map[string]any{
+				"domain": "example.com", // TODO: change
+			},
 		},
 		"keycloakConfig": map[string]any{
 			"client": map[string]any{
@@ -113,28 +116,30 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 		},
 	}
 
-	if r.cfg.IDP != nil {
-		err := unstructured.SetNestedField(patch, map[string]any{
+	if r.cfg.IDP.SMTPServer != "" {
+
+		smtpConfig := map[string]any{
 			"host":     r.cfg.IDP.SMTPServer,
-			"port":     r.cfg.IDP.SMTPPort,
+			"port":     fmt.Sprintf("%d", r.cfg.IDP.SMTPPort),
 			"from":     r.cfg.IDP.FromAddress,
 			"ssl":      r.cfg.IDP.SSL,
 			"starttls": r.cfg.IDP.StartTLS,
-		}, "crossplane", "realm", "smtpServer")
-		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to set SMTP server config: %w", err), true, true)
 		}
 
-		err = unstructured.SetNestedField(patch, map[string]any{
-			"username": r.cfg.IDP.SMTPUser,
-			"passwordSecretRef": map[string]any{
-				"namespace": "platform-mesh-system",
-				"name":      r.cfg.IDP.SMTPPasswordSecretName,
-				"key":       r.cfg.IDP.SMTPPasswordSecretKey,
-			},
-		}, "crossplane", "realm", "smtpServer", "auth")
+		if r.cfg.IDP.SMTPUser != "" {
+			smtpConfig["auth"] = map[string]any{
+				"username": r.cfg.IDP.SMTPUser,
+				"passwordSecretRef": map[string]any{
+					"namespace": "platform-mesh-system",
+					"name":      r.cfg.IDP.SMTPPasswordSecretName,
+					"key":       r.cfg.IDP.SMTPPasswordSecretKey,
+				},
+			}
+		}
+
+		err := unstructured.SetNestedField(patch, []any{smtpConfig}, "crossplane", "realm", "smtpConfig")
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to set SMTP auth config: %w", err), true, true)
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to set SMTP server config: %w", err), true, true)
 		}
 	}
 

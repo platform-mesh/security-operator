@@ -12,7 +12,7 @@ type Config struct {
 	GroupClaim                 string `mapstructure:"group-claim" default:"groups"`
 	UserClaim                  string `mapstructure:"user-claim" default:"email"`
 	DomainCALookup             bool   `mapstructure:"domain-ca-lookup" default:"false"`
-	IDP                        *struct {
+	IDP                        struct {
 		// SMTP settings
 		SMTPServer  string `mapstructure:"idp-smtp-server"`
 		SMTPPort    int    `mapstructure:"idp-smtp-port"`
