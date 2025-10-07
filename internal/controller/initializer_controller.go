@@ -4,12 +4,14 @@ import (
 	"context"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
 	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
@@ -41,6 +43,6 @@ func (r *LogicalClusterReconciler) Reconcile(ctx context.Context, req mcreconcil
 	return r.lifecycle.Reconcile(ctx, req, &kcpcorev1alpha1.LogicalCluster{})
 }
 
-func (r *LogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager) error {
-	return r.lifecycle.SetupWithManager(mgr, 1, "LogicalCluster", &kcpcorev1alpha1.LogicalCluster{}, "", r, r.log, nil)
+func (r *LogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
+	return r.lifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "LogicalCluster", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r, r.log, evp...)
 }
