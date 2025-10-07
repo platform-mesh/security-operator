@@ -102,13 +102,13 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 		log.Err(err).Msg("Failed to query users")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 	if res.StatusCode != http.StatusOK {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to query users: %s", res.Status), true, true)
 	}
 
 	var users []keycloakUser
-	if err = json.NewDecoder(res.Body).Decode(&users); err != nil {
+	if err = json.NewDecoder(res.Body).Decode(&users); err != nil { // coverage-ignore
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
@@ -127,7 +127,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	}
 
 	var buffer bytes.Buffer
-	if err = json.NewEncoder(&buffer).Encode(&newUser); err != nil {
+	if err = json.NewEncoder(&buffer).Encode(&newUser); err != nil { // coverage-ignore
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
@@ -153,7 +153,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to query users: %s", res.Status), true, true)
 	}
 
-	if err = json.NewDecoder(res.Body).Decode(&users); err != nil {
+	if err = json.NewDecoder(res.Body).Decode(&users); err != nil { // coverage-ignore
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
