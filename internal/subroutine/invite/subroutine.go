@@ -1,0 +1,189 @@
+package invite
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/url"
+	"os"
+
+	"github.com/coreos/go-oidc"
+	corev1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
+	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/errors"
+	"github.com/platform-mesh/golang-commons/logger"
+	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/config"
+	"golang.org/x/oauth2"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+const (
+	RequiredActionVerifyEmail    string = "VERIFY_EMAIL"
+	RequiredActionUpdatePassword string = "UPDATE_PASSWORD"
+)
+
+type subroutine struct {
+	keycloakBaseURL string
+	keycloak        *http.Client
+	cl              client.Client
+}
+
+type keycloakUser struct {
+	ID              string   `json:"id,omitempty"`
+	Email           string   `json:"email,omitempty"`
+	RequiredActions []string `json:"requiredActions,omitempty"`
+	Enabled         bool     `json:"enabled,omitempty"`
+}
+
+// TODO: figure out a good context to pass
+func New(cfg *config.Config, cl client.Client) (*subroutine, error) {
+
+	provider, err := oidc.NewProvider(context.TODO(), fmt.Sprintf("%s/realms/master", cfg.Invite.KeycloakBaseURL))
+	if err != nil {
+		return nil, err
+	}
+
+	config := oauth2.Config{
+		ClientID: cfg.Invite.KeycloakClientID,
+		Endpoint: provider.Endpoint(),
+	}
+
+	pwd, err := os.ReadFile(cfg.Invite.KeycloakPasswordFile)
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := config.PasswordCredentialsToken(context.TODO(), cfg.Invite.KeycloakUser, string(pwd))
+	if err != nil {
+		return nil, err
+	}
+
+	return &subroutine{
+		keycloakBaseURL: cfg.Invite.KeycloakBaseURL,
+		keycloak:        config.Client(context.TODO(), token),
+		cl:              cl,
+	}, nil
+}
+
+// Finalize implements subroutine.Subroutine.
+func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	return ctrl.Result{}, nil
+}
+
+// Finalizers implements subroutine.Subroutine.
+func (s *subroutine) Finalizers() []string { return []string{} }
+
+// GetName implements subroutine.Subroutine.
+func (s *subroutine) GetName() string { return "Invite" }
+
+// Process implements subroutine.Subroutine.
+func (s *subroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	invite := instance.(*v1alpha1.Invite)
+	log := logger.LoadLoggerFromContext(ctx)
+
+	log.Debug().Str("email", invite.Spec.Email).Str("role", invite.Spec.Role).Msg("Processing invite")
+
+	v := url.Values{
+		"email":               {invite.Spec.Email},
+		"max":                 {"1"},
+		"briefRepresentation": {"true"},
+	}
+
+	var accountInfo corev1alpha1.AccountInfo
+	if err := s.cl.Get(ctx, client.ObjectKey{Name: "account"}, &accountInfo); err != nil {
+		log.Err(err).Msg("Failed to get AccountInfo")
+		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+	}
+
+	realm := accountInfo.Spec.Organization.Name
+
+	res, err := s.keycloak.Get(fmt.Sprintf("%s/admin/realms/%s/users?%s", s.keycloakBaseURL, realm, v.Encode()))
+	if err != nil {
+		log.Err(err).Msg("Failed to query users")
+		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to query users: %s", res.Status), true, true)
+	}
+
+	var users []keycloakUser
+	if err = json.NewDecoder(res.Body).Decode(&users); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+
+	if len(users) != 0 {
+		log.Info().Str("email", invite.Spec.Email).Msg("User already exists, skipping invite")
+		return ctrl.Result{}, nil
+	}
+
+	log.Info().Str("email", invite.Spec.Email).Msg("User does not exist, creating user and sending invite")
+
+	// Create user
+	newUser := keycloakUser{
+		Email:           invite.Spec.Email,
+		RequiredActions: []string{RequiredActionUpdatePassword, RequiredActionVerifyEmail},
+		Enabled:         true,
+	}
+
+	var buffer bytes.Buffer
+	if err = json.NewEncoder(&buffer).Encode(&newUser); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+
+	res, err = s.keycloak.Post(fmt.Sprintf("%s/admin/realms/%s/users", s.keycloakBaseURL, realm), "application/json", &buffer)
+	if err != nil {
+		log.Err(err).Msg("Failed to create user")
+		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusCreated {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create user: %s", res.Status), true, true)
+	}
+
+	res, err = s.keycloak.Get(fmt.Sprintf("%s/admin/realms/%s/users?%s", s.keycloakBaseURL, realm, v.Encode()))
+	if err != nil {
+		log.Err(err).Msg("Failed to query users")
+		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to query users: %s", res.Status), true, true)
+	}
+
+	if err = json.NewDecoder(res.Body).Decode(&users); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+
+	newUser = users[0]
+
+	log.Debug().Str("email", invite.Spec.Email).Str("id", newUser.ID).Msg("User created")
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/admin/realms/%s/users/%s/execute-actions-email", s.keycloakBaseURL, realm, newUser.ID), http.NoBody)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+
+	res, err = s.keycloak.Do(req)
+	if err != nil {
+		log.Err(err).Msg("Failed to send invite email")
+		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusNoContent {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to send invite email: %s", res.Status), true, true)
+	}
+
+	log.Info().Str("email", invite.Spec.Email).Msg("User created and invite sent")
+
+	return ctrl.Result{}, nil
+}
+
+var _ lifecyclesubroutine.Subroutine = &subroutine{}

@@ -38,6 +38,7 @@ replace (
 )
 
 require (
+	github.com/coreos/go-oidc v2.4.0+incompatible
 	github.com/go-logr/logr v1.4.3
 	github.com/kcp-dev/kcp/sdk v0.28.1-0.20250915073746-2b42b96efc54
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
@@ -62,7 +63,9 @@ require (
 	github.com/fluxcd/pkg/apis/acl v0.7.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.10.0 // indirect
 	github.com/fluxcd/pkg/apis/meta v1.12.0 // indirect
+	github.com/pquerna/cachecontrol v0.2.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	gopkg.in/go-jose/go-jose.v2 v2.6.3 // indirect
 )
 
 require (
@@ -137,7 +140,7 @@ require (
 	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/net v0.43.0 // indirect
-	golang.org/x/oauth2 v0.31.0 // indirect
+	golang.org/x/oauth2 v0.31.0
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/term v0.34.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
