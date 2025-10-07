@@ -85,7 +85,8 @@ func TestSubroutineProcess(t *testing.T) {
 				mux.HandleFunc("GET /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
-					_ = json.NewEncoder(w).Encode(&users)
+					err := json.NewEncoder(w).Encode(&users)
+					assert.NoError(t, err)
 				})
 				mux.HandleFunc("POST /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
