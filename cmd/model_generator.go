@@ -81,8 +81,8 @@ var modelGeneratorCmd = &cobra.Command{
 			return err
 		}
 
-		if err := controller.NewAPIBindingReconciler(mgr.GetLocalManager().GetClient(), log, logicalClusterClientFromKey(mgr.GetLocalManager(), log), mgr, provider).
-			SetupWithManager(mgr.GetLocalManager(), log, defaultCfg); err != nil {
+		if err := controller.NewAPIBindingReconciler(log, mgr).
+			SetupWithManager(mgr, defaultCfg); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Resource")
 			return err
 		}
@@ -95,6 +95,12 @@ var modelGeneratorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("unable to set up ready check")
 			return err
 		}
+
+		go func() {
+			if err := provider.Run(ctx, mgr); err != nil {
+				log.Fatal().Err(err).Msg("unable to run provider")
+			}
+		}()
 
 		setupLog.Info("starting manager")
 		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
