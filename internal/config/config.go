@@ -1,5 +1,12 @@
 package config
 
+type InviteConfig struct {
+	KeycloakBaseURL      string `mapstructure:"invite-keycloak-base-url"`
+	KeycloakClientID     string `mapstructure:"invite-keycloak-client-id" default:"admin-cli"`
+	KeycloakUser         string `mapstructure:"invite-keycloak-user" default:"keycloak-admin"`
+	KeycloakPasswordFile string `mapstructure:"invite-keycloak-password-file" default:"/var/run/secrets/keycloak/password"`
+}
+
 // Config struct to hold the app config
 type Config struct {
 	FGA struct {
@@ -27,10 +34,5 @@ type Config struct {
 		SMTPPasswordSecretName string `mapstructure:"idp-smtp-password-secret-name"`
 		SMTPPasswordSecretKey  string `mapstructure:"idp-smtp-password-secret-key" default:"password"`
 	} `mapstructure:",squash"`
-	Invite struct {
-		KeycloakBaseURL      string `mapstructure:"invite-keycloak-base-url"`
-		KeycloakClientID     string `mapstructure:"invite-keycloak-client-id" default:"admin-cli"`
-		KeycloakUser         string `mapstructure:"invite-keycloak-user" default:"keycloak-admin"`
-		KeycloakPasswordFile string `mapstructure:"invite-keycloak-password-file" default:"/var/run/secrets/keycloak/password"`
-	} `mapstructure:",squash"`
+	Invite InviteConfig `mapstructure:",squash"`
 }

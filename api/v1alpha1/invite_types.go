@@ -8,7 +8,6 @@ import (
 // InviteSpec defines the desired state of Invite
 type InviteSpec struct {
 	Email string `json:"email"`
-	Role  string `json:"role,omitempty"`
 }
 
 // InviteStatus defines the observed state of Invite.

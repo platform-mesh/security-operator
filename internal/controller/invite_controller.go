@@ -2,6 +2,7 @@ package controller // coverage-ignore
 
 import (
 	"context"
+	"os"
 
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/controllerruntime"
@@ -19,8 +20,13 @@ type InviteReconciler struct {
 	lifecycle *lifecyclecontrollerruntime.LifecycleManager
 }
 
-func NewInviteReconciler(cl client.Client, cfg *config.Config, log *logger.Logger) *InviteReconciler {
-	inviteSubroutine, err := invite.New(cfg, cl)
+func NewInviteReconciler(ctx context.Context, cl client.Client, cfg *config.Config, log *logger.Logger) *InviteReconciler {
+	pwd, err := os.ReadFile(cfg.Invite.KeycloakPasswordFile)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to read keycloak password file")
+	}
+
+	inviteSubroutine, err := invite.New(ctx, cfg, cl, string(pwd))
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create invite subroutine")
 	}

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"os"
 
 	"github.com/coreos/go-oidc"
 	corev1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
@@ -40,10 +39,13 @@ type keycloakUser struct {
 	Enabled         bool     `json:"enabled,omitempty"`
 }
 
-// TODO: figure out a good context to pass
-func New(cfg *config.Config, cl client.Client) (*subroutine, error) {
+func New(ctx context.Context, cfg *config.Config, cl client.Client, pwd string) (*subroutine, error) {
+	s := &subroutine{
+		keycloakBaseURL: cfg.Invite.KeycloakBaseURL,
+		cl:              cl,
+	}
 
-	provider, err := oidc.NewProvider(context.TODO(), fmt.Sprintf("%s/realms/master", cfg.Invite.KeycloakBaseURL))
+	provider, err := oidc.NewProvider(ctx, fmt.Sprintf("%s/realms/master", cfg.Invite.KeycloakBaseURL))
 	if err != nil {
 		return nil, err
 	}
@@ -53,21 +55,14 @@ func New(cfg *config.Config, cl client.Client) (*subroutine, error) {
 		Endpoint: provider.Endpoint(),
 	}
 
-	pwd, err := os.ReadFile(cfg.Invite.KeycloakPasswordFile)
+	token, err := config.PasswordCredentialsToken(ctx, cfg.Invite.KeycloakUser, pwd)
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := config.PasswordCredentialsToken(context.TODO(), cfg.Invite.KeycloakUser, string(pwd))
-	if err != nil {
-		return nil, err
-	}
+	s.keycloak = config.Client(ctx, token)
 
-	return &subroutine{
-		keycloakBaseURL: cfg.Invite.KeycloakBaseURL,
-		keycloak:        config.Client(context.TODO(), token),
-		cl:              cl,
-	}, nil
+	return s, nil
 }
 
 // Finalize implements subroutine.Subroutine.
@@ -86,7 +81,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	invite := instance.(*v1alpha1.Invite)
 	log := logger.LoadLoggerFromContext(ctx)
 
-	log.Debug().Str("email", invite.Spec.Email).Str("role", invite.Spec.Role).Msg("Processing invite")
+	log.Debug().Str("email", invite.Spec.Email).Msg("Processing invite")
 
 	v := url.Values{
 		"email":               {invite.Spec.Email},
@@ -103,7 +98,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	realm := accountInfo.Spec.Organization.Name
 
 	res, err := s.keycloak.Get(fmt.Sprintf("%s/admin/realms/%s/users?%s", s.keycloakBaseURL, realm, v.Encode()))
-	if err != nil {
+	if err != nil { // coverage-ignore
 		log.Err(err).Msg("Failed to query users")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
@@ -137,22 +132,23 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	}
 
 	res, err = s.keycloak.Post(fmt.Sprintf("%s/admin/realms/%s/users", s.keycloakBaseURL, realm), "application/json", &buffer)
-	if err != nil {
+	if err != nil { // coverage-ignore
 		log.Err(err).Msg("Failed to create user")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusCreated {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create user: %s", res.Status), true, true)
 	}
 
 	res, err = s.keycloak.Get(fmt.Sprintf("%s/admin/realms/%s/users?%s", s.keycloakBaseURL, realm, v.Encode()))
-	if err != nil {
+	if err != nil { // coverage-ignore
 		log.Err(err).Msg("Failed to query users")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
+
 	if res.StatusCode != http.StatusOK {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to query users: %s", res.Status), true, true)
 	}
@@ -171,11 +167,11 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	}
 
 	res, err = s.keycloak.Do(req)
-	if err != nil {
+	if err != nil { // coverage-ignore
 		log.Err(err).Msg("Failed to send invite email")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusNoContent {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to send invite email: %s", res.Status), true, true)

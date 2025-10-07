@@ -41,8 +41,6 @@ spec:
             properties:
               email:
                 type: string
-              role:
-                type: string
             required:
             - email
             type: object
