@@ -40,10 +40,6 @@ type keycloakUser struct {
 }
 
 func New(ctx context.Context, cfg *config.Config, cl client.Client, pwd string) (*subroutine, error) {
-	s := &subroutine{
-		keycloakBaseURL: cfg.Invite.KeycloakBaseURL,
-		cl:              cl,
-	}
 
 	provider, err := oidc.NewProvider(ctx, fmt.Sprintf("%s/realms/master", cfg.Invite.KeycloakBaseURL))
 	if err != nil {
@@ -60,9 +56,11 @@ func New(ctx context.Context, cfg *config.Config, cl client.Client, pwd string) 
 		return nil, err
 	}
 
-	s.keycloak = config.Client(ctx, token)
-
-	return s, nil
+	return &subroutine{
+		keycloakBaseURL: cfg.Invite.KeycloakBaseURL,
+		cl:              cl,
+		keycloak:        config.Client(ctx, token),
+	}, nil
 }
 
 // Finalize implements subroutine.Subroutine.

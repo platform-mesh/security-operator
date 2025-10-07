@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/oauth2"
 	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -227,4 +228,28 @@ func TestSubroutineProcess(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestHelperFunctions(t *testing.T) {
+	mux := http.NewServeMux()
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	configureOIDCProvider(t, mux, srv.URL)
+	ctx := context.WithValue(t.Context(), oauth2.HTTPClient, srv.Client())
+
+	s, err := invite.New(ctx, &config.Config{
+		Invite: config.InviteConfig{
+			KeycloakBaseURL:  srv.URL,
+			KeycloakClientID: "admin-cli",
+		},
+	}, nil, "password")
+	assert.NoError(t, err)
+
+	assert.Equal(t, "Invite", s.GetName())
+	assert.Equal(t, []string{}, s.Finalizers())
+
+	res, finalizerErr := s.Finalize(ctx, &v1alpha1.Invite{})
+	assert.Nil(t, finalizerErr)
+	assert.Equal(t, ctrl.Result{}, res)
 }
