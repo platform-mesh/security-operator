@@ -9,6 +9,7 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/initializingworkspaces"
+	pmcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -26,6 +27,8 @@ var initializerCmd = &cobra.Command{
 	Use:   "initializer",
 	Short: "FGA initializer for the organization workspacetype",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		ctx, _, shutdown := pmcontext.StartContext(log, appCfg, defaultCfg.ShutdownTimeout)
+		defer shutdown()
 
 		mgrCfg := ctrl.GetConfigOrDie()
 
@@ -90,7 +93,8 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if err := controller.NewLogicalClusterReconciler(log, mgr.GetLocalManager().GetConfig(), orgClient, appCfg, inClusterClient, mgr, provider).SetupWithManager(mgr.GetLocalManager()); err != nil {
+		if err := controller.NewLogicalClusterReconciler(log, orgClient, appCfg, inClusterClient, mgr).
+			SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")
 			os.Exit(1)
 		}
@@ -103,6 +107,12 @@ var initializerCmd = &cobra.Command{
 			setupLog.Error(err, "unable to set up ready check")
 			os.Exit(1)
 		}
+
+		go func() {
+			if err := provider.Run(ctx, mgr); err != nil {
+				log.Fatal().Err(err).Msg("unable to run provider")
+			}
+		}()
 
 		setupLog.Info("starting manager")
 
