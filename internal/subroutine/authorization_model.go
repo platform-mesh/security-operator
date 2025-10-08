@@ -18,20 +18,21 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 const schemaVersion = "1.2"
 
 type authorizationModelSubroutine struct {
 	fga          openfgav1.OpenFGAServiceClient
-	k8s          client.Client
+	mgr          mcmanager.Manager
 	lcClientFunc NewLogicalClusterClientFunc
 }
 
-func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, k8s client.Client, lcClientFunc NewLogicalClusterClientFunc) *authorizationModelSubroutine {
+func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, lcClientFunc NewLogicalClusterClientFunc) *authorizationModelSubroutine {
 	return &authorizationModelSubroutine{
 		fga:          fga,
-		k8s:          k8s,
+		mgr:          mgr,
 		lcClientFunc: lcClientFunc,
 	}
 }
@@ -91,7 +92,12 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 	log := logger.LoadLoggerFromContext(ctx)
 	store := instance.(*v1alpha1.Store)
 
-	extendingModules, err := getRelatedAuthorizationModels(ctx, a.k8s, store, a.lcClientFunc)
+	cluster, err := a.mgr.ClusterFromContext(ctx)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
+	}
+
+	extendingModules, err := getRelatedAuthorizationModels(ctx, cluster.GetClient(), store, a.lcClientFunc)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to get related authorization models")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, false)

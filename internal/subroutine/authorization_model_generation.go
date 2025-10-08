@@ -89,8 +89,6 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
 	}
 
-	log.Info().Msg(fmt.Sprint("HOST -- %s", cluster.GetConfig().Host))
-
 	var bindings kcpv1alpha1.APIBindingList
 	err = cluster.GetClient().List(ctx, &bindings)
 	if err != nil {

@@ -58,6 +58,8 @@ func logicalClusterClientFromKey(mgr ctrl.Manager, log *logger.Logger) subroutin
 
 		parsed.Path = fmt.Sprintf("/clusters/%s", clusterKey)
 
+		log.Info().Msg(fmt.Sprintf("HOST from logical cluster client from key -- %s", parsed.String()))
+
 		cfg.Host = parsed.String()
 
 		return client.New(cfg, client.Options{
@@ -140,14 +142,14 @@ var operatorCmd = &cobra.Command{
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-		if err = controller.NewStoreReconciler(log, mgr.GetLocalManager().GetClient(), fga, logicalClusterClientFromKey(mgr.GetLocalManager(), log), mgr).
-			SetupWithManager(mgr.GetLocalManager(), defaultCfg, log); err != nil {
+		if err = controller.NewStoreReconciler(log, fga, logicalClusterClientFromKey(mgr.GetLocalManager(), log), mgr).
+			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
 			return err
 		}
 		if err = controller.
-			NewAuthorizationModelReconciler(log, mgr.GetLocalManager().GetClient(), fga, logicalClusterClientFromKey(mgr.GetLocalManager(), log), mgr, provider).
-			SetupWithManager(mgr.GetLocalManager(), defaultCfg, log); err != nil {
+			NewAuthorizationModelReconciler(log, fga, logicalClusterClientFromKey(mgr.GetLocalManager(), log), mgr).
+			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
 			return err
 		}
@@ -161,6 +163,12 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("unable to set up ready check")
 			return err
 		}
+
+		go func() {
+			if err := provider.Run(ctx, mgr); err != nil {
+				log.Fatal().Err(err).Msg("unable to run provider")
+			}
+		}()
 
 		setupLog.Info("starting manager")
 		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

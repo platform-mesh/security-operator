@@ -2,6 +2,7 @@ package subroutine
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
@@ -17,12 +18,12 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 type tupleSubroutine struct {
-	fga          openfgav1.OpenFGAServiceClient
-	k8s          client.Client
-	lcClientFunc NewLogicalClusterClientFunc
+	fga openfgav1.OpenFGAServiceClient
+	mgr mcmanager.Manager
 }
 
 // Finalize implements lifecycle.Subroutine.
@@ -39,15 +40,15 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 		authorizationModelID = obj.Status.AuthorizationModelID
 		managedTuples = obj.Status.ManagedTuples
 	case *v1alpha1.AuthorizationModel:
-		managedTuples = obj.Status.ManagedTuples
-
-		lcClient, err := t.lcClientFunc(logicalcluster.Name(obj.Spec.StoreRef.Path))
+		cluster, err := t.mgr.ClusterFromContext(ctx)
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
 		}
 
+		managedTuples = obj.Status.ManagedTuples
+
 		var lc kcpcorev1alpha1.LogicalCluster
-		err = lcClient.Get(ctx, client.ObjectKey{Name: "cluster"}, &lc)
+		err = cluster.GetClient().Get(ctx, client.ObjectKey{Name: "cluster"}, &lc)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}
@@ -55,7 +56,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 		storeCtx := mccontext.WithCluster(ctx, string(logicalcluster.Name(lc.Annotations[logicalcluster.AnnotationKey])))
 
 		var store v1alpha1.Store
-		err = t.k8s.Get(storeCtx, types.NamespacedName{
+		err = cluster.GetClient().Get(storeCtx, types.NamespacedName{
 			Name: obj.Spec.StoreRef.Name,
 		}, &store)
 		if err != nil {
@@ -122,16 +123,16 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance lifecycleruntime
 		specTuples = obj.Spec.Tuples
 		managedTuples = obj.Status.ManagedTuples
 	case *v1alpha1.AuthorizationModel:
+		cluster, err := t.mgr.ClusterFromContext(ctx)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
+		}
+
 		specTuples = obj.Spec.Tuples
 		managedTuples = obj.Status.ManagedTuples
 
-		lcClient, err := t.lcClientFunc(logicalcluster.Name(obj.Spec.StoreRef.Path))
-		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
-		}
-
 		var lc kcpcorev1alpha1.LogicalCluster
-		err = lcClient.Get(ctx, client.ObjectKey{Name: "cluster"}, &lc)
+		err = cluster.GetClient().Get(ctx, client.ObjectKey{Name: "cluster"}, &lc)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}
@@ -139,7 +140,7 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance lifecycleruntime
 		storeCtx := mccontext.WithCluster(ctx, string(logicalcluster.Name(lc.Annotations[logicalcluster.AnnotationKey])))
 
 		var store v1alpha1.Store
-		err = t.k8s.Get(storeCtx, types.NamespacedName{
+		err = cluster.GetClient().Get(storeCtx, types.NamespacedName{
 			Name: obj.Spec.StoreRef.Name,
 		}, &store)
 		if err != nil { // coverage-ignore
@@ -213,11 +214,10 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance lifecycleruntime
 	return ctrl.Result{}, nil
 }
 
-func NewTupleSubroutine(fga openfgav1.OpenFGAServiceClient, k8s client.Client, lcClientFunc NewLogicalClusterClientFunc) *tupleSubroutine {
+func NewTupleSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *tupleSubroutine {
 	return &tupleSubroutine{
-		fga:          fga,
-		k8s:          k8s,
-		lcClientFunc: lcClientFunc,
+		fga: fga,
+		mgr: mgr,
 	}
 }
 

@@ -2,6 +2,7 @@ package subroutine
 
 import (
 	"context"
+	"fmt"
 	"slices"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
@@ -12,22 +13,22 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
 type storeSubroutine struct {
 	fga          openfgav1.OpenFGAServiceClient
-	k8s          client.Client
+	mgr          mcmanager.Manager
 	lcClientFunc NewLogicalClusterClientFunc
 }
 
-func NewStoreSubroutine(fga openfgav1.OpenFGAServiceClient, k8s client.Client, lcClientFunc NewLogicalClusterClientFunc) *storeSubroutine {
+func NewStoreSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, lcClientFunc NewLogicalClusterClientFunc) *storeSubroutine {
 	return &storeSubroutine{
 		fga:          fga,
-		k8s:          k8s,
+		mgr:          mgr,
 		lcClientFunc: lcClientFunc,
 	}
 }
@@ -46,7 +47,12 @@ func (s *storeSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 		return ctrl.Result{}, nil
 	}
 
-	authorizationModels, err := getRelatedAuthorizationModels(ctx, s.k8s, store, s.lcClientFunc)
+	cluster, err := s.mgr.ClusterFromContext(ctx)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
+	}
+
+	authorizationModels, err := getRelatedAuthorizationModels(ctx, cluster.GetClient(), store, s.lcClientFunc)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 	}
