@@ -1,6 +1,6 @@
 module github.com/platform-mesh/security-operator
 
-go 1.24.5
+go 1.25.2
 
 require (
 	github.com/go-logr/logr v1.4.3
@@ -22,7 +22,6 @@ require (
 	k8s.io/client-go v0.34.1
 	sigs.k8s.io/controller-runtime v0.22.1
 	sigs.k8s.io/multicluster-runtime v0.21.0-alpha.9
-
 )
 
 require (
