@@ -9,7 +9,6 @@ import (
 	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/fga/helpers"
@@ -28,7 +27,7 @@ type tupleSubroutine struct {
 }
 
 // Finalize implements lifecycle.Subroutine.
-func (t *tupleSubroutine) Finalize(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (t *tupleSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	var storeID string
@@ -110,7 +109,7 @@ func (t *tupleSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
 func (t *tupleSubroutine) GetName() string { return "TupleSubroutine" }
 
 // Process implements lifecycle.Subroutine.
-func (t *tupleSubroutine) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	var storeID string

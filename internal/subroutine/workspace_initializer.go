@@ -9,7 +9,6 @@ import (
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 
 	"github.com/platform-mesh/golang-commons/errors"
@@ -49,16 +48,18 @@ type workspaceInitializer struct {
 	initializerName string
 }
 
-func (w *workspaceInitializer) Finalize(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (w *workspaceInitializer) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	// TODO: implement once finalizing workspaces are a thing
 	return ctrl.Result{}, nil
 }
 
-func (w *workspaceInitializer) Finalizers(_ runtimeobject.RuntimeObject) []string { return nil }
+func (w *workspaceInitializer) Finalizers(_ runtimeobject.RuntimeObject) []string {
+	return nil
+}
 
 func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" }
 
-func (w *workspaceInitializer) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
 
 	store := v1alpha1.Store{

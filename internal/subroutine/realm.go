@@ -11,7 +11,6 @@ import (
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
@@ -50,9 +49,11 @@ var _ lifecyclesubroutine.Subroutine = &realmSubroutine{}
 
 func (r *realmSubroutine) GetName() string { return "Realm" }
 
-func (r *realmSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string { return []string{} }
+func (r *realmSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
+	return []string{}
+}
 
-func (r *realmSubroutine) Finalize(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+func (r *realmSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
@@ -82,7 +83,7 @@ func (r *realmSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 	return ctrl.Result{}, nil
 }
 
-func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+func (r *realmSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)
