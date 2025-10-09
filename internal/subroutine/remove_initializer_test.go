@@ -97,3 +97,24 @@ func TestRemoveInitializer_Process(t *testing.T) {
 		assert.NotNil(t, err)
 	})
 }
+
+func TestRemoveInitializer_Misc(t *testing.T) {
+	mgr := mocks.NewMockManager(t)
+	r := subroutine.NewRemoveInitializer(mgr, "foo.initializer.kcp.dev")
+
+	assert.Equal(t, "RemoveInitializer", r.GetName())
+	assert.Equal(t, []string{}, r.Finalizers())
+
+	_, err := r.Finalize(context.Background(), &kcpv1alpha1.LogicalCluster{})
+	assert.Nil(t, err)
+}
+
+func TestRemoveInitializer_ManagerError(t *testing.T) {
+	mgr := mocks.NewMockManager(t)
+	// Simulate error fetching cluster from context
+	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError)
+
+	r := subroutine.NewRemoveInitializer(mgr, "foo.initializer.kcp.dev")
+	_, err := r.Process(context.Background(), &kcpv1alpha1.LogicalCluster{})
+	assert.NotNil(t, err)
+}
