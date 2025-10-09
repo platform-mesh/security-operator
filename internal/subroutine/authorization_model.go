@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
@@ -26,14 +25,12 @@ const schemaVersion = "1.2"
 type authorizationModelSubroutine struct {
 	fga          openfgav1.OpenFGAServiceClient
 	mgr          mcmanager.Manager
-	lcClientFunc NewLogicalClusterClientFunc
 }
 
-func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, lcClientFunc NewLogicalClusterClientFunc) *authorizationModelSubroutine {
+func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *authorizationModelSubroutine {
 	return &authorizationModelSubroutine{
 		fga:          fga,
 		mgr:          mgr,
-		lcClientFunc: lcClientFunc,
 	}
 }
 
@@ -49,25 +46,12 @@ func (a *authorizationModelSubroutine) Finalize(ctx context.Context, instance ru
 
 type NewLogicalClusterClientFunc func(clusterKey logicalcluster.Name) (client.Client, error)
 
-func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store *v1alpha1.Store, lcCLientFunc NewLogicalClusterClientFunc) (v1alpha1.AuthorizationModelList, error) {
+func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store *v1alpha1.Store) (v1alpha1.AuthorizationModelList, error) {
 
 	storeClusterKey, ok := mccontext.ClusterFrom(ctx)
 	if !ok {
 		return v1alpha1.AuthorizationModelList{}, fmt.Errorf("unable to get cluster key from context")
 	}
-
-	lcClient, err := lcCLientFunc(logicalcluster.Name(storeClusterKey))
-	if err != nil {
-		return v1alpha1.AuthorizationModelList{}, err
-	}
-
-	var lc kcpcorev1alpha1.LogicalCluster
-	err = lcClient.Get(ctx, client.ObjectKey{Name: "cluster"}, &lc)
-	if err != nil {
-		return v1alpha1.AuthorizationModelList{}, err
-	}
-
-	storeWorkspacePath := lc.Annotations["kcp.io/cluster"]
 
 	allCtx := mccontext.WithCluster(ctx, "")
 	allAuthorizationModels := v1alpha1.AuthorizationModelList{}
@@ -78,7 +62,7 @@ func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store
 
 	var extendingModules v1alpha1.AuthorizationModelList
 	for _, model := range allAuthorizationModels.Items {
-		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Path != storeWorkspacePath {
+		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Path != storeClusterKey {
 			continue
 		}
 
@@ -97,7 +81,7 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
 	}
 
-	extendingModules, err := getRelatedAuthorizationModels(ctx, cluster.GetClient(), store, a.lcClientFunc)
+	extendingModules, err := getRelatedAuthorizationModels(ctx, cluster.GetClient(), store)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to get related authorization models")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, false)

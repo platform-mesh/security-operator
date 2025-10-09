@@ -142,13 +142,13 @@ var operatorCmd = &cobra.Command{
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-		if err = controller.NewStoreReconciler(log, fga, logicalClusterClientFromKey(mgr.GetLocalManager(), log), mgr).
+		if err = controller.NewStoreReconciler(log, fga, mgr).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
 			return err
 		}
 		if err = controller.
-			NewAuthorizationModelReconciler(log, fga, logicalClusterClientFromKey(mgr.GetLocalManager(), log), mgr).
+			NewAuthorizationModelReconciler(log, fga, mgr).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
 			return err

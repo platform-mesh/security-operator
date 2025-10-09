@@ -19,15 +19,13 @@ import (
 )
 
 type AuthorizationModelReconciler struct {
-	lcClientFunc subroutine.NewLogicalClusterClientFunc
 	log          *logger.Logger
 	lifecycle    *lifecyclecontrollerruntime.LifecycleManager
 }
 
-func NewAuthorizationModelReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, lcClientFunc subroutine.NewLogicalClusterClientFunc, mcMgr mcmanager.Manager) *AuthorizationModelReconciler {
+func NewAuthorizationModelReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *AuthorizationModelReconciler {
 	return &AuthorizationModelReconciler{
 		log:          log,
-		lcClientFunc: lcClientFunc,
 		lifecycle: builder.NewBuilder("authorizationmodel", "AuthorizationModelReconciler", []lifecyclesubroutine.Subroutine{
 			subroutine.NewTupleSubroutine(fga, mcMgr),
 		}, log).

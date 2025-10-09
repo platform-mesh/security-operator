@@ -29,20 +29,18 @@ import (
 
 // StoreReconciler reconciles a Store object
 type StoreReconciler struct {
-	lcClientFunc subroutine.NewLogicalClusterClientFunc
 	fga          openfgav1.OpenFGAServiceClient
 	log          *logger.Logger
 	lifecycle    *lifecyclecontrollerruntime.LifecycleManager
 }
 
-func NewStoreReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, lcClientFunc subroutine.NewLogicalClusterClientFunc, mcMgr mcmanager.Manager) *StoreReconciler {
+func NewStoreReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *StoreReconciler {
 	return &StoreReconciler{
-		lcClientFunc: lcClientFunc,
 		fga:          fga,
 		log:          log,
 		lifecycle: builder.NewBuilder("store", "StoreReconciler", []lifecyclesubroutine.Subroutine{
-			subroutine.NewStoreSubroutine(fga, mcMgr, lcClientFunc),
-			subroutine.NewAuthorizationModelSubroutine(fga, mcMgr, lcClientFunc),
+			subroutine.NewStoreSubroutine(fga, mcMgr),
+			subroutine.NewAuthorizationModelSubroutine(fga, mcMgr),
 			subroutine.NewTupleSubroutine(fga, mcMgr),
 		}, log).WithConditionManagement().
 			BuildMultiCluster(mcMgr),

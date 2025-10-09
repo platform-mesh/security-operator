@@ -25,11 +25,10 @@ type storeSubroutine struct {
 	lcClientFunc NewLogicalClusterClientFunc
 }
 
-func NewStoreSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, lcClientFunc NewLogicalClusterClientFunc) *storeSubroutine {
+func NewStoreSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *storeSubroutine {
 	return &storeSubroutine{
 		fga:          fga,
 		mgr:          mgr,
-		lcClientFunc: lcClientFunc,
 	}
 }
 
@@ -52,7 +51,7 @@ func (s *storeSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
 	}
 
-	authorizationModels, err := getRelatedAuthorizationModels(ctx, cluster.GetClient(), store, s.lcClientFunc)
+	authorizationModels, err := getRelatedAuthorizationModels(ctx, cluster.GetClient(), store)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 	}
