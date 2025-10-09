@@ -20,15 +20,14 @@ import (
 )
 
 type storeSubroutine struct {
-	fga          openfgav1.OpenFGAServiceClient
-	mgr          mcmanager.Manager
-	lcClientFunc NewLogicalClusterClientFunc
+	fga openfgav1.OpenFGAServiceClient
+	mgr mcmanager.Manager
 }
 
 func NewStoreSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *storeSubroutine {
 	return &storeSubroutine{
-		fga:          fga,
-		mgr:          mgr,
+		fga: fga,
+		mgr: mgr,
 	}
 }
 

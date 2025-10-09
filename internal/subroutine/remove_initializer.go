@@ -23,7 +23,7 @@ type removeInitializer struct {
 
 // Finalize implements subroutine.Subroutine.
 func (r *removeInitializer) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-    return ctrl.Result{}, nil
+	return ctrl.Result{}, nil
 }
 
 // Finalizers implements subroutine.Subroutine.

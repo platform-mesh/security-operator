@@ -37,7 +37,6 @@ import (
 	kcptenancyv1alphav1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/controller"
-	"github.com/platform-mesh/security-operator/internal/subroutine"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -45,8 +44,9 @@ var (
 	scheme = runtime.NewScheme()
 )
 
-// TODO try to use multi-cluster runtime for client creation
-func logicalClusterClientFromKey(mgr ctrl.Manager, log *logger.Logger) subroutine.NewLogicalClusterClientFunc {
+type NewLogicalClusterClientFunc func(clusterKey logicalcluster.Name) (client.Client, error)
+
+func logicalClusterClientFromKey(mgr ctrl.Manager, log *logger.Logger) NewLogicalClusterClientFunc {
 	return func(clusterKey logicalcluster.Name) (client.Client, error) {
 		cfg := rest.CopyConfig(mgr.GetConfig())
 

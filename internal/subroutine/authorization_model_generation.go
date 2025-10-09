@@ -34,8 +34,7 @@ func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager) *Authori
 var _ lifecyclesubroutine.Subroutine = &AuthorizationModelGenerationSubroutine{}
 
 type AuthorizationModelGenerationSubroutine struct {
-	lcClientFunc NewLogicalClusterClientFunc
-	mgr          mcmanager.Manager
+	mgr mcmanager.Manager
 }
 
 var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
@@ -108,13 +107,13 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 			continue
 		}
 
-		bindingWsClient, err := a.lcClientFunc(logicalcluster.From(&binding))
+		bindingCluster, err := a.mgr.GetCluster(ctx, string(logicalcluster.From(&binding)))
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}
 
 		var accountInfo accountv1alpha1.AccountInfo
-		err = bindingWsClient.Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
+		err = bindingCluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
 		if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
 			// If the accountinfo does not exist, we can skip the model generation.
 			return ctrl.Result{}, nil

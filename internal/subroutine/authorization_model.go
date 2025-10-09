@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
@@ -23,14 +22,14 @@ import (
 const schemaVersion = "1.2"
 
 type authorizationModelSubroutine struct {
-	fga          openfgav1.OpenFGAServiceClient
-	mgr          mcmanager.Manager
+	fga openfgav1.OpenFGAServiceClient
+	mgr mcmanager.Manager
 }
 
 func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *authorizationModelSubroutine {
 	return &authorizationModelSubroutine{
-		fga:          fga,
-		mgr:          mgr,
+		fga: fga,
+		mgr: mgr,
 	}
 }
 
@@ -43,8 +42,6 @@ func (a *authorizationModelSubroutine) GetName() string { return "AuthorizationM
 func (a *authorizationModelSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	return ctrl.Result{}, nil
 }
-
-type NewLogicalClusterClientFunc func(clusterKey logicalcluster.Name) (client.Client, error)
 
 func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store *v1alpha1.Store) (v1alpha1.AuthorizationModelList, error) {
 

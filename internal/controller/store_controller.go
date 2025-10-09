@@ -29,15 +29,15 @@ import (
 
 // StoreReconciler reconciles a Store object
 type StoreReconciler struct {
-	fga          openfgav1.OpenFGAServiceClient
-	log          *logger.Logger
-	lifecycle    *lifecyclecontrollerruntime.LifecycleManager
+	fga       openfgav1.OpenFGAServiceClient
+	log       *logger.Logger
+	lifecycle *lifecyclecontrollerruntime.LifecycleManager
 }
 
 func NewStoreReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *StoreReconciler {
 	return &StoreReconciler{
-		fga:          fga,
-		log:          log,
+		fga: fga,
+		log: log,
 		lifecycle: builder.NewBuilder("store", "StoreReconciler", []lifecyclesubroutine.Subroutine{
 			subroutine.NewStoreSubroutine(fga, mcMgr),
 			subroutine.NewAuthorizationModelSubroutine(fga, mcMgr),
