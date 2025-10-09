@@ -19,13 +19,13 @@ import (
 )
 
 type AuthorizationModelReconciler struct {
-	log          *logger.Logger
-	lifecycle    *lifecyclecontrollerruntime.LifecycleManager
+	log       *logger.Logger
+	lifecycle *lifecyclecontrollerruntime.LifecycleManager
 }
 
 func NewAuthorizationModelReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *AuthorizationModelReconciler {
 	return &AuthorizationModelReconciler{
-		log:          log,
+		log: log,
 		lifecycle: builder.NewBuilder("authorizationmodel", "AuthorizationModelReconciler", []lifecyclesubroutine.Subroutine{
 			subroutine.NewTupleSubroutine(fga, mcMgr),
 		}, log).
