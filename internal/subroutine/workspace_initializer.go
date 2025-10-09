@@ -8,6 +8,7 @@ import (
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 
@@ -53,7 +54,7 @@ func (w *workspaceInitializer) Finalize(ctx context.Context, instance lifecycler
 	return ctrl.Result{}, nil
 }
 
-func (w *workspaceInitializer) Finalizers() []string { return nil }
+func (w *workspaceInitializer) Finalizers(_ runtimeobject.RuntimeObject) []string { return nil }
 
 func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" }
 

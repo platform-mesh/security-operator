@@ -27,5 +27,7 @@ type Config struct {
 		SMTPUser               string `mapstructure:"idp-smtp-user"`
 		SMTPPasswordSecretName string `mapstructure:"idp-smtp-password-secret-name"`
 		SMTPPasswordSecretKey  string `mapstructure:"idp-smtp-password-secret-key" default:"password"`
+
+		AdditionalRedirectURLs []string `mapstructure:"idp-additional-redirect-urls"`
 	} `mapstructure:",squash"`
 }

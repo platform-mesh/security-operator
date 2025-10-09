@@ -35,7 +35,7 @@ func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcm
 
 var _ subroutine.Subroutine = &authorizationModelSubroutine{}
 
-func (a *authorizationModelSubroutine) Finalizers() []string { return nil }
+func (a *authorizationModelSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string { return nil }
 
 func (a *authorizationModelSubroutine) GetName() string { return "AuthorizationModel" }
 

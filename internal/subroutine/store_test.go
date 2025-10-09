@@ -26,7 +26,7 @@ func TestGetName(t *testing.T) {
 
 func TestFinalizers(t *testing.T) {
 	subroutine := subroutine.NewStoreSubroutine(nil, nil)
-	assert.Equal(t, []string{"core.platform-mesh.io/fga-store"}, subroutine.Finalizers())
+	assert.Equal(t, []string{"core.platform-mesh.io/fga-store"}, subroutine.Finalizers(nil))
 }
 
 func TestProcess(t *testing.T) {

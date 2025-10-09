@@ -6,6 +6,7 @@ import (
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	kcptenancyv1alphav1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
@@ -37,7 +38,9 @@ var _ lifecyclesubroutine.Subroutine = &workspaceAuthSubroutine{}
 
 func (r *workspaceAuthSubroutine) GetName() string { return "workspaceAuthConfiguration" }
 
-func (r *workspaceAuthSubroutine) Finalizers() []string { return []string{} }
+func (r *workspaceAuthSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
+	return []string{}
+}
 
 func (r *workspaceAuthSubroutine) Finalize(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	return reconcile.Result{}, nil

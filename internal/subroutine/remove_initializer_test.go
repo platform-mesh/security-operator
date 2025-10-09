@@ -103,7 +103,7 @@ func TestRemoveInitializer_Misc(t *testing.T) {
 	r := subroutine.NewRemoveInitializer(mgr, "foo.initializer.kcp.dev")
 
 	assert.Equal(t, "RemoveInitializer", r.GetName())
-	assert.Equal(t, []string{}, r.Finalizers())
+	assert.Equal(t, []string{}, r.Finalizers(nil))
 
 	_, err := r.Finalize(context.Background(), &kcpv1alpha1.LogicalCluster{})
 	assert.Nil(t, err)

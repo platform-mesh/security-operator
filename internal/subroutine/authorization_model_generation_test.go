@@ -549,6 +549,6 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 }
 
 func TestFinalizeAuthorizationModelGeneration(t *testing.T) {
-	finalizers := subroutine.NewAuthorizationModelGenerationSubroutine(nil).Finalizers()
+	finalizers := subroutine.NewAuthorizationModelGenerationSubroutine(nil).Finalizers(nil)
 	assert.Equal(t, []string{}, finalizers)
 }

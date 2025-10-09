@@ -27,7 +27,7 @@ func (r *removeInitializer) Finalize(ctx context.Context, instance runtimeobject
 }
 
 // Finalizers implements subroutine.Subroutine.
-func (r *removeInitializer) Finalizers() []string { return []string{} }
+func (r *removeInitializer) Finalizers(_ runtimeobject.RuntimeObject) []string { return []string{} }
 
 // GetName implements subroutine.Subroutine.
 func (r *removeInitializer) GetName() string { return "RemoveInitializer" }

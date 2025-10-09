@@ -93,6 +93,10 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		if appCfg.IDP.AdditionalRedirectURLs == nil {
+			appCfg.IDP.AdditionalRedirectURLs = []string{}
+		}
+
 		if err := controller.NewLogicalClusterReconciler(log, orgClient, appCfg, inClusterClient, mgr).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")

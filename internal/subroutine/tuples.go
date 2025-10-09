@@ -8,6 +8,7 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
@@ -101,7 +102,9 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 }
 
 // Finalizers implements lifecycle.Subroutine.
-func (t *tupleSubroutine) Finalizers() []string { return []string{"core.platform-mesh.io/fga-tuples"} }
+func (t *tupleSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
+	return []string{"core.platform-mesh.io/fga-tuples"}
+}
 
 // GetName implements lifecycle.Subroutine.
 func (t *tupleSubroutine) GetName() string { return "TupleSubroutine" }

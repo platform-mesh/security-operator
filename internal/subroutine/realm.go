@@ -10,6 +10,7 @@ import (
 	"text/template"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
@@ -49,7 +50,7 @@ var _ lifecyclesubroutine.Subroutine = &realmSubroutine{}
 
 func (r *realmSubroutine) GetName() string { return "Realm" }
 
-func (r *realmSubroutine) Finalizers() []string { return []string{} }
+func (r *realmSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string { return []string{} }
 
 func (r *realmSubroutine) Finalize(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
@@ -96,11 +97,9 @@ func (r *realmSubroutine) Process(ctx context.Context, instance lifecycleruntime
 				"displayName": workspaceName,
 			},
 			"client": map[string]any{
-				"name":        workspaceName,
-				"displayName": workspaceName,
-				"validRedirectUris": []string{
-					fmt.Sprintf("https://%s.%s/callback*", workspaceName, r.baseDomain),
-				},
+				"name":              workspaceName,
+				"displayName":       workspaceName,
+				"validRedirectUris": append(r.cfg.IDP.AdditionalRedirectURLs, fmt.Sprintf("https://%s.%s/callback*", workspaceName, r.baseDomain)),
 			},
 			"organization": map[string]any{
 				"domain": "example.com", // TODO: change
