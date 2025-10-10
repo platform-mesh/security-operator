@@ -4,12 +4,12 @@ go 1.25.2
 
 require (
 	github.com/go-logr/logr v1.4.3
-	github.com/kcp-dev/kcp/sdk v0.28.1-0.20250915073746-2b42b96efc54
+	github.com/kcp-dev/kcp/sdk v0.28.1-0.20250926104223-cec2e15f24c6
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.2.0
 	github.com/openfga/api/proto v0.0.0-20250909173124-0ac19aac54f2
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20250919191407-efa08b02a76a
-	github.com/platform-mesh/account-operator v0.3.1
+	github.com/platform-mesh/account-operator v0.4.5
 	github.com/platform-mesh/golang-commons v0.6.1
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.21.0
@@ -108,7 +108,7 @@ require (
 	golang.org/x/exp v0.0.0-20251009144603-d2f985daa21b // indirect
 	golang.org/x/net v0.44.0 // indirect
 	golang.org/x/oauth2 v0.32.0 // indirect
-	golang.org/x/sys v0.36.0 // indirect
+	golang.org/x/sys v0.37.0 // indirect
 	golang.org/x/term v0.35.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
