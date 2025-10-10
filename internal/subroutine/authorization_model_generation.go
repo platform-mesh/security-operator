@@ -186,15 +186,20 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 		return ctrl.Result{}, nil
 	}
 
+	apiExportCluster, err := a.mgr.GetCluster(ctx, binding.Status.APIExportClusterName)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+
 	var apiExport kcpv1alpha1.APIExport
-	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: binding.Spec.Reference.Export.Name}, &apiExport)
+	err = apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: binding.Spec.Reference.Export.Name}, &apiExport)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
 	for _, latestResourceSchema := range apiExport.Spec.LatestResourceSchemas {
 		var resourceSchema kcpv1alpha1.APIResourceSchema
-		err := cluster.GetClient().Get(ctx, types.NamespacedName{Name: latestResourceSchema}, &resourceSchema)
+		err := apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: latestResourceSchema}, &resourceSchema)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}
@@ -224,7 +229,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 			},
 		}
 
-		_, err = controllerutil.CreateOrUpdate(ctx, cluster.GetClient(), &model, func() error {
+		_, err = controllerutil.CreateOrUpdate(ctx, apiExportCluster.GetClient(), &model, func() error {
 			model.Spec = securityv1alpha1.AuthorizationModelSpec{
 				Model: buffer.String(),
 				StoreRef: securityv1alpha1.WorkspaceStoreRef{

@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	"github.com/rs/zerolog/log"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
@@ -12,8 +11,6 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	//"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
@@ -63,19 +60,6 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 			&corev1alpha1.AuthorizationModel{},
 			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
 				model := obj.(*corev1alpha1.AuthorizationModel)
-
-				cluster, err := mgr.GetCluster(ctx, model.Spec.StoreRef.Path)
-				if err != nil {
-					log.Error().Err(err).Msg("failed to get cluster from manager (store watcher)")
-					return nil
-				}
-
-				var lc kcpcorev1alpha1.LogicalCluster
-				err = cluster.GetClient().Get(ctx, client.ObjectKey{Name: "cluster"}, &lc)
-				if err != nil {
-					log.Error().Err(err).Msg("failed to get logical cluster")
-					return nil
-				}
 
 				return []reconcile.Request{
 					{

@@ -138,9 +138,14 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance lifecycleruntime
 		}
 
 		storeCtx := mccontext.WithCluster(ctx, string(logicalcluster.Name(lc.Annotations[logicalcluster.AnnotationKey])))
+		
+		storeCluster, err := t.mgr.GetCluster(ctx,obj.Spec.StoreRef.Path)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get store cluster: %w", err), true, false)
+		}
 
 		var store v1alpha1.Store
-		err = cluster.GetClient().Get(storeCtx, types.NamespacedName{
+		err = storeCluster.GetClient().Get(storeCtx, types.NamespacedName{
 			Name: obj.Spec.StoreRef.Name,
 		}, &store)
 		if err != nil { // coverage-ignore
