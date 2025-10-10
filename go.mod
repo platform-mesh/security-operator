@@ -26,7 +26,7 @@ require (
 
 require (
 	github.com/evanphx/json-patch v5.9.11+incompatible // indirect
-	github.com/fluxcd/pkg/apis/acl v0.7.0 // indirect
+	github.com/fluxcd/pkg/apis/acl v0.9.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.13.0 // indirect
 	github.com/fluxcd/pkg/apis/meta v1.22.0 // indirect
 	github.com/google/btree v1.1.3 // indirect
@@ -47,7 +47,7 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fluxcd/helm-controller/api v1.4.2
-	github.com/fluxcd/source-controller/api v1.6.2
+	github.com/fluxcd/source-controller/api v1.7.2
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/getsentry/sentry-go v0.35.3 // indirect
