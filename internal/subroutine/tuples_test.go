@@ -308,6 +308,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 			if test.k8sMocks != nil {
 				test.k8sMocks(k8sClient)
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Maybe()
 				cluster.EXPECT().GetClient().Return(k8sClient).Maybe()
 			}
 
@@ -386,6 +387,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 			if test.k8sMocks != nil {
 				test.k8sMocks(k8sClient)
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Maybe()
 				cluster.EXPECT().GetClient().Return(k8sClient).Maybe()
 			}
 

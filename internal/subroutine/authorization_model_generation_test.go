@@ -267,6 +267,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError)
 			} else {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Maybe()
 				cluster.EXPECT().GetClient().Return(kcpClient).Maybe()
 				if test.mockSetup != nil {
 					test.mockSetup(kcpClient)
