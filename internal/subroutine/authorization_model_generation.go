@@ -155,7 +155,9 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 }
 
 // Finalizers implements lifecycle.Subroutine.
-func (a *AuthorizationModelGenerationSubroutine) Finalizers() []string { return []string{} }
+func (a *AuthorizationModelGenerationSubroutine) Finalizers(_ lifecyclecontrollerruntime.RuntimeObject) []string {
+	return []string{}
+}
 
 // GetName implements lifecycle.Subroutine.
 func (a *AuthorizationModelGenerationSubroutine) GetName() string {

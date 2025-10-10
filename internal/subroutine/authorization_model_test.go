@@ -58,7 +58,7 @@ func TestAuthorizationModelGetName(t *testing.T) {
 
 func TestAuthorizationModelFinalizers(t *testing.T) {
 	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil)
-	assert.Equal(t, []string(nil), subroutine.Finalizers())
+	assert.Equal(t, []string(nil), subroutine.Finalizers(nil))
 }
 
 func TestAuthorizationModelFinalize(t *testing.T) {

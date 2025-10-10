@@ -6,7 +6,7 @@ import (
 	"slices"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	lifecycleruntimeobject "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
@@ -35,9 +35,11 @@ var _ lifecyclesubroutine.Subroutine = &storeSubroutine{}
 
 func (s *storeSubroutine) GetName() string { return "Store" }
 
-func (s *storeSubroutine) Finalizers() []string { return []string{"core.platform-mesh.io/fga-store"} }
+func (s *storeSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
+	return []string{"core.platform-mesh.io/fga-store"}
+}
 
-func (s *storeSubroutine) Finalize(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+func (s *storeSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 	store := instance.(*v1alpha1.Store)
 
@@ -70,7 +72,7 @@ func (s *storeSubroutine) Finalize(ctx context.Context, instance lifecycleruntim
 	return ctrl.Result{}, nil
 }
 
-func (s *storeSubroutine) Process(ctx context.Context, instance lifecycleruntimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+func (s *storeSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 	store := instance.(*v1alpha1.Store)
 

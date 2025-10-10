@@ -24,7 +24,7 @@ func TestTupleGetName(t *testing.T) {
 
 func TestTupleFinalizers(t *testing.T) {
 	subroutine := subroutine.NewTupleSubroutine(nil, nil)
-	assert.Equal(t, []string{"core.platform-mesh.io/fga-tuples"}, subroutine.Finalizers())
+	assert.Equal(t, []string{"core.platform-mesh.io/fga-tuples"}, subroutine.Finalizers(nil))
 }
 
 func TestTupleProcessWithStore(t *testing.T) {
