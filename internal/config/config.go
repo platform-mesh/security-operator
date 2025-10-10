@@ -3,7 +3,10 @@ package config
 // Config struct to hold the app config
 type Config struct {
 	FGA struct {
-		Target string `mapstructure:"fga-target"`
+		Target          string `mapstructure:"fga-target"`
+		ObjectType      string `mapstructure:"fga-object-type" default:"core_platform-mesh_io_account"`
+		ParentRelation  string `mapstructure:"fga-parent-relation" default:"parent"`
+		CreatorRelation string `mapstructure:"fga-creator-relation" default:"owner"`
 	} `mapstructure:",squash"`
 	APIExportEndpointSliceName string `mapstructure:"api-export-endpoint-slice-name"`
 	CoreModulePath             string `mapstructure:"core-module-path"`
