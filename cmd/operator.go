@@ -153,7 +153,7 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
 			return err
 		}
-		if err = controller.NewInviteReconciler(ctx, mgr.GetClient(), &appCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {
+		if err = controller.NewInviteReconciler(ctx, mgr, &appCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
 			return err
 		}

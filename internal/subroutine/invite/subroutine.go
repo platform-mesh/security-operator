@@ -19,6 +19,8 @@ import (
 	"golang.org/x/oauth2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 const (
@@ -29,7 +31,7 @@ const (
 type subroutine struct {
 	keycloakBaseURL string
 	keycloak        *http.Client
-	cl              client.Client
+	mgr             mcmanager.Manager
 }
 
 type keycloakUser struct {
@@ -39,7 +41,7 @@ type keycloakUser struct {
 	Enabled         bool     `json:"enabled,omitempty"`
 }
 
-func New(ctx context.Context, cfg *config.Config, cl client.Client, pwd string) (*subroutine, error) {
+func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager, pwd string) (*subroutine, error) {
 
 	provider, err := oidc.NewProvider(ctx, fmt.Sprintf("%s/realms/master", cfg.Invite.KeycloakBaseURL))
 	if err != nil {
@@ -58,7 +60,7 @@ func New(ctx context.Context, cfg *config.Config, cl client.Client, pwd string) 
 
 	return &subroutine{
 		keycloakBaseURL: cfg.Invite.KeycloakBaseURL,
-		cl:              cl,
+		mgr:             mgr,
 		keycloak:        config.Client(ctx, token),
 	}, nil
 }
@@ -69,7 +71,7 @@ func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.Runtim
 }
 
 // Finalizers implements subroutine.Subroutine.
-func (s *subroutine) Finalizers() []string { return []string{} }
+func (s *subroutine) Finalizers(_ runtimeobject.RuntimeObject) []string { return []string{} }
 
 // GetName implements subroutine.Subroutine.
 func (s *subroutine) GetName() string { return "Invite" }
@@ -87,8 +89,20 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 		"briefRepresentation": {"true"},
 	}
 
+	clusterName, ok := mccontext.ClusterFrom(ctx)
+	if !ok {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context"), true, false)
+	}
+
+	cluster, err := s.mgr.GetCluster(ctx, clusterName)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster %q: %w", clusterName, err), true, false)
+	}
+
+	cl := cluster.GetClient()
+
 	var accountInfo corev1alpha1.AccountInfo
-	if err := s.cl.Get(ctx, client.ObjectKey{Name: "account"}, &accountInfo); err != nil {
+	if err := cl.Get(ctx, client.ObjectKey{Name: "account"}, &accountInfo); err != nil {
 		log.Err(err).Msg("Failed to get AccountInfo")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 	}

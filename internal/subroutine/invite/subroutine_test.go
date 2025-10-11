@@ -21,6 +21,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
 
 func configureOIDCProvider(t *testing.T, mux *http.ServeMux, baseURL string) {
@@ -59,7 +60,7 @@ func TestSubroutineProcess(t *testing.T) {
 		expectErr          bool
 	}{
 		{
-			desc: "",
+			desc: "user created and invitation email sent",
 			obj: &v1alpha1.Invite{
 				Spec: v1alpha1.InviteSpec{
 					Email: "example@acme.corp",
@@ -202,10 +203,18 @@ func TestSubroutineProcess(t *testing.T) {
 			configureOIDCProvider(t, mux, srv.URL)
 			ctx := context.WithValue(t.Context(), oauth2.HTTPClient, srv.Client())
 
+			mgr := mocks.NewMockManager(t)
+			cluster := mocks.NewMockCluster(t)
+
+			mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Maybe()
+
 			k8s := mocks.NewMockClient(t)
 			if test.setupK8sMocks != nil {
 				test.setupK8sMocks(k8s)
 			}
+
+			cluster.EXPECT().GetClient().Return(k8s).Maybe()
+
 			if test.setupKeycloakMocks != nil {
 				test.setupKeycloakMocks(mux)
 			}
@@ -215,11 +224,13 @@ func TestSubroutineProcess(t *testing.T) {
 					KeycloakBaseURL:  srv.URL,
 					KeycloakClientID: "admin-cli",
 				},
-			}, k8s, "password")
+			}, mgr, "password")
 			assert.NoError(t, err)
 
 			l := testlogger.New()
 			ctx = l.WithContext(t.Context())
+
+			ctx = mccontext.WithCluster(ctx, "cluster1")
 
 			_, opErr := s.Process(ctx, test.obj)
 			if test.expectErr {
@@ -248,7 +259,7 @@ func TestHelperFunctions(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "Invite", s.GetName())
-	assert.Equal(t, []string{}, s.Finalizers())
+	assert.Equal(t, []string{}, s.Finalizers(nil))
 
 	res, finalizerErr := s.Finalize(ctx, &v1alpha1.Invite{})
 	assert.Nil(t, finalizerErr)
