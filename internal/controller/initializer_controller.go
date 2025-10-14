@@ -46,5 +46,5 @@ func (r *LogicalClusterReconciler) Reconcile(ctx context.Context, req mcreconcil
 }
 
 func (r *LogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
-	return r.lifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "LogicalClusterReconciler", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r, r.log, evp...)
+	return r.lifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "LogicalCluster", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r, r.log, evp...)
 }
