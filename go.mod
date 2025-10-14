@@ -2,6 +2,8 @@ module github.com/platform-mesh/security-operator
 
 go 1.25.0
 
+replace github.com/kcp-dev/multicluster-provider v0.2.0 => github.com/kcp-dev/multicluster-provider v0.0.0-20250827085327-2b5ca378b7b4
+
 require (
 	github.com/coreos/go-oidc v2.4.0+incompatible
 	github.com/fluxcd/helm-controller/api v1.4.2
