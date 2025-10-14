@@ -35,6 +35,7 @@ import (
 	"github.com/spf13/cobra"
 
 	kcptenancyv1alphav1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	// +kubebuilder:scaffold:imports
@@ -132,7 +133,7 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		conn, err := grpc.NewClient(appCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.NewClient(operatorCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Error().Err(err).Msg("unable to create grpc client")
 			return err
@@ -151,7 +152,7 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
 			return err
 		}
-		if err = controller.NewInviteReconciler(ctx, mgr, &appCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {
+		if err = controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
 			return err
 		}
