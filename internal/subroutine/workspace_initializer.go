@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
@@ -92,7 +91,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 
 	if store.Status.StoreID == "" {
 		// Store is not ready yet, requeue
-		return ctrl.Result{RequeueAfter: 1*time.Millisecond}, nil
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store id is empty: %w", err), true, false)
 	}
 
 	cluster, err := w.mgr.ClusterFromContext(ctx)
