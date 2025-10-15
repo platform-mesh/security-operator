@@ -156,6 +156,11 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		if initializerCfg.FGA.Insecure && initializerCfg.FGA.BearerToken != "" {
+			log.Error().Msg("FGA bearer token requires TLS; cannot use with fga-insecure=true")
+			os.Exit(1)
+		}
+
 		// Build transport credentials: prefer TLS unless explicitly configured as insecure
 		var tcreds credentials.TransportCredentials
 		if !initializerCfg.FGA.Insecure {
