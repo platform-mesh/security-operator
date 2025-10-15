@@ -26,8 +26,8 @@ import (
 
 // StoreReconciler reconciles a Store object
 type StoreReconciler struct {
-	fga       openfgav1.OpenFGAServiceClient
-	log       *logger.Logger
+	fga         openfgav1.OpenFGAServiceClient
+	log         *logger.Logger
 	mclifecycle *multicluster.LifecycleManager
 }
 
@@ -59,7 +59,7 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 		Watches(
 			&corev1alpha1.AuthorizationModel{},
 			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
-				model,ok := obj.(*corev1alpha1.AuthorizationModel)
+				model, ok := obj.(*corev1alpha1.AuthorizationModel)
 				if !ok {
 					return nil
 				}

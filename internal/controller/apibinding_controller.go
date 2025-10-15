@@ -29,7 +29,7 @@ func NewAPIBindingReconciler(logger *logger.Logger, mcMgr mcmanager.Manager) *AP
 }
 
 type APIBindingReconciler struct {
-	log       *logger.Logger
+	log         *logger.Logger
 	mclifecycle *multicluster.LifecycleManager
 }
 

@@ -19,7 +19,7 @@ import (
 )
 
 type AuthorizationModelReconciler struct {
-	log       *logger.Logger
+	log         *logger.Logger
 	mclifecycle *multicluster.LifecycleManager
 }
 

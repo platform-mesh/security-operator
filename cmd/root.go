@@ -63,7 +63,7 @@ func getKubeconfigFromPath(kubeconfigPath string) (*rest.Config, error) {
 	if kubeconfigPath == "" {
 		return nil, errors.New("missing value for required flag --kcp-kubeconfig")
 	}
-	cfg, err := clientcmd.LoadFromFile(initializerCfg.KCP.Kubeconfig)
+	cfg, err := clientcmd.LoadFromFile(kubeconfigPath)
 	if err != nil {
 		return nil, err
 	}
