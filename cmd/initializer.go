@@ -3,7 +3,10 @@ package cmd
 import (
 	"context"
 	"crypto/tls"
+	"crypto/x509"
+	"io/fs"
 	"os"
+	"path/filepath"
 	"time"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
@@ -16,6 +19,7 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -29,6 +33,49 @@ import (
 
 	"github.com/platform-mesh/security-operator/internal/controller"
 )
+
+// loadCertPool loads PEM certificates from a file or directory into a CertPool.
+func loadCertPool(path string) (*x509.CertPool, error) {
+	pool, _ := x509.SystemCertPool()
+	if pool == nil {
+		pool = x509.NewCertPool()
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	add := func(p string) error {
+		pem, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		if ok := pool.AppendCertsFromPEM(pem); !ok {
+			return fs.ErrInvalid
+		}
+		return nil
+	}
+	if info.IsDir() {
+		return pool, filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() {
+				return nil
+			}
+			return add(p)
+		})
+	}
+	return pool, add(path)
+}
+
+// bearerToken implements PerRPCCredentials with a static bearer token.
+type bearerToken string
+
+func (b bearerToken) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
+	return map[string]string{"authorization": "Bearer " + string(b)}, nil
+}
+
+func (b bearerToken) RequireTransportSecurity() bool { return true }
 
 var initializerCmd = &cobra.Command{
 	Use:   "initializer",
@@ -104,12 +151,39 @@ var initializerCmd = &cobra.Command{
 			initializerCfg.IDP.AdditionalRedirectURLs = []string{}
 		}
 
+		if initializerCfg.FGA.Target == "" {
+			log.Error().Msg("FGA target is empty; set fga-target in configuration")
+			os.Exit(1)
+		}
+
+		// Build transport credentials: prefer TLS unless explicitly configured as insecure
+		var tcreds credentials.TransportCredentials
+		if !initializerCfg.FGA.Insecure {
+			var tlsCfg tls.Config
+			// Load custom CA if provided
+			if initializerCfg.FGA.CACertPath != "" {
+				// best-effort CA load; fall back to system pool on failure
+				if pool, err := loadCertPool(initializerCfg.FGA.CACertPath); err == nil {
+					tlsCfg.RootCAs = pool
+				} else {
+					log.Warn().Err(err).Msg("failed to load FGA CA bundle; falling back to system roots")
+				}
+			}
+			tcreds = credentials.NewTLS(&tlsCfg)
+		} else {
+			tcreds = insecure.NewCredentials()
+		}
+
+		// Optional per-RPC bearer token
+		var dialOpts []grpc.DialOption
+		dialOpts = append(dialOpts, grpc.WithTransportCredentials(tcreds))
+		if tok := initializerCfg.FGA.BearerToken; tok != "" {
+			dialOpts = append(dialOpts, grpc.WithPerRPCCredentials(bearerToken(tok)))
+		}
+
 		ctxDial, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
-		conn, err := grpc.NewClient(
-			initializerCfg.FGA.Target,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-		)
+		conn, err := grpc.NewClient(initializerCfg.FGA.Target, dialOpts...)
 		if err != nil {
 			log.Error().Err(err).Msg("unable to create OpenFGA client connection")
 			os.Exit(1)
