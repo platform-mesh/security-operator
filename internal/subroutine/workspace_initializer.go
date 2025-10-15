@@ -169,7 +169,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		if parentAccount == nil || parentAccount.Name == "" || parentAccount.OriginClusterId == "" {
 			return ctrl.Result{Requeue: true}, nil
 		}
-		if err := w.writeTuple(ctx, store.Status.StoreID, &openfgav1.TupleKey{
+		if err := w.writeTuple(ctxWithTimeout, store.Status.StoreID, &openfgav1.TupleKey{
 			User:     fmt.Sprintf("%s:%s/%s", w.fgaObjectType, parentAccount.OriginClusterId, parentAccount.Name),
 			Relation: w.fgaParentRel,
 			Object:   fmt.Sprintf("%s:%s/%s", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
@@ -185,14 +185,14 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		}
 		creator := formatUser(*account.Spec.Creator)
 
-		if err := w.writeTuple(ctx, store.Status.StoreID, &openfgav1.TupleKey{
+		if err := w.writeTuple(ctxWithTimeout, store.Status.StoreID, &openfgav1.TupleKey{
 			User:     fmt.Sprintf("user:%s", creator),
 			Relation: "assignee",
 			Object:   fmt.Sprintf("role:%s/%s/%s/owner", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
 		}); err != nil {
 			return ctrl.Result{}, err
 		}
-		if err := w.writeTuple(ctx, store.Status.StoreID, &openfgav1.TupleKey{
+		if err := w.writeTuple(ctxWithTimeout, store.Status.StoreID, &openfgav1.TupleKey{
 			User:     fmt.Sprintf("role:%s/%s/%s/owner#assignee", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
 			Relation: w.fgaCreatorRel,
 			Object:   fmt.Sprintf("%s:%s/%s", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
