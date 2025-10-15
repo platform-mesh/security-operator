@@ -6,7 +6,6 @@ import (
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/initializingworkspaces"
@@ -32,13 +31,10 @@ var initializerCmd = &cobra.Command{
 		ctx, _, shutdown := pmcontext.StartContext(log, initializerCfg, defaultCfg.ShutdownTimeout)
 		defer shutdown()
 
-		cfg, err := clientcmd.LoadFromFile(initializerCfg.KCP.Kubeconfig)
+		restCfg, err := getKubeconfigFromPath(initializerCfg.KCP.Kubeconfig)
 		if err != nil {
-			return err
-		}
-		restCfg, err := clientcmd.NewDefaultClientConfig(*cfg, &clientcmd.ConfigOverrides{}).ClientConfig()
-		if err != nil {
-			return err
+			log.Error().Err(err).Msg("unable to get KCP kubeconfig")
+			os.Exit(1)
 		}
 
 		mgrOpts := ctrl.Options{

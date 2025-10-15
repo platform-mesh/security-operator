@@ -13,7 +13,7 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
@@ -28,14 +28,14 @@ import (
 type StoreReconciler struct {
 	fga       openfgav1.OpenFGAServiceClient
 	log       *logger.Logger
-	lifecycle *lifecyclecontrollerruntime.LifecycleManager
+	mclifecycle *multicluster.LifecycleManager
 }
 
 func NewStoreReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *StoreReconciler {
 	return &StoreReconciler{
 		fga: fga,
 		log: log,
-		lifecycle: builder.NewBuilder("store", "StoreReconciler", []lifecyclesubroutine.Subroutine{
+		mclifecycle: builder.NewBuilder("store", "StoreReconciler", []lifecyclesubroutine.Subroutine{
 			subroutine.NewStoreSubroutine(fga, mcMgr),
 			subroutine.NewAuthorizationModelSubroutine(fga, mcMgr),
 			subroutine.NewTupleSubroutine(fga, mcMgr),
@@ -46,12 +46,12 @@ func NewStoreReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, 
 
 func (r *StoreReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.lifecycle.Reconcile(ctxWithCluster, req, &corev1alpha1.Store{})
+	return r.mclifecycle.Reconcile(ctxWithCluster, req, &corev1alpha1.Store{})
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error { // coverage-ignore
-	builder, err := r.lifecycle.SetupWithManagerBuilder(mgr, cfg.MaxConcurrentReconciles, "store", &corev1alpha1.Store{}, cfg.DebugLabelValue, r.log, evp...)
+	builder, err := r.mclifecycle.SetupWithManagerBuilder(mgr, cfg.MaxConcurrentReconciles, "store", &corev1alpha1.Store{}, cfg.DebugLabelValue, r.log, evp...)
 	if err != nil {
 		return err
 	}

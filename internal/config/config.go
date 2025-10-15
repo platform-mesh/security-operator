@@ -13,7 +13,7 @@ type Config struct {
 		Target string `mapstructure:"fga-target"`
 	} `mapstructure:",squash"`
 	KCP struct {
-		Kubeconfig string `mapstructure:"kcp-kubeconfig"`
+		Kubeconfig string `mapstructure:"kcp-kubeconfig" default:"/api-kubeconfig/kubeconfig"`
 	} `mapstructure:",squash"`
 	APIExportEndpointSliceName string `mapstructure:"api-export-endpoint-slice-name"`
 	CoreModulePath             string `mapstructure:"core-module-path"`
