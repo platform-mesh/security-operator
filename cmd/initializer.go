@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"context"
 	"crypto/tls"
 	"os"
+	"time"
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
@@ -101,12 +103,19 @@ var initializerCmd = &cobra.Command{
 			initializerCfg.IDP.AdditionalRedirectURLs = []string{}
 		}
 
-		conn, err := grpc.NewClient(initializerCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		ctxDial, cancel := context.WithTimeout(ctx, 10*time.Second)
+		defer cancel()
+		conn, err := grpc.DialContext(
+			ctxDial,
+			initializerCfg.FGA.Target,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithBlock(),
+		)
 		if err != nil {
-			log.Error().Err(err).Msg("unable to create grpc client")
+			log.Error().Err(err).Msg("unable to dial OpenFGA")
 			os.Exit(1)
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
