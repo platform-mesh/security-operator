@@ -101,7 +101,7 @@ var initializerCmd = &cobra.Command{
 			initializerCfg.IDP.AdditionalRedirectURLs = []string{}
 		}
 
-		conn, err := grpc.NewClient(appCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.NewClient(initializerCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Error().Err(err).Msg("unable to create grpc client")
 			os.Exit(1)
@@ -110,7 +110,7 @@ var initializerCmd = &cobra.Command{
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-		if err := controller.NewLogicalClusterReconciler(log, orgClient, appCfg, inClusterClient, mgr, fga).
+		if err := controller.NewLogicalClusterReconciler(log, orgClient, initializerCfg, inClusterClient, mgr, fga).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")
 			os.Exit(1)
