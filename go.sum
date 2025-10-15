@@ -110,12 +110,12 @@ github.com/json-iterator/go v1.1.12 h1:PV8peI4a0ysnczrg+LtxykD8LfKY9ML6u2jnxaEnr
 github.com/json-iterator/go v1.1.12/go.mod h1:e30LSqwooZae/UwlEbR2852Gd8hjQvJoHmT4TnhNGBo=
 github.com/kcp-dev/apimachinery/v2 v2.0.1-0.20250728122101-adbf20db3e51 h1:l38RDS+VUMx9etvyaCgJIZa4nM7FaNevNubWN0kDZY4=
 github.com/kcp-dev/apimachinery/v2 v2.0.1-0.20250728122101-adbf20db3e51/go.mod h1:rF1jfvUfPjFXs+HV/LN1BtPzAz1bfjJOwVa+hAVfroQ=
-github.com/kcp-dev/kcp/sdk v0.28.1-0.20250926104223-cec2e15f24c6 h1:bOR4mdLD24VCJRrHxmtTh21AdbbzkBBKkEh0ngL+XTc=
-github.com/kcp-dev/kcp/sdk v0.28.1-0.20250926104223-cec2e15f24c6/go.mod h1:aC2BPGPvy8QtkI2gQNH9NfW6xpfGIKZkR93gy9O02BE=
+github.com/kcp-dev/kcp/sdk v0.28.1 h1:bTtuHVjFRjbwFEqXTPxc1J1JP2Hc3mTYqQ2xfJsi16M=
+github.com/kcp-dev/kcp/sdk v0.28.1/go.mod h1:8oZpWxkoMu2TDpx5DgdIGDigByKHKkeqVMA4GiWneoI=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5 h1:JbYakokb+5Uinz09oTXomSUJVQsqfxEvU4RyHUYxHOU=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5/go.mod h1:EWBUBxdr49fUB1cLMO4nOdBWmYifLbP1LfoL20KkXYY=
-github.com/kcp-dev/multicluster-provider v0.0.0-20250827085327-2b5ca378b7b4 h1:GUihV22j2J/cGF5Svr/zGVvfqTJepIO+sOnYTn9o4Vc=
-github.com/kcp-dev/multicluster-provider v0.0.0-20250827085327-2b5ca378b7b4/go.mod h1:E/NxN2SMtC7b6iXgFMlQYWA7lJIfDPqRkPdvpxOEQLA=
+github.com/kcp-dev/multicluster-provider v0.2.1 h1:viYs6wks/yCGnLsrQq8zu/jVlCuyyJT2VRjpMAI/PH8=
+github.com/kcp-dev/multicluster-provider v0.2.1/go.mod h1:dm7L8PEB2ovbJY+G9E0zalH0qQj01QwQrrNOssG5sbw=
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/klauspost/compress v1.18.0 h1:c/Cqfb0r+Yi+JtIEq73FWXVkRonBlf0CRNYc8Zttxdo=
