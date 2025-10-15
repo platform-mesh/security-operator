@@ -59,7 +59,7 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 		Watches(
 			&corev1alpha1.AuthorizationModel{},
 			handler.EnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []reconcile.Request {
-				model,ok := obj.(*corev1alpha1.AuthorizationModel)
+				model, ok := obj.(*corev1alpha1.AuthorizationModel)
 				if !ok {
 					return nil
 				}

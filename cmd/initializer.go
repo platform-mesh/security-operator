@@ -15,6 +15,7 @@ import (
 	pmcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -105,14 +106,29 @@ var initializerCmd = &cobra.Command{
 
 		ctxDial, cancel := context.WithTimeout(ctx, 10*time.Second)
 		defer cancel()
-		conn, err := grpc.DialContext(
-			ctxDial,
+		conn, err := grpc.NewClient(
 			initializerCfg.FGA.Target,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithBlock(),
 		)
 		if err != nil {
-			log.Error().Err(err).Msg("unable to dial OpenFGA")
+			log.Error().Err(err).Msg("unable to create OpenFGA client connection")
+			os.Exit(1)
+		}
+		// Eagerly connect and wait until Ready or timeout to fail fast on bad endpoints.
+		conn.Connect()
+		ready := false
+		for {
+			s := conn.GetState()
+			if s == connectivity.Ready {
+				ready = true
+				break
+			}
+			if !conn.WaitForStateChange(ctxDial, s) {
+				break // context expired
+			}
+		}
+		if !ready {
+			log.Error().Msg("OpenFGA connection not ready before deadline")
 			os.Exit(1)
 		}
 		defer func() { _ = conn.Close() }()
