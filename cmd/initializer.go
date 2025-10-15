@@ -87,10 +87,6 @@ var initializerCmd = &cobra.Command{
 		}
 
 		k8sCfg := ctrl.GetConfigOrDie()
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create in cluster config")
-			os.Exit(1)
-		}
 
 		runtimeClient, err := client.New(k8sCfg, client.Options{Scheme: scheme})
 		if err != nil {
