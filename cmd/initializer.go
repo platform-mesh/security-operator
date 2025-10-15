@@ -6,11 +6,14 @@ import (
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/initializingworkspaces"
 	pmcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
@@ -97,7 +100,16 @@ var initializerCmd = &cobra.Command{
 			appCfg.IDP.AdditionalRedirectURLs = []string{}
 		}
 
-		if err := controller.NewLogicalClusterReconciler(log, orgClient, appCfg, inClusterClient, mgr).
+		conn, err := grpc.NewClient(appCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Error().Err(err).Msg("unable to create grpc client")
+			os.Exit(1)
+		}
+		defer conn.Close()
+
+		fga := openfgav1.NewOpenFGAServiceClient(conn)
+
+		if err := controller.NewLogicalClusterReconciler(log, orgClient, appCfg, inClusterClient, mgr, fga).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")
 			os.Exit(1)

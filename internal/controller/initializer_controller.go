@@ -4,6 +4,7 @@ import (
 	"context"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
 	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
@@ -26,11 +27,11 @@ type LogicalClusterReconciler struct {
 	lifecycle *lifecyclecontrollerruntime.LifecycleManager
 }
 
-func NewLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *LogicalClusterReconciler {
+func NewLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager, fga openfgav1.OpenFGAServiceClient) *LogicalClusterReconciler {
 	return &LogicalClusterReconciler{
 		log: log,
 		lifecycle: builder.NewBuilder("logicalcluster", "LogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
-			subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr),
+			subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr, fga),
 			subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, cfg),
 			subroutine.NewRealmSubroutine(inClusterClient, &cfg, cfg.BaseDomain),
 			subroutine.NewRemoveInitializer(mgr, cfg.InitializerName),

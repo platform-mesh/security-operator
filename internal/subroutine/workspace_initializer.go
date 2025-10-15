@@ -10,12 +10,13 @@ import (
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/accountinfo"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-
 	"github.com/platform-mesh/golang-commons/errors"
+	"github.com/platform-mesh/golang-commons/fga/helpers"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,7 +29,12 @@ import (
 	"github.com/platform-mesh/security-operator/internal/config"
 )
 
-func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mcmanager.Manager) *workspaceInitializer {
+const (
+	annotationOwnerWritten  = "security-operator.platform-mesh.io/fga-owner-written"
+	annotationParentWritten = "security-operator.platform-mesh.io/fga-parent-written"
+)
+
+func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mcmanager.Manager, fga openfgav1.OpenFGAServiceClient) *workspaceInitializer {
 	coreModulePath := cfg.CoreModulePath
 
 	data, err := os.ReadFile(coreModulePath)
@@ -40,6 +46,7 @@ func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mc
 		orgsClient:    orgsClient,
 		mgr:           mgr,
 		coreModule:    string(data),
+		fga:           fga,
 		fgaObjectType: cfg.FGA.ObjectType,
 		fgaParentRel:  cfg.FGA.ParentRelation,
 		fgaCreatorRel: cfg.FGA.CreatorRelation,
@@ -52,6 +59,7 @@ type workspaceInitializer struct {
 	orgsClient    client.Client
 	mgr           mcmanager.Manager
 	coreModule    string
+	fga           openfgav1.OpenFGAServiceClient
 	fgaObjectType string
 	fgaParentRel  string
 	fgaCreatorRel string
@@ -111,11 +119,6 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		return ctrl.Result{}, opErr
 	}
 
-	additionalTuples, opErr := w.buildAdditionalTuples(&account, accountInfo)
-	if opErr != nil {
-		return ctrl.Result{}, opErr
-	}
-
 	ctxStore := mccontext.WithCluster(ctxWithTimeout, storeClusterName.String())
 	allowCreate := account.Spec.Type == accountsv1alpha1.AccountTypeOrg
 
@@ -134,8 +137,6 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		if allowCreate {
 			store.Spec.CoreModule = w.coreModule
 		}
-		desired := append(baseTuples(w.fgaObjectType, accountInfo), additionalTuples...)
-		store.Spec.Tuples = mergeTuples(store.Spec.Tuples, desired...)
 		return nil
 	})
 	if err != nil {
@@ -154,6 +155,55 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		if opErr := w.ensureAccountInfoStoreID(ctxWithTimeout, workspaceClient, store.Status.StoreID); opErr != nil {
 			return ctrl.Result{}, opErr
 		}
+	}
+
+	annotations := lc.GetAnnotations()
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
+	ownerWritten := annotations[annotationOwnerWritten] == "true"
+	parentWritten := annotations[annotationParentWritten] == "true"
+
+	if account.Spec.Type != accountsv1alpha1.AccountTypeOrg && !parentWritten {
+		parentAccount := accountInfo.Spec.ParentAccount
+		if parentAccount == nil || parentAccount.Name == "" || parentAccount.OriginClusterId == "" {
+			return ctrl.Result{Requeue: true}, nil
+		}
+		if err := w.writeTuple(ctx, store.Status.StoreID, &openfgav1.TupleKey{
+			User:     fmt.Sprintf("%s:%s/%s", w.fgaObjectType, parentAccount.OriginClusterId, parentAccount.Name),
+			Relation: w.fgaParentRel,
+			Object:   fmt.Sprintf("%s:%s/%s", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
+		}); err != nil {
+			return ctrl.Result{}, err
+		}
+		parentWritten = true
+	}
+
+	if !ownerWritten && account.Spec.Creator != nil {
+		if !validateCreator(*account.Spec.Creator) {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("creator string is in the protected service account prefix range"), false, false)
+		}
+		creator := formatUser(*account.Spec.Creator)
+
+		if err := w.writeTuple(ctx, store.Status.StoreID, &openfgav1.TupleKey{
+			User:     fmt.Sprintf("user:%s", creator),
+			Relation: "assignee",
+			Object:   fmt.Sprintf("role:%s/%s/%s/owner", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
+		}); err != nil {
+			return ctrl.Result{}, err
+		}
+		if err := w.writeTuple(ctx, store.Status.StoreID, &openfgav1.TupleKey{
+			User:     fmt.Sprintf("role:%s/%s/%s/owner#assignee", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
+			Relation: w.fgaCreatorRel,
+			Object:   fmt.Sprintf("%s:%s/%s", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
+		}); err != nil {
+			return ctrl.Result{}, err
+		}
+		ownerWritten = true
+	}
+
+	if err := w.updateAnnotations(ctx, clusterRef.GetClient(), lc, ownerWritten, parentWritten); err != nil {
+		return ctrl.Result{}, err
 	}
 
 	return ctrl.Result{}, nil
@@ -194,80 +244,6 @@ func (w *workspaceInitializer) resolveStoreTarget(lc *kcpv1alpha1.LogicalCluster
 	return logicalcluster.Name(accountInfo.Spec.Organization.Path), storeName, nil
 }
 
-func (w *workspaceInitializer) buildAdditionalTuples(account *accountsv1alpha1.Account, accountInfo *accountsv1alpha1.AccountInfo) ([]v1alpha1.Tuple, errors.OperatorError) {
-	tuples := []v1alpha1.Tuple{}
-
-	if account.Spec.Type != accountsv1alpha1.AccountTypeOrg {
-		parentAccountName := accountInfo.Spec.ParentAccount.Name
-		tuples = append(tuples, v1alpha1.Tuple{
-			Object:   fmt.Sprintf("%s:%s/%s", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
-			Relation: w.fgaParentRel,
-			User:     fmt.Sprintf("%s:%s/%s", w.fgaObjectType, accountInfo.Spec.ParentAccount.OriginClusterId, parentAccountName),
-		})
-	}
-
-	if account.Spec.Creator != nil {
-		if !validateCreator(*account.Spec.Creator) {
-			return nil, errors.NewOperatorError(fmt.Errorf("creator string is in the protected service account prefix range"), false, false)
-		}
-		creator := formatUser(*account.Spec.Creator)
-
-		tuples = append(tuples, v1alpha1.Tuple{
-			Object:   fmt.Sprintf("role:%s/%s/%s/owner", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
-			Relation: "assignee",
-			User:     fmt.Sprintf("user:%s", creator),
-		})
-
-		tuples = append(tuples, v1alpha1.Tuple{
-			Object:   fmt.Sprintf("%s:%s/%s", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
-			Relation: w.fgaCreatorRel,
-			User:     fmt.Sprintf("role:%s/%s/%s/owner#assignee", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, account.Name),
-		})
-	}
-
-	return tuples, nil
-}
-
-func baseTuples(objectType string, accountInfo *accountsv1alpha1.AccountInfo) []v1alpha1.Tuple {
-	return []v1alpha1.Tuple{
-		{
-			Object:   "role:authenticated",
-			Relation: "assignee",
-			User:     "user:*",
-		},
-		{
-			Object:   fmt.Sprintf("%s:%s/%s", objectType, accountInfo.Spec.Account.OriginClusterId, accountInfo.Spec.Account.Name),
-			Relation: "member",
-			User:     "role:authenticated#assignee",
-		},
-	}
-}
-
-func mergeTuples(existing []v1alpha1.Tuple, additions ...v1alpha1.Tuple) []v1alpha1.Tuple {
-	seen := make(map[string]struct{}, len(existing)+len(additions))
-	merged := make([]v1alpha1.Tuple, 0, len(existing)+len(additions))
-
-	for _, tuple := range existing {
-		key := tuple.String()
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		merged = append(merged, tuple)
-	}
-
-	for _, tuple := range additions {
-		key := tuple.String()
-		if _, ok := seen[key]; ok {
-			continue
-		}
-		seen[key] = struct{}{}
-		merged = append(merged, tuple)
-	}
-
-	return merged
-}
-
 func generateStoreName(lc *kcpv1alpha1.LogicalCluster) string {
 	if path, ok := lc.Annotations["kcp.io/path"]; ok {
 		pathElements := strings.Split(path, ":")
@@ -295,4 +271,46 @@ func formatUser(user string) string {
 
 func validateCreator(creator string) bool {
 	return !strings.HasPrefix(creator, "system.serviceaccount")
+}
+
+func (w *workspaceInitializer) writeTuple(ctx context.Context, storeID string, tuple *openfgav1.TupleKey) errors.OperatorError {
+	_, err := w.fga.Write(ctx, &openfgav1.WriteRequest{
+		StoreId: storeID,
+		Writes: &openfgav1.WriteRequestWrites{
+			TupleKeys: []*openfgav1.TupleKey{tuple},
+		},
+	})
+
+	if helpers.IsDuplicateWriteError(err) {
+		return nil
+	}
+	if err != nil {
+		return errors.NewOperatorError(fmt.Errorf("unable to write FGA tuple: %w", err), true, true)
+	}
+	return nil
+}
+
+func (w *workspaceInitializer) updateAnnotations(ctx context.Context, cl client.Client, lc *kcpv1alpha1.LogicalCluster, ownerWritten, parentWritten bool) errors.OperatorError {
+	currentOwner := lc.GetAnnotations()[annotationOwnerWritten] == "true"
+	currentParent := lc.GetAnnotations()[annotationParentWritten] == "true"
+
+	if currentOwner == ownerWritten && currentParent == parentWritten {
+		return nil
+	}
+
+	original := lc.DeepCopy()
+	if lc.Annotations == nil {
+		lc.Annotations = map[string]string{}
+	}
+	if ownerWritten {
+		lc.Annotations[annotationOwnerWritten] = "true"
+	}
+	if parentWritten {
+		lc.Annotations[annotationParentWritten] = "true"
+	}
+
+	if err := cl.Patch(ctx, lc, client.MergeFrom(original)); err != nil {
+		return errors.NewOperatorError(fmt.Errorf("unable to patch logical cluster annotations: %w", err), true, true)
+	}
+	return nil
 }
