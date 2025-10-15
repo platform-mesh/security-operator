@@ -270,7 +270,14 @@ func formatUser(user string) string {
 }
 
 func validateCreator(creator string) bool {
-	return !strings.HasPrefix(creator, "system.serviceaccount")
+	// Block both canonical and formatted service account usernames
+	if strings.HasPrefix(creator, "system:serviceaccount:") {
+		return false
+	}
+	if strings.HasPrefix(creator, "system.serviceaccount.") {
+		return false
+	}
+	return true
 }
 
 func (w *workspaceInitializer) writeTuple(ctx context.Context, storeID string, tuple *openfgav1.TupleKey) errors.OperatorError {
