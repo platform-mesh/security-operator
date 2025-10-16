@@ -72,7 +72,6 @@ func (r *removeInitializer) Process(ctx context.Context, instance runtimeobject.
 			log.Info().Msg(fmt.Sprintf("realm secret %s is not ready yet, trying again", secretName))
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 		}
-		log.Info().Msg(fmt.Sprintf("failed to get realm secret %s, err -- %s", secretName, err))
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get secret %s: %w", secretName, err), true, true)
 	}
 
