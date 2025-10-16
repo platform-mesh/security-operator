@@ -106,10 +106,10 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Transport: mTLS is handled by the service mesh (Istio).
+		// gRPC client initialization: mTLS is handled by the service mesh (Istio)
 		conn, err := grpc.NewClient(initializerCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
-			log.Error().Err(err).Msg("unable to create OpenFGA client connection")
+			log.Error().Err(err).Msg("unable to create OpenFGA gRPC client")
 			os.Exit(1)
 		}
 		defer func() { _ = conn.Close() }()

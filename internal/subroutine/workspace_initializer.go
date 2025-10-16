@@ -149,11 +149,11 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
 	}
 
-	if accountInfo.Spec.FGA.Store.Id != store.Status.StoreID {
+	if accountInfo.Spec.FGA.Store.Id != store.Status.StoreID || accountInfo.Spec.Creator != account.Spec.Creator {
 		// Fresh timeout for AccountInfo update
 		ctxUpdateTimeout, cancelUpdate := context.WithTimeout(ctx, 5*time.Second)
 		defer cancelUpdate()
-		if opErr := w.ensureAccountInfoStoreID(ctxUpdateTimeout, workspaceClient, store.Status.StoreID); opErr != nil {
+		if opErr := w.ensureAccountInfo(ctxUpdateTimeout, workspaceClient, store.Status.StoreID, account.Spec.Creator); opErr != nil {
 			return ctrl.Result{}, opErr
 		}
 	}
@@ -161,10 +161,11 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 	return ctrl.Result{}, nil
 }
 
-func (w *workspaceInitializer) ensureAccountInfoStoreID(ctx context.Context, workspaceClient client.Client, storeID string) errors.OperatorError {
+func (w *workspaceInitializer) ensureAccountInfo(ctx context.Context, workspaceClient client.Client, storeID string, creator *string) errors.OperatorError {
 	accountInfo := &accountsv1alpha1.AccountInfo{ObjectMeta: metav1.ObjectMeta{Name: accountinfo.DefaultAccountInfoName}}
 	_, err := controllerutil.CreateOrUpdate(ctx, workspaceClient, accountInfo, func() error {
 		accountInfo.Spec.FGA.Store.Id = storeID
+		accountInfo.Spec.Creator = creator
 		return nil
 	})
 	if err != nil {
