@@ -92,19 +92,20 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get owner account: %w", err), true, true)
 	}
 
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
+	// Timeout for AccountInfo retrieval
+	ctxGetTimeout, cancelGet := context.WithTimeout(ctx, 5*time.Second)
+	defer cancelGet()
 
 	accountInfo := &accountsv1alpha1.AccountInfo{}
-	if err := workspaceClient.Get(ctxWithTimeout, client.ObjectKey{Name: accountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
+	if err := workspaceClient.Get(ctxGetTimeout, client.ObjectKey{Name: accountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
 		if kerrors.IsNotFound(err) {
-			return ctrl.Result{Requeue: true}, nil
+			return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
 		}
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get accountInfo: %w", err), true, true)
 	}
 
 	if accountInfo.Spec.Account.Name == "" || accountInfo.Spec.Account.OriginClusterId == "" {
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
 	}
 
 	storeClusterName, storeName, opErr := w.resolveStoreTarget(lc, account, accountInfo)
@@ -112,7 +113,10 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		return ctrl.Result{}, opErr
 	}
 
-	ctxStore := mccontext.WithCluster(ctxWithTimeout, storeClusterName.String())
+	// Fresh timeout for store operations
+	ctxStoreTimeout, cancelStore := context.WithTimeout(ctx, 5*time.Second)
+	defer cancelStore()
+	ctxStore := mccontext.WithCluster(ctxStoreTimeout, storeClusterName.String())
 	allowCreate := account.Spec.Type == accountsv1alpha1.AccountTypeOrg
 
 	store := &v1alpha1.Store{}
@@ -120,14 +124,15 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		if kerrors.IsNotFound(err) && allowCreate {
 			store = &v1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: storeName}}
 		} else if kerrors.IsNotFound(err) {
-			return ctrl.Result{Requeue: true}, nil
+			return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
 		} else {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get store: %w", err), true, true)
 		}
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctxStore, w.orgsClient, store, func() error {
-		if allowCreate {
+		// Backfill CoreModule if missing for org accounts (creation or partial prior init)
+		if allowCreate && store.Spec.CoreModule == "" {
 			store.Spec.CoreModule = w.coreModule
 		}
 		return nil
@@ -141,11 +146,14 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 	}
 
 	if store.Status.StoreID == "" {
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
 	}
 
 	if accountInfo.Spec.FGA.Store.Id != store.Status.StoreID {
-		if opErr := w.ensureAccountInfoStoreID(ctxWithTimeout, workspaceClient, store.Status.StoreID); opErr != nil {
+		// Fresh timeout for AccountInfo update
+		ctxUpdateTimeout, cancelUpdate := context.WithTimeout(ctx, 5*time.Second)
+		defer cancelUpdate()
+		if opErr := w.ensureAccountInfoStoreID(ctxUpdateTimeout, workspaceClient, store.Status.StoreID); opErr != nil {
 			return ctrl.Result{}, opErr
 		}
 	}
@@ -171,7 +179,11 @@ func (w *workspaceInitializer) resolveStoreTarget(lc *kcpv1alpha1.LogicalCluster
 		if !ok {
 			return "", "", errors.NewOperatorError(fmt.Errorf("unable to get workspace path"), true, false)
 		}
-		return logicalcluster.Name(path), generateStoreName(lc), nil
+		storeName := generateStoreName(lc)
+		if storeName == "" {
+			return "", "", errors.NewOperatorError(fmt.Errorf("unable to generate store name from workspace path"), true, false)
+		}
+		return logicalcluster.Name(path), storeName, nil
 	}
 
 	if accountInfo.Spec.Organization.Path == "" {
