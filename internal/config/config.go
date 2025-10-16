@@ -14,10 +14,6 @@ type Config struct {
 		ObjectType      string `mapstructure:"fga-object-type" default:"core_platform-mesh_io_account"`
 		ParentRelation  string `mapstructure:"fga-parent-relation" default:"parent"`
 		CreatorRelation string `mapstructure:"fga-creator-relation" default:"owner"`
-		// Security options
-		Insecure    bool   `mapstructure:"fga-insecure" default:"false"`
-		CACertPath  string `mapstructure:"fga-ca-path"`
-		BearerToken string `mapstructure:"fga-bearer-token"`
 	} `mapstructure:",squash"`
 	APIExportEndpointSliceName string `mapstructure:"api-export-endpoint-slice-name"`
 	CoreModulePath             string `mapstructure:"core-module-path"`
