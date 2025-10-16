@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	portalClientSecretNamespace = "platform-mesh-system"
+	PortalClientSecretNamespace = "platform-mesh-system"
 )
 
 type removeInitializer struct {
@@ -64,7 +64,7 @@ func (r *removeInitializer) Process(ctx context.Context, instance runtimeobject.
 	}
 
 	secretName := fmt.Sprintf("portal-client-secret-%s", workspaceName)
-	key := types.NamespacedName{Name: secretName, Namespace: portalClientSecretNamespace}
+	key := types.NamespacedName{Name: secretName, Namespace: PortalClientSecretNamespace}
 
 	var secret corev1.Secret
 	if err := r.runtimeClient.Get(ctx, key, &secret); err != nil {

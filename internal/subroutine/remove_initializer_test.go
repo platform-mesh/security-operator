@@ -67,7 +67,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 
 		mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 		// Secret must exist for the flow to proceed
-		runtimeClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "portal-client-secret-test", Namespace: "platform-mesh-system"}, mock.Anything).Return(nil)
+		runtimeClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "portal-client-secret-test", Namespace: subroutine.PortalClientSecretNamespace}, mock.Anything).Return(nil)
 		cluster.EXPECT().GetClient().Return(k8s)
 		k8s.EXPECT().Status().Return(&fakeStatusWriter{t: t, expectClear: kcpv1alpha1.LogicalClusterInitializer(initializerName), err: nil})
 
@@ -95,7 +95,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 
 		mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 		// Secret exists so we hit the patch failure path
-		runtimeClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "portal-client-secret-test", Namespace: "platform-mesh-system"}, mock.Anything).Return(nil)
+		runtimeClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "portal-client-secret-test", Namespace: subroutine.PortalClientSecretNamespace}, mock.Anything).Return(nil)
 		cluster.EXPECT().GetClient().Return(k8s)
 		k8s.EXPECT().Status().Return(&fakeStatusWriter{t: t, expectClear: kcpv1alpha1.LogicalClusterInitializer(initializerName), err: assert.AnError})
 
@@ -117,7 +117,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 
 		mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 		// Simulate NotFound error
-		runtimeClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "portal-client-secret-test", Namespace: "platform-mesh-system"}, mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Group: "", Resource: "secrets"}, "portal-client-secret-test"))
+		runtimeClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "portal-client-secret-test", Namespace: subroutine.PortalClientSecretNamespace}, mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Group: "", Resource: "secrets"}, "portal-client-secret-test"))
 
 		lc := &kcpv1alpha1.LogicalCluster{}
 		lc.Status.Initializers = []kcpv1alpha1.LogicalClusterInitializer{
@@ -129,8 +129,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 		res, err := r.Process(context.Background(), lc)
 		assert.Nil(t, err)
 		// Should requeue soon
-		assert.True(t, res.RequeueAfter > 0)
-		assert.LessOrEqual(t, res.RequeueAfter, 10*time.Second)
+		assert.Equal(t, 5*time.Second, res.RequeueAfter)
 	})
 }
 
