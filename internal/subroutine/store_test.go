@@ -68,6 +68,21 @@ func TestProcess(t *testing.T) {
 			},
 		},
 		{
+			name: "should fail if get store by ID fails",
+			store: &v1alpha1.Store{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "store",
+				},
+				Status: v1alpha1.StoreStatus{
+					StoreID: "id",
+				},
+			},
+			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
+				fga.EXPECT().GetStore(mock.Anything, &openfgav1.GetStoreRequest{StoreId: "id"}).Return(nil, errors.New("boom"))
+			},
+			expectError: true,
+		},
+		{
 			name: "should verify the store if .status.storeId is set",
 			store: &v1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{

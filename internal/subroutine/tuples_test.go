@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
@@ -478,4 +479,69 @@ func TestTupleFinalizationWithStore(t *testing.T) {
 
 		})
 	}
+}
+
+func TestTupleFinalizationWithAuthorizationModel_Errors(t *testing.T) {
+	t.Run("cluster from context error", func(t *testing.T) {
+		fga := mocks.NewMockOpenFGAServiceClient(t)
+		manager := mocks.NewMockManager(t)
+		// Simulate failure to get cluster from context
+		manager.EXPECT().ClusterFromContext(mock.Anything).Return(nil, errors.New("cluster ctx error"))
+
+		sub := subroutine.NewTupleSubroutine(fga, manager)
+		am := &v1alpha1.AuthorizationModel{}
+
+		ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("a")))
+		_, opErr := sub.Finalize(ctx, am)
+		assert.NotNil(t, opErr)
+	})
+
+	t.Run("logicalcluster get error", func(t *testing.T) {
+		fga := mocks.NewMockOpenFGAServiceClient(t)
+		manager := mocks.NewMockManager(t)
+		cluster := mocks.NewMockCluster(t)
+		k8sClient := mocks.NewMockClient(t)
+
+		manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+		cluster.EXPECT().GetClient().Return(k8sClient)
+		// First Get tries to fetch the LogicalCluster named "cluster"
+		k8sClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(errors.New("get lc error")).Once()
+
+		sub := subroutine.NewTupleSubroutine(fga, manager)
+		am := &v1alpha1.AuthorizationModel{}
+		ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("a")))
+		_, opErr := sub.Finalize(ctx, am)
+		assert.NotNil(t, opErr)
+	})
+
+	t.Run("store get error", func(t *testing.T) {
+		fga := mocks.NewMockOpenFGAServiceClient(t)
+		manager := mocks.NewMockManager(t)
+		cluster := mocks.NewMockCluster(t)
+		k8sClient := mocks.NewMockClient(t)
+
+		// AuthorizationModel with StoreRef set so we try to lookup the store
+		am := &v1alpha1.AuthorizationModel{}
+		am.Spec.StoreRef.Name = "store"
+		am.Spec.StoreRef.Path = "path"
+
+		manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+		cluster.EXPECT().GetClient().Return(k8sClient)
+		// First Get returns LogicalCluster successfully
+		k8sClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, _ client.ObjectKey, o client.Object, _ ...client.GetOption) error {
+			// Populate lc annotation used in code path
+			if lc, ok := o.(*kcpcorev1alpha1.LogicalCluster); ok {
+				lc.Annotations = map[string]string{"kcp.io/cluster": "path"}
+			}
+			return nil
+		}).Once()
+
+		// Second: attempt to fetch Store from storeCtx must fail
+		k8sClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "store"}, mock.Anything).Return(errors.New("get store error")).Once()
+
+		sub := subroutine.NewTupleSubroutine(fga, manager)
+		ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("a")))
+		_, opErr := sub.Finalize(ctx, am)
+		assert.NotNil(t, opErr)
+	})
 }
