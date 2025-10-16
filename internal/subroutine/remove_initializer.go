@@ -57,7 +57,7 @@ func (r *removeInitializer) Process(ctx context.Context, instance runtimeobject.
 		return ctrl.Result{}, nil
 	}
 
-	// we need to wait untill keycloak crossplane provider creates a portal secret
+	// we need to wait until keycloak crossplane provider creates a portal secret
 	workspaceName := getWorkspaceName(lc)
 	if workspaceName == "" {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace path"), true, false)
@@ -69,7 +69,7 @@ func (r *removeInitializer) Process(ctx context.Context, instance runtimeobject.
 	var secret corev1.Secret
 	if err := r.runtimeClient.Get(ctx, key, &secret); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info().Msg(fmt.Sprintf("realm secret %s is not ready yet, trying again", secretName))
+			log.Info().Msg(fmt.Sprintf("portal secret %s is not ready yet, trying again", secretName))
 			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 		}
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get secret %s: %w", secretName, err), true, true)
