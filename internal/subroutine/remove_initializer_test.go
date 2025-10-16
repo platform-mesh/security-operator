@@ -9,6 +9,7 @@ import (
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -43,13 +44,14 @@ func TestRemoveInitializer_Process(t *testing.T) {
 
 	t.Run("skips when initializer is absent", func(t *testing.T) {
 		mgr := mocks.NewMockManager(t)
+		runtimeClient := mocks.NewMockClient(t)
 		cluster := mocks.NewMockCluster(t)
 		mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 
 		lc := &kcpv1alpha1.LogicalCluster{}
 		lc.Status.Initializers = []kcpv1alpha1.LogicalClusterInitializer{"other.initializer"}
 
-		r := subroutine.NewRemoveInitializer(mgr, initializerName)
+		r := subroutine.NewRemoveInitializer(mgr, initializerName, runtimeClient)
 		_, err := r.Process(context.Background(), lc)
 		assert.Nil(t, err)
 	})
@@ -57,9 +59,12 @@ func TestRemoveInitializer_Process(t *testing.T) {
 	t.Run("removes initializer and patches status", func(t *testing.T) {
 		mgr := mocks.NewMockManager(t)
 		cluster := mocks.NewMockCluster(t)
+		runtimeClient := mocks.NewMockClient(t)
 		k8s := mocks.NewMockClient(t)
 
 		mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+		// Secret must exist for the flow to proceed
+		runtimeClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "portal-client-secret-test", Namespace: "platform-mesh-system"}, mock.Anything).Return(nil)
 		cluster.EXPECT().GetClient().Return(k8s)
 		k8s.EXPECT().Status().Return(&fakeStatusWriter{t: t, expectClear: kcpv1alpha1.LogicalClusterInitializer(initializerName), err: nil})
 
@@ -68,8 +73,9 @@ func TestRemoveInitializer_Process(t *testing.T) {
 			kcpv1alpha1.LogicalClusterInitializer(initializerName),
 			"another.initializer",
 		}
+		lc.Annotations = map[string]string{"kcp.io/path": "root:org:test"}
 
-		r := subroutine.NewRemoveInitializer(mgr, initializerName)
+		r := subroutine.NewRemoveInitializer(mgr, initializerName, runtimeClient)
 		_, err := r.Process(context.Background(), lc)
 		assert.Nil(t, err)
 		// ensure it's removed in in-memory object as well
@@ -81,9 +87,12 @@ func TestRemoveInitializer_Process(t *testing.T) {
 	t.Run("returns error when status patch fails", func(t *testing.T) {
 		mgr := mocks.NewMockManager(t)
 		cluster := mocks.NewMockCluster(t)
+		runtimeClient := mocks.NewMockClient(t)
 		k8s := mocks.NewMockClient(t)
 
 		mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+		// Secret exists so we hit the patch failure path
+		runtimeClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "portal-client-secret-test", Namespace: "platform-mesh-system"}, mock.Anything).Return(nil)
 		cluster.EXPECT().GetClient().Return(k8s)
 		k8s.EXPECT().Status().Return(&fakeStatusWriter{t: t, expectClear: kcpv1alpha1.LogicalClusterInitializer(initializerName), err: assert.AnError})
 
@@ -91,8 +100,9 @@ func TestRemoveInitializer_Process(t *testing.T) {
 		lc.Status.Initializers = []kcpv1alpha1.LogicalClusterInitializer{
 			kcpv1alpha1.LogicalClusterInitializer(initializerName),
 		}
+		lc.Annotations = map[string]string{"kcp.io/path": "root:org:test"}
 
-		r := subroutine.NewRemoveInitializer(mgr, initializerName)
+		r := subroutine.NewRemoveInitializer(mgr, initializerName, runtimeClient)
 		_, err := r.Process(context.Background(), lc)
 		assert.NotNil(t, err)
 	})
@@ -100,7 +110,8 @@ func TestRemoveInitializer_Process(t *testing.T) {
 
 func TestRemoveInitializer_Misc(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
-	r := subroutine.NewRemoveInitializer(mgr, "foo.initializer.kcp.dev")
+	runtimeClient := mocks.NewMockClient(t)
+	r := subroutine.NewRemoveInitializer(mgr, "foo.initializer.kcp.dev", runtimeClient)
 
 	assert.Equal(t, "RemoveInitializer", r.GetName())
 	assert.Equal(t, []string{}, r.Finalizers(nil))
@@ -113,8 +124,9 @@ func TestRemoveInitializer_ManagerError(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
 	// Simulate error fetching cluster from context
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError)
+	runtimeClient := mocks.NewMockClient(t)
 
-	r := subroutine.NewRemoveInitializer(mgr, "foo.initializer.kcp.dev")
+	r := subroutine.NewRemoveInitializer(mgr, "foo.initializer.kcp.dev", runtimeClient)
 	_, err := r.Process(context.Background(), &kcpv1alpha1.LogicalCluster{})
 	assert.NotNil(t, err)
 }
