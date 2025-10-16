@@ -3,12 +3,15 @@ package subroutine_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -105,6 +108,29 @@ func TestRemoveInitializer_Process(t *testing.T) {
 		r := subroutine.NewRemoveInitializer(mgr, initializerName, runtimeClient)
 		_, err := r.Process(context.Background(), lc)
 		assert.NotNil(t, err)
+	})
+
+	t.Run("requeues when secret not found", func(t *testing.T) {
+		mgr := mocks.NewMockManager(t)
+		cluster := mocks.NewMockCluster(t)
+		runtimeClient := mocks.NewMockClient(t)
+
+		mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+		// Simulate NotFound error
+		runtimeClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "portal-client-secret-test", Namespace: "platform-mesh-system"}, mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Group: "", Resource: "secrets"}, "portal-client-secret-test"))
+
+		lc := &kcpv1alpha1.LogicalCluster{}
+		lc.Status.Initializers = []kcpv1alpha1.LogicalClusterInitializer{
+			kcpv1alpha1.LogicalClusterInitializer(initializerName),
+		}
+		lc.Annotations = map[string]string{"kcp.io/path": "root:org:test"}
+
+		r := subroutine.NewRemoveInitializer(mgr, initializerName, runtimeClient)
+		res, err := r.Process(context.Background(), lc)
+		assert.Nil(t, err)
+		// Should requeue soon
+		assert.True(t, res.RequeueAfter > 0)
+		assert.LessOrEqual(t, res.RequeueAfter, 10*time.Second)
 	})
 }
 
