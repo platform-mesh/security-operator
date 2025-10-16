@@ -41,7 +41,7 @@ func NewStoreReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, 
 
 	parsed, err := url.Parse(allCfg.Host)
 	if err != nil {
-		log.Error().Err(err).Msg("unable to parse host from config")
+		log.Fatal().Err(err).Msg("unable to parse host from config")
 	}
 
 	parts := strings.Split(parsed.Path, "clusters")
