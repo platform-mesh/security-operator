@@ -3,10 +3,7 @@ package subroutine
 import (
 	"context"
 	"fmt"
-	"net/url"
-	"strings"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
@@ -15,7 +12,6 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"google.golang.org/protobuf/encoding/protojson"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -26,14 +22,16 @@ import (
 const schemaVersion = "1.2"
 
 type authorizationModelSubroutine struct {
-	fga openfgav1.OpenFGAServiceClient
-	mgr mcmanager.Manager
+	fga       openfgav1.OpenFGAServiceClient
+	mgr       mcmanager.Manager
+	allClient client.Client
 }
 
-func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *authorizationModelSubroutine {
+func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, allClient client.Client, log *logger.Logger) *authorizationModelSubroutine {
 	return &authorizationModelSubroutine{
-		fga: fga,
-		mgr: mgr,
+		fga:       fga,
+		mgr:       mgr,
+		allClient: allClient,
 	}
 }
 
@@ -77,40 +75,7 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 	log := logger.LoadLoggerFromContext(ctx)
 	store := instance.(*v1alpha1.Store)
 
-	cluster, err := a.mgr.ClusterFromContext(ctx)
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
-	}
-
-	allCfg := rest.CopyConfig(cluster.GetConfig())
-
-	parsed, err := url.Parse(allCfg.Host)
-	if err != nil {
-		log.Error().Err(err).Msg("unable to parse host from config")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
-	}
-
-	parts := strings.Split(parsed.Path, "clusters")
-
-	parsed.Path, err = url.JoinPath(parts[0], "clusters", logicalcluster.Wildcard.String())
-	if err != nil {
-		log.Error().Err(err).Msg("unable to join path")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
-	}
-
-	allCfg.Host = parsed.String()
-
-	log.Info().Str("host", allCfg.Host).Msg("using host")
-
-	allClient, err := client.New(allCfg, client.Options{
-		Scheme: cluster.GetScheme(),
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("unable to create new client")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
-	}
-
-	extendingModules, err := getRelatedAuthorizationModels(ctx, allClient, store)
+	extendingModules, err := getRelatedAuthorizationModels(ctx, a.allClient, store)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to get related authorization models")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
