@@ -8,7 +8,6 @@ import (
 	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/account-operator/pkg/subroutines/accountinfo"
@@ -52,7 +51,7 @@ func (w *workspaceFGASubroutine) Finalize(ctx context.Context, _ runtimeobject.R
 }
 
 func (w *workspaceFGASubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	lc := instance.(*kcpv1alpha1.LogicalCluster)
+	_ = instance.(*kcpv1alpha1.LogicalCluster)
 
 	clusterRef, err := w.mgr.ClusterFromContext(ctx)
 	if err != nil {
@@ -65,10 +64,10 @@ func (w *workspaceFGASubroutine) Process(ctx context.Context, instance runtimeob
 
 	accountInfo := &accountsv1alpha1.AccountInfo{}
 	if err := workspaceClient.Get(ctxWithTimeout, client.ObjectKey{Name: accountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
 	}
 	if accountInfo.Spec.Account.Name == "" || accountInfo.Spec.Account.OriginClusterId == "" || accountInfo.Spec.FGA.Store.Id == "" {
-		return ctrl.Result{Requeue: true}, nil
+		return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
 	}
 
 	// Parent relation for non-org accounts
@@ -83,18 +82,9 @@ func (w *workspaceFGASubroutine) Process(ctx context.Context, instance runtimeob
 		}
 	}
 
-	// Owner/creator relations: fetch the Account to read .Spec.Creator
-	ownerClusterName := logicalcluster.Name(lc.Spec.Owner.Cluster)
-	ownerClusterRef, err := w.mgr.GetCluster(ctx, ownerClusterName.String())
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get owner cluster: %w", err), true, true)
-	}
-	var account accountsv1alpha1.Account
-	if err := ownerClusterRef.GetClient().Get(ctxWithTimeout, client.ObjectKey{Name: lc.Spec.Owner.Name}, &account); err != nil {
-		return ctrl.Result{Requeue: true}, nil
-	}
-	if account.Spec.Creator != nil && *account.Spec.Creator != "" {
-		creator := *account.Spec.Creator
+	// Owner/creator relations: write only once using creator from AccountInfo
+	if accountInfo.Spec.Creator != nil && *accountInfo.Spec.Creator != "" && !accountInfo.Status.CreatorTupleWritten {
+		creator := *accountInfo.Spec.Creator
 		if !validateCreator(creator) {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("creator string is in the protected service account prefix range"), false, false)
 		}
@@ -112,6 +102,12 @@ func (w *workspaceFGASubroutine) Process(ctx context.Context, instance runtimeob
 			Object:   fmt.Sprintf("%s:%s/%s", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, accountInfo.Spec.Account.Name),
 		}); err != nil {
 			return ctrl.Result{}, err
+		}
+
+		// Mark creator tuple as written
+		accountInfo.Status.CreatorTupleWritten = true
+		if err := workspaceClient.Status().Update(ctxWithTimeout, accountInfo); err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to update accountInfo status: %w", err), true, true)
 		}
 	}
 
