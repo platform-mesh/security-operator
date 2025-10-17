@@ -11,6 +11,7 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -25,9 +26,10 @@ const (
 )
 
 type removeInitializer struct {
-	initializerName string
-	mgr             mcmanager.Manager
-	runtimeClient   client.Client
+	initializerName   string
+	mgr               mcmanager.Manager
+	runtimeClient     client.Client
+	secretWaitTimeout time.Duration
 }
 
 // Finalize implements subroutine.Subroutine.
@@ -70,11 +72,11 @@ func (r *removeInitializer) Process(ctx context.Context, instance runtimeobject.
 	if err := r.runtimeClient.Get(ctx, key, &secret); err != nil {
 		if apierrors.IsNotFound(err) {
 			age := time.Since(lc.CreationTimestamp.Time)
-			if age <= time.Minute {
+			if age <= r.secretWaitTimeout {
 				log.Info().Str("secret", secretName).Msg("portal secret not ready yet, requeueing")
 				return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
 			}
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("keycloak client secret %s was not created within 1m", secretName), true, true)
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("portal client secret %s was not created within %s", secretName, r.secretWaitTimeout.String()), true, true)
 		}
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get secret %s: %w", secretName, err), true, true)
 	}
@@ -91,11 +93,12 @@ func (r *removeInitializer) Process(ctx context.Context, instance runtimeobject.
 	return ctrl.Result{}, nil
 }
 
-func NewRemoveInitializer(mgr mcmanager.Manager, initializerName string, runtimeClient client.Client) *removeInitializer {
+func NewRemoveInitializer(mgr mcmanager.Manager, cfg config.Config, runtimeClient client.Client) *removeInitializer {
 	return &removeInitializer{
-		initializerName: initializerName,
-		mgr:             mgr,
-		runtimeClient:   runtimeClient,
+		initializerName:   cfg.InitializerName,
+		mgr:               mgr,
+		runtimeClient:     runtimeClient,
+		secretWaitTimeout: time.Duration(cfg.SecretWaitingTimeoutInSeconds) * time.Second,
 	}
 }
 

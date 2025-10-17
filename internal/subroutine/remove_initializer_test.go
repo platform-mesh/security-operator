@@ -6,6 +6,7 @@ import (
 	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
@@ -54,7 +55,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 		lc := &kcpv1alpha1.LogicalCluster{}
 		lc.Status.Initializers = []kcpv1alpha1.LogicalClusterInitializer{"other.initializer"}
 
-		r := subroutine.NewRemoveInitializer(mgr, initializerName, runtimeClient)
+		r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: initializerName, SecretWaitingTimeoutInSeconds: 60}, runtimeClient)
 		_, err := r.Process(context.Background(), lc)
 		assert.Nil(t, err)
 	})
@@ -78,7 +79,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 		}
 		lc.Annotations = map[string]string{"kcp.io/path": "root:org:test"}
 
-		r := subroutine.NewRemoveInitializer(mgr, initializerName, runtimeClient)
+		r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: initializerName, SecretWaitingTimeoutInSeconds: 60}, runtimeClient)
 		_, err := r.Process(context.Background(), lc)
 		assert.Nil(t, err)
 		// ensure it's removed in in-memory object as well
@@ -105,7 +106,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 		}
 		lc.Annotations = map[string]string{"kcp.io/path": "root:org:test"}
 
-		r := subroutine.NewRemoveInitializer(mgr, initializerName, runtimeClient)
+		r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: initializerName, SecretWaitingTimeoutInSeconds: 60}, runtimeClient)
 		_, err := r.Process(context.Background(), lc)
 		assert.NotNil(t, err)
 	})
@@ -126,7 +127,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 		lc.Annotations = map[string]string{"kcp.io/path": "root:org:test"}
 		lc.CreationTimestamp.Time = time.Now().Add(-30 * time.Second)
 
-		r := subroutine.NewRemoveInitializer(mgr, initializerName, runtimeClient)
+		r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: initializerName, SecretWaitingTimeoutInSeconds: 60}, runtimeClient)
 		res, err := r.Process(context.Background(), lc)
 		assert.Nil(t, err)
 		assert.Equal(t, 5*time.Second, res.RequeueAfter)
@@ -148,7 +149,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 		lc.Annotations = map[string]string{"kcp.io/path": "root:org:test"}
 		lc.CreationTimestamp.Time = time.Now().Add(-2 * time.Minute)
 
-		r := subroutine.NewRemoveInitializer(mgr, initializerName, runtimeClient)
+		r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: initializerName, SecretWaitingTimeoutInSeconds: 60}, runtimeClient)
 		_, err := r.Process(context.Background(), lc)
 		assert.NotNil(t, err)
 	})
@@ -157,7 +158,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 func TestRemoveInitializer_Misc(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
 	runtimeClient := mocks.NewMockClient(t)
-	r := subroutine.NewRemoveInitializer(mgr, "foo.initializer.kcp.dev", runtimeClient)
+	r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: "foo.initializer.kcp.dev", SecretWaitingTimeoutInSeconds: 60}, runtimeClient)
 
 	assert.Equal(t, "RemoveInitializer", r.GetName())
 	assert.Equal(t, []string{}, r.Finalizers(nil))
@@ -172,7 +173,7 @@ func TestRemoveInitializer_ManagerError(t *testing.T) {
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError)
 	runtimeClient := mocks.NewMockClient(t)
 
-	r := subroutine.NewRemoveInitializer(mgr, "foo.initializer.kcp.dev", runtimeClient)
+	r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: "foo.initializer.kcp.dev", SecretWaitingTimeoutInSeconds: 60}, runtimeClient)
 	_, err := r.Process(context.Background(), &kcpv1alpha1.LogicalCluster{})
 	assert.NotNil(t, err)
 }
