@@ -27,7 +27,7 @@ func TestWorkspaceFGA_Requeue_WhenAccountInfoMissing(t *testing.T) {
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(wsCluster, nil)
 
 	fga := mocks.NewMockOpenFGAServiceClient(t)
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	ctx := mccontext.WithCluster(context.Background(), "ws")
@@ -52,7 +52,7 @@ func TestWorkspaceFGA_Requeue_WhenAccountInfoIncomplete(t *testing.T) {
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(wsCluster, nil)
 
 	fga := mocks.NewMockOpenFGAServiceClient(t)
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	ctx := mccontext.WithCluster(context.Background(), "ws")
@@ -97,7 +97,7 @@ func TestWorkspaceFGA_WritesParentAndOwnerTuples(t *testing.T) {
 	fga := mocks.NewMockOpenFGAServiceClient(t)
 	fga.EXPECT().Write(mock.Anything, mock.Anything).Return(&openfgav1.WriteResponse{}, nil).Times(3)
 
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	lc.Spec.Owner = &kcpcorev1alpha1.LogicalClusterOwner{}
@@ -129,7 +129,7 @@ func TestWorkspaceFGA_InvalidCreator_ReturnsError(t *testing.T) {
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(wsCluster, nil)
 
 	fga := mocks.NewMockOpenFGAServiceClient(t)
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	lc.Spec.Owner = &kcpcorev1alpha1.LogicalClusterOwner{}
@@ -161,7 +161,7 @@ func TestWorkspaceFGA_OnlyParentTuple_WhenNoCreator(t *testing.T) {
 	fga := mocks.NewMockOpenFGAServiceClient(t)
 	fga.EXPECT().Write(mock.Anything, mock.Anything).Return(&openfgav1.WriteResponse{}, nil).Once()
 
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	lc.Spec.Owner = &kcpcorev1alpha1.LogicalClusterOwner{}
@@ -198,7 +198,7 @@ func TestWorkspaceFGA_SkipsCreatorTuple_WhenAlreadyWritten(t *testing.T) {
 	// Only one write for parent tuple, no creator tuples
 	fga.EXPECT().Write(mock.Anything, mock.Anything).Return(&openfgav1.WriteResponse{}, nil).Once()
 
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	lc.Spec.Owner = &kcpcorev1alpha1.LogicalClusterOwner{}
@@ -238,7 +238,7 @@ func TestWorkspaceFGA_NoParentTuple_ForOrgAccount(t *testing.T) {
 	// Only two writes for creator tuples, no parent tuple
 	fga.EXPECT().Write(mock.Anything, mock.Anything).Return(&openfgav1.WriteResponse{}, nil).Times(2)
 
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	lc.Spec.Owner = &kcpcorev1alpha1.LogicalClusterOwner{}
@@ -270,7 +270,7 @@ func TestWorkspaceFGA_WriteTupleError_Propagates(t *testing.T) {
 	fga := mocks.NewMockOpenFGAServiceClient(t)
 	fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, assert.AnError).Once()
 
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	lc.Spec.Owner = &kcpcorev1alpha1.LogicalClusterOwner{}
@@ -286,7 +286,7 @@ func TestWorkspaceFGA_ClusterFromContextError_ReturnsError(t *testing.T) {
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError)
 
 	fga := mocks.NewMockOpenFGAServiceClient(t)
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	ctx := mccontext.WithCluster(context.Background(), "ws")
@@ -319,7 +319,7 @@ func TestWorkspaceFGA_EmptyCreator_SkipsCreatorTuples(t *testing.T) {
 	// Only one write for parent tuple, no creator tuples because creator is empty
 	fga.EXPECT().Write(mock.Anything, mock.Anything).Return(&openfgav1.WriteResponse{}, nil).Once()
 
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	ctx := mccontext.WithCluster(context.Background(), "ws")
@@ -352,7 +352,7 @@ func TestWorkspaceFGA_CreatorAssigneeTupleWriteError_ReturnsError(t *testing.T) 
 	// First writeTuple call fails (assignee tuple)
 	fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, assert.AnError).Once()
 
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	ctx := mccontext.WithCluster(context.Background(), "ws")
@@ -385,7 +385,7 @@ func TestWorkspaceFGA_CreatorOwnerTupleWriteError_ReturnsError(t *testing.T) {
 	fga.EXPECT().Write(mock.Anything, mock.Anything).Return(&openfgav1.WriteResponse{}, nil).Once()
 	fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, assert.AnError).Once()
 
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	ctx := mccontext.WithCluster(context.Background(), "ws")
@@ -420,7 +420,7 @@ func TestWorkspaceFGA_StatusUpdateError_ReturnsError(t *testing.T) {
 	// Both writeTuple calls succeed
 	fga.EXPECT().Write(mock.Anything, mock.Anything).Return(&openfgav1.WriteResponse{}, nil).Times(2)
 
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	ctx := mccontext.WithCluster(context.Background(), "ws")
@@ -464,7 +464,7 @@ func TestWorkspaceFGA_ServiceAccountCreator_FormatsCorrectly(t *testing.T) {
 	})).Return(&openfgav1.WriteResponse{}, nil).Once()
 	fga.EXPECT().Write(mock.Anything, mock.Anything).Return(&openfgav1.WriteResponse{}, nil).Once()
 
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	ctx := mccontext.WithCluster(context.Background(), "ws")
@@ -495,7 +495,7 @@ func TestWorkspaceFGA_ValidateCreator_WithDottedServiceAccount_ReturnsError(t *t
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(wsCluster, nil)
 
 	fga := mocks.NewMockOpenFGAServiceClient(t)
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	ctx := mccontext.WithCluster(context.Background(), "ws")
@@ -525,7 +525,7 @@ func TestWorkspaceFGA_ServiceAccountFormatted_ThenValidated(t *testing.T) {
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(wsCluster, nil)
 
 	fga := mocks.NewMockOpenFGAServiceClient(t)
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(mgr, fga, "core_platform-mesh_io_account", "parent", "owner")
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	ctx := mccontext.WithCluster(context.Background(), "ws")
@@ -536,7 +536,7 @@ func TestWorkspaceFGA_ServiceAccountFormatted_ThenValidated(t *testing.T) {
 }
 
 func TestWorkspaceFGA_InterfaceMethods(t *testing.T) {
-	sub := subroutine.NewWorkspaceFGASubroutine(nil, nil, nil, "core_platform-mesh_io_account", "parent", "owner")
+	sub := subroutine.NewWorkspaceFGASubroutine(nil, nil, "core_platform-mesh_io_account", "parent", "owner")
 
 	// Test GetName
 	assert.Equal(t, "WorkspaceFGA", sub.GetName())

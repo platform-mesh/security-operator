@@ -21,7 +21,6 @@ import (
 )
 
 type workspaceFGASubroutine struct {
-	orgsClient    client.Client
 	mgr           mcmanager.Manager
 	fga           openfgav1.OpenFGAServiceClient
 	fgaObjectType string
@@ -29,9 +28,8 @@ type workspaceFGASubroutine struct {
 	fgaCreatorRel string
 }
 
-func NewWorkspaceFGASubroutine(orgsClient client.Client, mgr mcmanager.Manager, fga openfgav1.OpenFGAServiceClient, objectType, parentRel, creatorRel string) *workspaceFGASubroutine {
+func NewWorkspaceFGASubroutine(mgr mcmanager.Manager, fga openfgav1.OpenFGAServiceClient, objectType, parentRel, creatorRel string) *workspaceFGASubroutine {
 	return &workspaceFGASubroutine{
-		orgsClient:    orgsClient,
 		mgr:           mgr,
 		fga:           fga,
 		fgaObjectType: objectType,
