@@ -69,8 +69,12 @@ func (r *removeInitializer) Process(ctx context.Context, instance runtimeobject.
 	var secret corev1.Secret
 	if err := r.runtimeClient.Get(ctx, key, &secret); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info().Msg(fmt.Sprintf("portal secret %s is not ready yet, trying again", secretName))
-			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+			age := time.Since(lc.CreationTimestamp.Time)
+			if age <= time.Minute {
+				log.Info().Str("secret", secretName).Msg("portal secret not ready yet, requeueing")
+				return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+			}
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("keycloak client secret %s was not created within 1m", secretName), true, true)
 		}
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get secret %s: %w", secretName, err), true, true)
 	}

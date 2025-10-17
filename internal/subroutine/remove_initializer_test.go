@@ -110,7 +110,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 		assert.NotNil(t, err)
 	})
 
-	t.Run("requeues when secret not found", func(t *testing.T) {
+	t.Run("requeues when secret not found under 1 minute", func(t *testing.T) {
 		mgr := mocks.NewMockManager(t)
 		cluster := mocks.NewMockCluster(t)
 		runtimeClient := mocks.NewMockClient(t)
@@ -124,12 +124,33 @@ func TestRemoveInitializer_Process(t *testing.T) {
 			kcpv1alpha1.LogicalClusterInitializer(initializerName),
 		}
 		lc.Annotations = map[string]string{"kcp.io/path": "root:org:test"}
+		lc.CreationTimestamp.Time = time.Now().Add(-30 * time.Second)
 
 		r := subroutine.NewRemoveInitializer(mgr, initializerName, runtimeClient)
 		res, err := r.Process(context.Background(), lc)
 		assert.Nil(t, err)
-		// Should requeue soon
 		assert.Equal(t, 5*time.Second, res.RequeueAfter)
+	})
+
+	t.Run("errors when secret not found after 1 minute", func(t *testing.T) {
+		mgr := mocks.NewMockManager(t)
+		cluster := mocks.NewMockCluster(t)
+		runtimeClient := mocks.NewMockClient(t)
+
+		mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+		// Simulate NotFound error
+		runtimeClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "portal-client-secret-test", Namespace: subroutine.PortalClientSecretNamespace}, mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Group: "", Resource: "secrets"}, "portal-client-secret-test"))
+
+		lc := &kcpv1alpha1.LogicalCluster{}
+		lc.Status.Initializers = []kcpv1alpha1.LogicalClusterInitializer{
+			kcpv1alpha1.LogicalClusterInitializer(initializerName),
+		}
+		lc.Annotations = map[string]string{"kcp.io/path": "root:org:test"}
+		lc.CreationTimestamp.Time = time.Now().Add(-2 * time.Minute)
+
+		r := subroutine.NewRemoveInitializer(mgr, initializerName, runtimeClient)
+		_, err := r.Process(context.Background(), lc)
+		assert.NotNil(t, err)
 	})
 }
 
