@@ -57,6 +57,23 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 			expectedResult: ctrl.Result{},
 		},
 		{
+			name: "error - domain CA lookup enabled but secret get fails",
+			logicalCluster: &kcpv1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kcp.io/path": "root:orgs:test-workspace",
+					},
+				},
+			},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email", DomainCALookup: true},
+			setupMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "domain-certificate-ca", Namespace: "platform-mesh-system"}, mock.Anything, mock.Anything).
+					Return(errors.New("secret get failed")).Once()
+			},
+			expectError:    true,
+			expectedResult: ctrl.Result{},
+		},
+		{
 			name: "success - update existing WorkspaceAuthenticationConfiguration",
 			logicalCluster: &kcpv1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
