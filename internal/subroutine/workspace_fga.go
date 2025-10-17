@@ -85,10 +85,10 @@ func (w *workspaceFGASubroutine) Process(ctx context.Context, instance runtimeob
 	// Owner/creator relations: write only once using creator from AccountInfo
 	if accountInfo.Spec.Creator != nil && *accountInfo.Spec.Creator != "" && !accountInfo.Status.CreatorTupleWritten {
 		creator := *accountInfo.Spec.Creator
-		if !validateCreator(creator) {
+		normalized := formatUser(creator)
+		if !validateCreator(normalized) {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("creator string is in the protected service account prefix range"), false, false)
 		}
-		normalized := formatUser(creator)
 		if err := w.writeTuple(ctxWithTimeout, accountInfo.Spec.FGA.Store.Id, &openfgav1.TupleKey{
 			User:     fmt.Sprintf("user:%s", normalized),
 			Relation: "assignee",

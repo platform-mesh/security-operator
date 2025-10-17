@@ -19,7 +19,7 @@ func NewMockStatusWriter(t interface {
 	Cleanup(func())
 }) *MockStatusWriter {
 	m := &MockStatusWriter{}
-	m.Mock.Test(t)
+	m.Test(t)
 	t.Cleanup(func() { m.AssertExpectations(t) })
 	return m
 }
