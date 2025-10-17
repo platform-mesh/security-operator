@@ -57,7 +57,7 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 
 	var account accountv1alpha1.Account
 
-	// to find a newly created organiztion account we need to point :root:orgs
+	// to find a newly created organiztion account we need to point :root:orgs workspace
 	err = w.orgsClient.Get(ctx, types.NamespacedName{Name: wsName}, &account)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get account resource %w", err), true, true)
