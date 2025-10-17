@@ -14,7 +14,7 @@ require (
 	github.com/kcp-dev/multicluster-provider v0.2.0
 	github.com/openfga/api/proto v0.0.0-20250909173124-0ac19aac54f2
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251003203216-7c0d09a1cc5a
-	github.com/platform-mesh/account-operator v0.5.3
+	github.com/platform-mesh/account-operator v0.5.5-0.20251017120838-b8c73d0b347e
 	github.com/platform-mesh/golang-commons v0.6.3
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.10.1
@@ -126,5 +126,3 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.0 // indirect
 )
-
-replace github.com/platform-mesh/account-operator => ../account-operator
