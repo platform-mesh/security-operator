@@ -78,6 +78,13 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 	}
 	workspaceClient := clusterRef.GetClient()
 
+	// Validate that owner cluster is specified
+	if lc.Spec.Owner.Cluster == "" {
+		return ctrl.Result{}, errors.NewOperatorError(
+			fmt.Errorf("spec.owner.cluster is empty for LogicalCluster %s", lc.Name),
+			true, true)
+	}
+
 	ownerClusterName := logicalcluster.Name(lc.Spec.Owner.Cluster)
 	ownerClusterRef, err := w.mgr.GetCluster(ctx, ownerClusterName.String())
 	if err != nil {
