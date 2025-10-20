@@ -68,6 +68,10 @@ type {{ .Group }}_{{ .Singular }}
 		define statusUpdate: member from parent
 		define statusPatch: member from parent
 
+		define manage_iam_roles: owner
+		define get_iam_roles: member
+		define get_iam_users: member
+
 `))
 
 type modelInput struct {
