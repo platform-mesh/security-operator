@@ -15,7 +15,7 @@ require (
 	github.com/openfga/api/proto v0.0.0-20250909173124-0ac19aac54f2
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251003203216-7c0d09a1cc5a
 	github.com/platform-mesh/account-operator v0.5.5
-	github.com/platform-mesh/golang-commons v0.6.4
+	github.com/platform-mesh/golang-commons v0.7.0
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.21.0
