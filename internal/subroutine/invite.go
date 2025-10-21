@@ -22,6 +22,8 @@ import (
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
+// this subroutine is responsible for Invite resource creation
+// Invite resource reconcilation happens in the subroutine in invite package
 func NewInviteSubroutine(orgsClient client.Client, mgr mcmanager.Manager) *inviteSubroutine {
 	return &inviteSubroutine{
 		orgsClient: orgsClient,
@@ -64,15 +66,29 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 	}
 
 	// the Invite resource is created in :root:orgs:<new org> workspace
-	obj := &v1alpha1.Invite{ObjectMeta: metav1.ObjectMeta{Name: wsName}}
-	_, err = controllerutil.CreateOrUpdate(ctx, cl.GetClient(), obj, func() error {
-		obj.Spec.Email = *account.Spec.Creator
+	invite := &v1alpha1.Invite{ObjectMeta: metav1.ObjectMeta{Name: wsName}}
+	_, err = controllerutil.CreateOrUpdate(ctx, cl.GetClient(), invite, func() error {
+		invite.Spec.Email = *account.Spec.Creator
 
 		return nil
 	})
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create Invite resource %w", err), true, true)
 	}
-	log.Info().Msg(fmt.Sprintf("Invite resource for %s has been created", obj.Spec.Email))
-	return ctrl.Result{}, nil
+	log.Info().Msg(fmt.Sprintf("invite resource for %s has been created", invite.Spec.Email))
+
+	conditions := invite.GetConditions()
+	for _, condition := range conditions {
+		if condition.Type == "Ready" {
+			if condition.Status == metav1.ConditionTrue {
+				log.Info().Msg(fmt.Sprintf("invite resource for %s is ready", invite.Spec.Email))
+				return ctrl.Result{}, nil
+			}
+			log.Info().Msg(fmt.Sprintf("invite resource for %s is not ready yet (status: %s, reason: %s)", invite.Spec.Email, condition.Status, condition.Reason))
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("Invite resource is not ready yet"), true, false)
+		}
+	}
+
+	log.Info().Msg(fmt.Sprintf("no Ready condition found for Invite resource %s, requeuing", invite.Spec.Email))
+	return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("no Ready condition found for Invite resource"), true, false)
 }
