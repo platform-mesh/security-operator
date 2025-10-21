@@ -72,6 +72,12 @@ func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" 
 func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
 
+	// Check if workspace is still initializing
+	if lc.Status.Phase != kcpv1alpha1.LogicalClusterPhaseInitializing {
+		fmt.Printf("[DEBUG] Workspace no longer initializing (phase=%s), skipping\n", lc.Status.Phase)
+		return ctrl.Result{}, nil
+	}
+
 	clusterRef, err := w.mgr.ClusterFromContext(ctx)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
@@ -85,61 +91,93 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 			true, true)
 	}
 
-	ownerClusterName := logicalcluster.Name(lc.Spec.Owner.Cluster)
-	ownerClusterRef, err := w.mgr.GetCluster(ctx, ownerClusterName.String())
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get owner cluster: %w", err), true, true)
-	}
-
+	// Use orgsClient directly since lc.Spec.Owner.Cluster contains short cluster ID
+	// which cannot be resolved via mgr.GetCluster()
 	var account accountsv1alpha1.Account
-	if err := ownerClusterRef.GetClient().Get(ctx, client.ObjectKey{Name: lc.Spec.Owner.Name}, &account); err != nil {
+	if err := w.orgsClient.Get(ctx, client.ObjectKey{Name: lc.Spec.Owner.Name}, &account); err != nil {
 		if kerrors.IsNotFound(err) {
+			fmt.Printf("[DEBUG] Account %s not found yet, requeuing\n", lc.Spec.Owner.Name)
 			return ctrl.Result{Requeue: true}, nil
 		}
+		fmt.Printf("[ERROR] Failed to get account %s: %v\n", lc.Spec.Owner.Name, err)
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get owner account: %w", err), true, true)
 	}
+	fmt.Printf("[DEBUG] Successfully fetched account: %s, type: %s\n", account.Name, account.Spec.Type)
 
-	// Timeout for AccountInfo retrieval
+	// Timeout for AccountInfo retrieval/creation
 	ctxGetTimeout, cancelGet := context.WithTimeout(ctx, 5*time.Second)
 	defer cancelGet()
 
-	accountInfo := &accountsv1alpha1.AccountInfo{}
-	if err := workspaceClient.Get(ctxGetTimeout, client.ObjectKey{Name: accountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
-		if kerrors.IsNotFound(err) {
-			return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
+	// Ensure AccountInfo exists (create if missing) so account-operator can populate it
+	fmt.Printf("[DEBUG] Creating/updating AccountInfo in workspace\n")
+	accountInfo := &accountsv1alpha1.AccountInfo{ObjectMeta: metav1.ObjectMeta{Name: accountinfo.DefaultAccountInfoName}}
+	op, err := controllerutil.CreateOrUpdate(ctxGetTimeout, workspaceClient, accountInfo, func() error {
+		// Set Creator immediately when creating AccountInfo to avoid race with account-operator
+		if accountInfo.Spec.Creator == nil && account.Spec.Creator != nil {
+			creatorValue := *account.Spec.Creator
+			accountInfo.Spec.Creator = &creatorValue
+			fmt.Printf("[DEBUG] Setting Creator to: %s during AccountInfo creation\n", creatorValue)
 		}
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get accountInfo: %w", err), true, true)
+		return nil
+	})
+	if op != controllerutil.OperationResultNone {
+		creatorVal := "<nil>"
+		if accountInfo.Spec.Creator != nil {
+			creatorVal = *accountInfo.Spec.Creator
+		}
+		fmt.Printf("[DEBUG] After CreateOrUpdate (op=%s): Creator=%s\n", op, creatorVal)
+	}
+	if err != nil {
+		// If APIBinding not ready yet, return error to retry whole reconcile
+		if strings.Contains(err.Error(), "no matches for kind") {
+			fmt.Printf("[DEBUG] CRD not ready yet (no matches for kind), will retry reconcile\n")
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("APIBinding not ready: %w", err), true, false)
+		}
+		fmt.Printf("[ERROR] Failed to create/update AccountInfo: %v\n", err)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to ensure accountInfo exists: %w", err), true, true)
+	}
+	fmt.Printf("[DEBUG] AccountInfo operation: %s\n", op)
+
+	// Only create Store for org accounts during initialization
+	// For account-type accounts, Store already exists in parent org
+	if account.Spec.Type != accountsv1alpha1.AccountTypeOrg {
+		fmt.Printf("[DEBUG] Account type is '%s', skipping Store creation (using parent org Store)\n", account.Spec.Type)
+		return ctrl.Result{}, nil
 	}
 
-	if accountInfo.Spec.Account.Name == "" || accountInfo.Spec.Account.OriginClusterId == "" {
-		return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
+	// Resolve Store name and location for org accounts
+	fmt.Printf("[DEBUG] Resolving store for org account\n")
+	path, ok := lc.Annotations["kcp.io/path"]
+	if !ok {
+		fmt.Printf("[ERROR] Missing kcp.io/path annotation\n")
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get workspace path"), true, false)
 	}
-
-	storeClusterName, storeName, opErr := w.resolveStoreTarget(lc, account, accountInfo)
-	if opErr != nil {
-		return ctrl.Result{}, opErr
+	storeName := generateStoreName(lc)
+	if storeName == "" {
+		fmt.Printf("[ERROR] Failed to generate store name from workspace path\n")
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to generate store name from workspace path"), true, false)
 	}
+	storeClusterName := logicalcluster.Name(path)
+	fmt.Printf("[DEBUG] Resolved store: cluster=%s, name=%s\n", storeClusterName, storeName)
 
 	// Fresh timeout for store operations
 	ctxStoreTimeout, cancelStore := context.WithTimeout(ctx, 5*time.Second)
 	defer cancelStore()
 	ctxStore := mccontext.WithCluster(ctxStoreTimeout, storeClusterName.String())
-	allowCreate := account.Spec.Type == accountsv1alpha1.AccountTypeOrg
 
+	// Create Store for org account
 	store := &v1alpha1.Store{}
 	if err := w.orgsClient.Get(ctxStore, client.ObjectKey{Name: storeName}, store); err != nil {
-		if kerrors.IsNotFound(err) && allowCreate {
-			store = &v1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: storeName}}
-		} else if kerrors.IsNotFound(err) {
-			return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
-		} else {
+		if !kerrors.IsNotFound(err) {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get store: %w", err), true, true)
 		}
+		// Store doesn't exist, create it
+		store = &v1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: storeName}}
 	}
 
 	_, err = controllerutil.CreateOrUpdate(ctxStore, w.orgsClient, store, func() error {
-		// Backfill CoreModule if missing for org accounts (creation or partial prior init)
-		if allowCreate && store.Spec.CoreModule == "" {
+		// Set CoreModule for store
+		if store.Spec.CoreModule == "" {
 			store.Spec.CoreModule = w.coreModule
 		}
 		return nil
@@ -148,23 +186,42 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to create/update store: %w", err), true, true)
 	}
 
+	// Re-fetch to get store status
 	if err := w.orgsClient.Get(ctxStore, client.ObjectKey{Name: storeName}, store); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to refresh store status: %w", err), true, true)
 	}
 
 	if store.Status.StoreID == "" {
-		return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
+		fmt.Printf("[DEBUG] Store not ready yet (StoreID empty), will retry reconcile\n")
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("Store not ready"), true, false)
 	}
+	fmt.Printf("[DEBUG] Store ready with ID: %s\n", store.Status.StoreID)
 
-	if accountInfo.Spec.FGA.Store.Id != store.Status.StoreID || accountInfo.Spec.Creator != account.Spec.Creator {
-		// Fresh timeout for AccountInfo update
-		ctxUpdateTimeout, cancelUpdate := context.WithTimeout(ctx, 5*time.Second)
-		defer cancelUpdate()
-		if opErr := w.ensureAccountInfo(ctxUpdateTimeout, workspaceClient, store.Status.StoreID, account.Spec.Creator); opErr != nil {
-			return ctrl.Result{}, opErr
+	// Update AccountInfo with Store ID and Creator
+	fmt.Printf("[DEBUG] Updating AccountInfo with StoreID=%s and Creator\n", store.Status.StoreID)
+	ctxUpdateTimeout, cancelUpdate := context.WithTimeout(ctx, 5*time.Second)
+	defer cancelUpdate()
+
+	accountInfo = &accountsv1alpha1.AccountInfo{ObjectMeta: metav1.ObjectMeta{Name: accountinfo.DefaultAccountInfoName}}
+	_, err = controllerutil.CreateOrUpdate(ctxUpdateTimeout, workspaceClient, accountInfo, func() error {
+		accountInfo.Spec.FGA.Store.Id = store.Status.StoreID
+		// Copy creator value (not pointer) to avoid issues with pointer sharing
+		if account.Spec.Creator != nil {
+			creatorValue := *account.Spec.Creator
+			accountInfo.Spec.Creator = &creatorValue
+			fmt.Printf("[DEBUG] Setting Creator to: %s (from account.Spec.Creator)\n", creatorValue)
+		} else {
+			fmt.Printf("[DEBUG] account.Spec.Creator is nil, not setting Creator\n")
 		}
+		return nil
+	})
+	if err != nil {
+		fmt.Printf("[ERROR] Failed to update AccountInfo: %v\n", err)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to update accountInfo: %w", err), true, true)
 	}
+	fmt.Printf("[DEBUG] AccountInfo updated successfully\n")
 
+	fmt.Printf("[SUCCESS] WorkspaceInitializer completed successfully for org workspace\n")
 	return ctrl.Result{}, nil
 }
 
