@@ -73,7 +73,7 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 		return nil
 	})
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create Invite resource %w", err), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create invite resource %w", err), true, true)
 	}
 	log.Info().Msg(fmt.Sprintf("invite resource for %s has been created", invite.Spec.Email))
 
@@ -85,10 +85,10 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 				return ctrl.Result{}, nil
 			}
 			log.Info().Msg(fmt.Sprintf("invite resource for %s is not ready yet (status: %s, reason: %s)", invite.Spec.Email, condition.Status, condition.Reason))
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("Invite resource is not ready yet"), true, false)
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("invite resource is not ready yet"), true, false)
 		}
 	}
 
-	log.Info().Msg(fmt.Sprintf("no Ready condition found for Invite resource %s, requeuing", invite.Spec.Email))
-	return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("no Ready condition found for Invite resource"), true, false)
+	log.Info().Msg(fmt.Sprintf("no ready condition found for invite resource %s, requeuing", invite.Spec.Email))
+	return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("no ready condition found for invite resource"), true, false)
 }
