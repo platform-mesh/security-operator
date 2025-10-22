@@ -94,7 +94,7 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create invite resource %w", err), true, true)
 	}
-	log.Info().Msg(fmt.Sprintf("invite resource for %s has been created", invite.Spec.Email))
+	log.Info().Str("workspace", wsName).Msg("invite resource created")
 
 	err = wait.ExponentialBackoffWithContext(ctx, wait.Backoff{Duration: 1 * time.Second, Factor: 2.0, Jitter: 0.1, Steps: 5},
 		func(ctx context.Context) (done bool, err error) {
@@ -105,11 +105,11 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 		})
 
 	if err != nil {
-		log.Info().Msg(fmt.Sprintf("invite resource for %s is not ready yet", invite.Spec.Email))
+		log.Info().Str("workspace", wsName).Msg("invite resource not ready yet")
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("invite resource is not ready yet"), true, false)
 	}
 
-	log.Info().Msg(fmt.Sprintf("invite resource for %s is ready", invite.Spec.Email))
+	log.Info().Str("workspace", wsName).Msg("invite resource ready")
 	return ctrl.Result{}, nil
 }
 
