@@ -61,7 +61,7 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 	// for other new logical clusters, we should skip this step
 	parentWsName := getParentWorkspaceName(lc)
 	if parentWsName != orgsWorkspaceName {
-		log.Info().Msg(fmt.Sprintf(fmt.Sprintf("the created workspace is not an organization. Skipping invite resource creation for cluster %s", lc.Name)))
+		log.Info().Msg(fmt.Sprintf("the created workspace is not an organization. Skipping invite resource creation for cluster %s", lc.Name))
 		return ctrl.Result{}, nil
 	}
 
@@ -109,7 +109,9 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 func getParentWorkspaceName(lc *kcpv1alpha1.LogicalCluster) string {
 	if path, ok := lc.Annotations["kcp.io/path"]; ok {
 		pathElements := strings.Split(path, ":")
-		return pathElements[len(pathElements)-2]
+		if len(pathElements) >= 2 {
+			return pathElements[len(pathElements)-2]
+		}
 	}
 	return ""
 }
