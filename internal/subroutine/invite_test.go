@@ -5,13 +5,18 @@ import (
 	"testing"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
+	secopv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestNewInviteSubroutine(t *testing.T) {
@@ -62,7 +67,6 @@ func TestInviteSubroutine_Process_ClusterFromContextError(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
 	subroutine := NewInviteSubroutine(orgsClient, mgr)
 
-	// Mock cluster from context error
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError).Once()
 
 	lc := &kcpv1alpha1.LogicalCluster{
@@ -88,10 +92,8 @@ func TestInviteSubroutine_Process_AccountGetError(t *testing.T) {
 	cluster := mocks.NewMockCluster(t)
 	subroutine := NewInviteSubroutine(orgsClient, mgr)
 
-	// Mock cluster from context
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 
-	// Mock account retrieval error
 	orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test"}, mock.AnythingOfType("*v1alpha1.Account")).
 		Return(assert.AnError).Once()
 
@@ -212,13 +214,11 @@ func TestGetWorkspaceName(t *testing.T) {
 	}
 }
 
-// TestInviteSubroutine_Process_WorkspaceNameExtraction tests the workspace name extraction logic
 func TestInviteSubroutine_Process_WorkspaceNameExtraction(t *testing.T) {
 	orgsClient := mocks.NewMockClient(t)
 	mgr := mocks.NewMockManager(t)
 	subroutine := NewInviteSubroutine(orgsClient, mgr)
 
-	// Test with valid workspace path
 	lc := &kcpv1alpha1.LogicalCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{
@@ -227,7 +227,6 @@ func TestInviteSubroutine_Process_WorkspaceNameExtraction(t *testing.T) {
 		},
 	}
 
-	// Mock cluster from context to return an error early
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError).Once()
 
 	l := testlogger.New()
@@ -237,4 +236,78 @@ func TestInviteSubroutine_Process_WorkspaceNameExtraction(t *testing.T) {
 
 	assert.NotNil(t, opErr)
 	assert.Equal(t, ctrl.Result{}, result)
+}
+
+func TestInviteSubroutine_Process_CreateOrUpdate_Ready(t *testing.T) {
+	orgsClient := mocks.NewMockClient(t)
+	mgr := mocks.NewMockManager(t)
+	cluster := mocks.NewMockCluster(t)
+	sub := NewInviteSubroutine(orgsClient, mgr)
+
+	lc := &kcpv1alpha1.LogicalCluster{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"kcp.io/path": "root:orgs:acme"}}}
+
+	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
+
+	orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Account")).
+		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
+			acc := obj.(*accountv1alpha1.Account)
+			email := "owner@acme.io"
+			acc.Spec.Creator = &email
+			return nil
+		}).Once()
+
+	// CreateOrUpdate flow: first Get returns NotFound, then Create succeeds and sets Ready
+	cluster.EXPECT().GetClient().Return(orgsClient).Once()
+	orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Invite")).
+		Return(apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "invites"}, "acme")).Once()
+	orgsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.Invite")).
+		RunAndReturn(func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
+			inv := obj.(*secopv1alpha1.Invite)
+			inv.Spec.Email = "owner@acme.io"
+			inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
+			return nil
+		}).Once()
+
+	l := testlogger.New()
+	ctx := l.WithContext(context.Background())
+
+	res, opErr := sub.Process(ctx, lc)
+	assert.Nil(t, opErr)
+	assert.Equal(t, ctrl.Result{}, res)
+}
+
+func TestInviteSubroutine_Process_CreateOrUpdate_NotReady(t *testing.T) {
+	orgsClient := mocks.NewMockClient(t)
+	mgr := mocks.NewMockManager(t)
+	cluster := mocks.NewMockCluster(t)
+	sub := NewInviteSubroutine(orgsClient, mgr)
+
+	lc := &kcpv1alpha1.LogicalCluster{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{"kcp.io/path": "root:orgs:beta"}}}
+
+	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
+	orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Account")).
+		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
+			acc := obj.(*accountv1alpha1.Account)
+			email := "owner@beta.io"
+			acc.Spec.Creator = &email
+			return nil
+		}).Once()
+
+	cluster.EXPECT().GetClient().Return(orgsClient).Once()
+	orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Invite")).
+		Return(apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "invites"}, "beta")).Once()
+	orgsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.Invite")).
+		RunAndReturn(func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
+			inv := obj.(*secopv1alpha1.Invite)
+			inv.Spec.Email = "owner@beta.io"
+			inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse}}
+			return nil
+		}).Once()
+
+	l := testlogger.New()
+	ctx := l.WithContext(context.Background())
+
+	res, opErr := sub.Process(ctx, lc)
+	assert.NotNil(t, opErr)
+	assert.Equal(t, ctrl.Result{}, res)
 }
