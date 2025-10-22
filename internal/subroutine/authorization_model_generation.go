@@ -59,6 +59,9 @@ type {{ .Group }}_{{ .Singular }}
 	relations
 		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
 		
+		define member: member from parent
+		define owner: owner from parent
+		
 		define get: member from parent
 		define update: member from parent
 		define delete: member from parent

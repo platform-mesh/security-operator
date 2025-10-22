@@ -72,10 +72,8 @@ func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" 
 func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
 
-	// Check if workspace is still initializing
 	if lc.Status.Phase != kcpv1alpha1.LogicalClusterPhaseInitializing {
-		fmt.Printf("[DEBUG] Workspace no longer initializing (phase=%s), skipping\n", lc.Status.Phase)
-		return ctrl.Result{}, nil
+		fmt.Printf("[DEBUG] Workspace phase=%s, ensuring resources remain consistent\n", lc.Status.Phase)
 	}
 
 	clusterRef, err := w.mgr.ClusterFromContext(ctx)
@@ -142,7 +140,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 	// For account-type accounts, Store already exists in parent org
 	if account.Spec.Type != accountsv1alpha1.AccountTypeOrg {
 		fmt.Printf("[DEBUG] Account type is '%s', skipping Store creation (using parent org Store)\n", account.Spec.Type)
-		return ctrl.Result{}, nil
+		return ctrl.Result{RequeueAfter: time.Minute}, nil
 	}
 
 	// Resolve Store name and location for org accounts
@@ -175,15 +173,19 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		store = &v1alpha1.Store{ObjectMeta: metav1.ObjectMeta{Name: storeName}}
 	}
 
+	coreModuleUpdated := false
 	_, err = controllerutil.CreateOrUpdate(ctxStore, w.orgsClient, store, func() error {
-		// Set CoreModule for store
-		if store.Spec.CoreModule == "" {
+		if store.Spec.CoreModule != w.coreModule {
+			coreModuleUpdated = true
 			store.Spec.CoreModule = w.coreModule
 		}
 		return nil
 	})
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to create/update store: %w", err), true, true)
+	}
+	if coreModuleUpdated {
+		fmt.Printf("[DEBUG] Store %s core module refreshed from ConfigMap contents\n", storeName)
 	}
 
 	// Re-fetch to get store status
@@ -222,7 +224,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 	fmt.Printf("[DEBUG] AccountInfo updated successfully\n")
 
 	fmt.Printf("[SUCCESS] WorkspaceInitializer completed successfully for org workspace\n")
-	return ctrl.Result{}, nil
+	return ctrl.Result{RequeueAfter: time.Minute}, nil
 }
 
 func (w *workspaceInitializer) ensureAccountInfo(ctx context.Context, workspaceClient client.Client, storeID string, creator *string) errors.OperatorError {

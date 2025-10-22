@@ -141,6 +141,13 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 
 	}
 
+	// DEBUG: Log the model being written
+	modelJSON, _ := protojson.Marshal(authorizationModel)
+	modelDSL, err := language.TransformJSONStringToDSL(string(modelJSON))
+	if err == nil && modelDSL != nil {
+		log.Info().Str("store", store.Name).Str("model", *modelDSL).Msg("Writing authorization model")
+	}
+
 	res, err := a.fga.WriteAuthorizationModel(ctx, &openfgav1.WriteAuthorizationModelRequest{
 		StoreId:         store.Status.StoreID,
 		TypeDefinitions: authorizationModel.TypeDefinitions,
