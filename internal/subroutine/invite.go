@@ -3,6 +3,8 @@ package subroutine
 import (
 	"context"
 	"fmt"
+	"strings"
+	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
@@ -10,8 +12,10 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/rs/zerolog/log"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/platform-mesh/golang-commons/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -21,6 +25,8 @@ import (
 
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 )
+
+const orgsWorkspaceName = "orgs"
 
 // this subroutine is responsible for Invite resource creation
 // Invite resource reconcilation happens in the subroutine in invite package
@@ -50,6 +56,15 @@ func (w *inviteSubroutine) GetName() string { return "inviteSubroutine" }
 
 func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
+
+	// the invite resource should be created only for newly created organizations
+	// for other new logical clusters, we should skip this step
+	parentWsName := getParentWorkspaceName(lc)
+	if parentWsName != orgsWorkspaceName {
+		log.Info().Msg(fmt.Sprintf(fmt.Sprintf("the created workspace is not an organization. Skipping invite resource creation for cluster %s", lc.Name)))
+		return ctrl.Result{}, nil
+	}
+
 	wsName := getWorkspaceName(lc)
 
 	cl, err := w.mgr.ClusterFromContext(ctx)
@@ -77,18 +92,24 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 	}
 	log.Info().Msg(fmt.Sprintf("invite resource for %s has been created", invite.Spec.Email))
 
-	conditions := invite.GetConditions()
-	for _, condition := range conditions {
-		if condition.Type == "Ready" {
-			if condition.Status == metav1.ConditionTrue {
-				log.Info().Msg(fmt.Sprintf("invite resource for %s is ready", invite.Spec.Email))
-				return ctrl.Result{}, nil
-			}
-			log.Info().Msg(fmt.Sprintf("invite resource for %s is not ready yet (status: %s, reason: %s)", invite.Spec.Email, condition.Status, condition.Reason))
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("invite resource is not ready yet"), true, false)
-		}
+	err = wait.ExponentialBackoffWithContext(ctx, wait.Backoff{Duration: 1 * time.Second, Factor: 2.0, Jitter: 0.1, Steps: 5},
+		func(ctx context.Context) (done bool, err error) {
+			return meta.IsStatusConditionTrue(invite.GetConditions(), "Ready"), nil
+		})
+
+	if err != nil {
+		log.Info().Msg(fmt.Sprintf("invite resource for %s is not ready yet", invite.Spec.Email))
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("invite resource is not ready yet"), true, false)
 	}
 
-	log.Info().Msg(fmt.Sprintf("no ready condition found for invite resource %s, requeuing", invite.Spec.Email))
-	return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("no ready condition found for invite resource"), true, false)
+	log.Info().Msg(fmt.Sprintf("invite resource for %s is ready", invite.Spec.Email))
+	return ctrl.Result{}, nil
+}
+
+func getParentWorkspaceName(lc *kcpv1alpha1.LogicalCluster) string {
+	if path, ok := lc.Annotations["kcp.io/path"]; ok {
+		pathElements := strings.Split(path, ":")
+		return pathElements[len(pathElements)-2]
+	}
+	return ""
 }
