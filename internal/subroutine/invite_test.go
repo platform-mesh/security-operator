@@ -257,7 +257,7 @@ func TestInviteSubroutine_Process_CreateOrUpdate_Ready(t *testing.T) {
 		}).Once()
 
 	// CreateOrUpdate flow: first Get returns NotFound, then Create succeeds and sets Ready
-	cluster.EXPECT().GetClient().Return(orgsClient).Once()
+	cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
 	orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Invite")).
 		Return(apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "invites"}, "acme")).Once()
 	orgsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.Invite")).
@@ -267,6 +267,15 @@ func TestInviteSubroutine_Process_CreateOrUpdate_Ready(t *testing.T) {
 			inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
 			return nil
 		}).Once()
+	
+	// Mock the Get call in the backoff function - returns the invite with Ready condition
+	orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Invite")).
+		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
+			inv := obj.(*secopv1alpha1.Invite)
+			inv.Spec.Email = "owner@acme.io"
+			inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
+			return nil
+		}).Maybe()
 
 	l := testlogger.New()
 	ctx := l.WithContext(context.Background())
@@ -293,7 +302,7 @@ func TestInviteSubroutine_Process_CreateOrUpdate_NotReady(t *testing.T) {
 			return nil
 		}).Once()
 
-	cluster.EXPECT().GetClient().Return(orgsClient).Once()
+	cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
 	orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Invite")).
 		Return(apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "invites"}, "beta")).Once()
 	orgsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.Invite")).
@@ -303,6 +312,15 @@ func TestInviteSubroutine_Process_CreateOrUpdate_NotReady(t *testing.T) {
 			inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse}}
 			return nil
 		}).Once()
+	
+	// Mock the Get call in the backoff function - returns the invite with Ready condition False
+	orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Invite")).
+		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
+			inv := obj.(*secopv1alpha1.Invite)
+			inv.Spec.Email = "owner@beta.io"
+			inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse}}
+			return nil
+		}).Maybe()
 
 	l := testlogger.New()
 	ctx := l.WithContext(context.Background())

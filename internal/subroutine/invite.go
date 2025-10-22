@@ -29,7 +29,7 @@ import (
 const orgsWorkspaceName = "orgs"
 
 // this subroutine is responsible for Invite resource creation
-// Invite resource reconcilation happens in the subroutine in invite package
+// Invite resource reconciliation happens in the subroutine in invite package
 func NewInviteSubroutine(orgsClient client.Client, mgr mcmanager.Manager) *inviteSubroutine {
 	return &inviteSubroutine{
 		orgsClient: orgsClient,
@@ -80,6 +80,10 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get account resource %w", err), true, true)
 	}
 
+	if account.Spec.Creator == nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("account.Spec.Creator is nil for account %s", wsName), true, true)
+	}
+
 	// the Invite resource is created in :root:orgs:<new org> workspace
 	invite := &v1alpha1.Invite{ObjectMeta: metav1.ObjectMeta{Name: wsName}}
 	_, err = controllerutil.CreateOrUpdate(ctx, cl.GetClient(), invite, func() error {
@@ -94,6 +98,9 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 
 	err = wait.ExponentialBackoffWithContext(ctx, wait.Backoff{Duration: 1 * time.Second, Factor: 2.0, Jitter: 0.1, Steps: 5},
 		func(ctx context.Context) (done bool, err error) {
+			if err := cl.GetClient().Get(ctx, types.NamespacedName{Name: wsName}, invite); err != nil {
+				return false, err
+			}
 			return meta.IsStatusConditionTrue(invite.GetConditions(), "Ready"), nil
 		})
 
