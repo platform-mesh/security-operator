@@ -117,9 +117,6 @@ func TestInviteSubroutine_Process_MissingWorkspaceAnnotation(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
 	subroutine := NewInviteSubroutine(orgsClient, mgr)
 
-	// Mock cluster from context (this will be called even with missing annotation)
-	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError).Once()
-
 	lc := &kcpv1alpha1.LogicalCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Annotations: map[string]string{},
@@ -131,7 +128,7 @@ func TestInviteSubroutine_Process_MissingWorkspaceAnnotation(t *testing.T) {
 
 	result, opErr := subroutine.Process(ctx, lc)
 
-	assert.NotNil(t, opErr)
+	assert.Nil(t, opErr)
 	assert.Equal(t, ctrl.Result{}, result)
 }
 
@@ -139,8 +136,6 @@ func TestInviteSubroutine_Process_EmptyWorkspaceAnnotation(t *testing.T) {
 	orgsClient := mocks.NewMockClient(t)
 	mgr := mocks.NewMockManager(t)
 	subroutine := NewInviteSubroutine(orgsClient, mgr)
-
-	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError).Once()
 
 	lc := &kcpv1alpha1.LogicalCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -155,7 +150,7 @@ func TestInviteSubroutine_Process_EmptyWorkspaceAnnotation(t *testing.T) {
 
 	result, opErr := subroutine.Process(ctx, lc)
 
-	assert.NotNil(t, opErr)
+	assert.Nil(t, opErr)
 	assert.Equal(t, ctrl.Result{}, result)
 }
 
@@ -219,9 +214,6 @@ func TestGetWorkspaceName(t *testing.T) {
 
 // TestInviteSubroutine_Process_WorkspaceNameExtraction tests the workspace name extraction logic
 func TestInviteSubroutine_Process_WorkspaceNameExtraction(t *testing.T) {
-	// This test covers the workspace name extraction logic in the Process method
-	// which is part of the uncovered lines 51-58
-
 	orgsClient := mocks.NewMockClient(t)
 	mgr := mocks.NewMockManager(t)
 	subroutine := NewInviteSubroutine(orgsClient, mgr)
@@ -243,7 +235,6 @@ func TestInviteSubroutine_Process_WorkspaceNameExtraction(t *testing.T) {
 
 	result, opErr := subroutine.Process(ctx, lc)
 
-	// This should fail at the cluster context step, but we've covered the workspace name extraction
 	assert.NotNil(t, opErr)
 	assert.Equal(t, ctrl.Result{}, result)
 }
