@@ -49,6 +49,10 @@ func (w *workspaceFGASubroutine) Finalize(ctx context.Context, _ runtimeobject.R
 }
 
 func (w *workspaceFGASubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	if w.fga == nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("OpenFGA client is nil"), false, false)
+	}
+
 	_ = instance.(*kcpv1alpha1.LogicalCluster)
 
 	clusterRef, err := w.mgr.ClusterFromContext(ctx)
