@@ -54,6 +54,9 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
 
 	wsName := getWorkspaceName(lc)
+	if wsName == "" {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace name"), true, false)
+	}
 
 	cl, err := w.mgr.ClusterFromContext(ctx)
 	if err != nil {
