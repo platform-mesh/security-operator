@@ -1,8 +1,12 @@
 package subroutine
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
+	"text/template"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
@@ -12,6 +16,10 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"google.golang.org/protobuf/encoding/protojson"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -19,7 +27,49 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
-const schemaVersion = "1.2"
+const (
+	schemaVersion = "1.2"
+)
+
+var (
+	priviledgedGroupVersions = []string{"rbac.authorization.k8s.io/v1"}
+	groupVersions            = []string{"authentication.k8s.io/v1", "authorization.k8s.io/v1", "v1"}
+
+	coreModelTemplate = template.Must(template.New("model").Parse(`module internal_core_types_{{ .Name }}
+type {{ .Group }}_{{ .Singular }}
+	relations
+		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
+		define member: [role#assignee] or owner or member from parent
+		define owner: [role#assignee] or owner from parent
+		
+		define get: member
+		define update: member
+		define delete: member
+		define patch: member
+		define watch: member
+
+		define manage_iam_roles: owner
+		define get_iam_roles: member
+		define get_iam_users: member
+`))
+	priviledgedTemplate = template.Must(template.New("model").Parse(`module internal_core_types_{{ .Name }}
+type {{ .Group }}_{{ .Singular }}
+	relations
+		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
+		define member: [role#assignee] or owner or member from parent
+		define owner: [role#assignee] or owner from parent
+		
+		define get: member
+		define update: owner
+		define delete: owner
+		define patch: owner
+		define watch: member
+
+		define manage_iam_roles: owner
+		define get_iam_roles: member
+		define get_iam_users: member
+`))
+)
 
 type authorizationModelSubroutine struct {
 	fga       openfgav1.OpenFGAServiceClient
@@ -92,6 +142,38 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 		})
 	}
 
+	if store.Name != "orgs" {
+		cfg := rest.CopyConfig(a.mgr.GetLocalManager().GetConfig())
+
+		parsed, err := url.Parse(cfg.Host)
+		if err != nil {
+			log.Error().Err(err).Msg("unable to parse host from config")
+			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		}
+
+		parsed.Path, err = url.JoinPath("clusters", fmt.Sprintf("root:orgs:%s", store.Name))
+		if err != nil {
+			log.Error().Err(err).Msg("unable to join path")
+			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		}
+
+		cfg.Host = parsed.String()
+
+		discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(cfg)
+
+		coreModules, err := discoverAndRender(discoveryClient, coreModelTemplate, groupVersions)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		}
+		moduleFiles = append(moduleFiles, coreModules...)
+
+		priviledgedModules, err := discoverAndRender(discoveryClient, priviledgedTemplate, priviledgedGroupVersions)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		}
+		moduleFiles = append(moduleFiles, priviledgedModules...)
+	}
+
 	authorizationModel, err := language.TransformModuleFilesToModel(moduleFiles, schemaVersion)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to transform module files to model")
@@ -155,4 +237,57 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 	store.Status.AuthorizationModelID = res.AuthorizationModelId
 
 	return ctrl.Result{}, nil
+}
+
+func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Template) (bytes.Buffer, error) {
+
+	scope := apiextensionsv1.ClusterScoped
+	if resource.Namespaced {
+		scope = apiextensionsv1.NamespaceScoped
+	}
+
+	group := "core"
+	if resource.Group != "" {
+		group = resource.Group
+	}
+
+	var buffer bytes.Buffer
+	err := tpl.Execute(&buffer, modelInput{
+		Name:     resource.Name,
+		Group:    strings.ReplaceAll(group, ".", "_"),
+		Singular: resource.SingularName,
+		Scope:    string(scope),
+	})
+	if err != nil {
+		return buffer, err
+	}
+
+	return buffer, nil
+}
+
+func discoverAndRender(dc discovery.DiscoveryInterface, tpl *template.Template, groupVersions []string) ([]language.ModuleFile, error) {
+	var files []language.ModuleFile
+	for _, gv := range groupVersions {
+		resourceList, err := dc.ServerResourcesForGroupVersion(gv)
+		if err != nil {
+			return nil, fmt.Errorf("discover resources for %s: %w", gv, err)
+		}
+
+		for _, apiRes := range resourceList.APIResources {
+			if strings.Contains(apiRes.Name, "/") { // skip subresources
+				continue
+			}
+
+			buf, err := processAPIResourceIntoModel(apiRes, tpl)
+			if err != nil {
+				return nil, fmt.Errorf("process api resource %s in %s: %w", apiRes.Name, gv, err)
+			}
+
+			files = append(files, language.ModuleFile{
+				Name:     fmt.Sprintf("internal_core_types_%s.fga", apiRes.Name),
+				Contents: buf.String(),
+			})
+		}
+	}
+	return files, nil
 }
