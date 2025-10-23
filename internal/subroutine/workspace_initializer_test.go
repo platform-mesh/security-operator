@@ -25,7 +25,6 @@ func TestWorkspaceInitializer_ErrorWhenOwnerClusterEmpty(t *testing.T) {
 
 	mgr := mocks.NewMockManager(t)
 	orgsClient := mocks.NewMockClient(t)
-	fga := mocks.NewMockOpenFGAServiceClient(t)
 
 	cfg := config.Config{
 		CoreModulePath: tmpFile.Name(),
@@ -34,7 +33,7 @@ func TestWorkspaceInitializer_ErrorWhenOwnerClusterEmpty(t *testing.T) {
 	cfg.FGA.ParentRelation = "parent"
 	cfg.FGA.CreatorRelation = "owner"
 
-	sub := subroutine.NewWorkspaceInitializer(orgsClient, cfg, mgr, fga)
+	sub := subroutine.NewWorkspaceInitializer(orgsClient, cfg, mgr)
 
 	lc := &kcpcorev1alpha1.LogicalCluster{}
 	lc.Name = "test-workspace"

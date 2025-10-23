@@ -71,7 +71,7 @@ func TestInviteSubroutine_Process(t *testing.T) {
 		expectedResult ctrl.Result
 	}{
 		{
-			name: "Empty workspace name - early return",
+			name:       "Empty workspace name - early return",
 			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster) {},
 			lc: &kcpv1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{

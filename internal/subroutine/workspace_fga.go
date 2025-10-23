@@ -53,7 +53,9 @@ func (w *workspaceFGASubroutine) Process(ctx context.Context, instance runtimeob
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("OpenFGA client is nil"), false, false)
 	}
 
-	_ = instance.(*kcpv1alpha1.LogicalCluster)
+	if _, ok := instance.(*kcpv1alpha1.LogicalCluster); !ok {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unexpected instance type %T", instance), false, false)
+	}
 
 	clusterRef, err := w.mgr.ClusterFromContext(ctx)
 	if err != nil {
