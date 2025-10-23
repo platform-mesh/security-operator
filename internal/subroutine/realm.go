@@ -151,7 +151,15 @@ func (r *realmSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 	values := apiextensionsv1.JSON{Raw: marshalledPatch}
 	releaseName := fmt.Sprintf("%s-idp", workspaceName)
 
-	err = applyManifestWithMergedValues(ctx, repository, r.k8s, nil)
+	if r.cfg.RepositoryVersion == "" {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get oci repository version from config"), true, false)
+	}
+
+	repositoryPatch := map[string]string{
+		"Version": r.cfg.RepositoryVersion,
+	}
+
+	err = applyManifestWithMergedValues(ctx, repository, r.k8s, repositoryPatch)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create OCI repository: %w", err), true, true)
 	}

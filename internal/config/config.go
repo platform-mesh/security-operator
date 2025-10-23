@@ -38,4 +38,5 @@ type Config struct {
 		AdditionalRedirectURLs []string `mapstructure:"idp-additional-redirect-urls"`
 	} `mapstructure:",squash"`
 	Invite InviteConfig `mapstructure:",squash"`
+	RepositoryVersion string       `mapstructure:"oci-repository-version"`
 }
