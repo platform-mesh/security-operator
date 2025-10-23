@@ -62,11 +62,8 @@ func (w *workspaceFGASubroutine) Process(ctx context.Context, instance runtimeob
 	}
 	workspaceClient := clusterRef.GetClient()
 
-	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
-	defer cancel()
-
 	accountInfo := &accountsv1alpha1.AccountInfo{}
-	if err := workspaceClient.Get(ctxWithTimeout, client.ObjectKey{Name: accountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
+	if err := workspaceClient.Get(ctx, client.ObjectKey{Name: accountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
 		if apierrors.IsNotFound(err) {
 			// AccountInfo not created yet by workspace_initializer, wait and retry
 			return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
@@ -81,7 +78,7 @@ func (w *workspaceFGASubroutine) Process(ctx context.Context, instance runtimeob
 	// Parent relation for non-org accounts
 	if accountInfo.Spec.ParentAccount != nil {
 		parent := accountInfo.Spec.ParentAccount
-		if err := w.writeTuple(ctxWithTimeout, accountInfo.Spec.FGA.Store.Id, &openfgav1.TupleKey{
+		if err := w.writeTuple(ctx, accountInfo.Spec.FGA.Store.Id, &openfgav1.TupleKey{
 			User:     fmt.Sprintf("%s:%s/%s", w.fgaObjectType, parent.OriginClusterId, parent.Name),
 			Relation: w.fgaParentRel,
 			Object:   fmt.Sprintf("%s:%s/%s", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, accountInfo.Spec.Account.Name),
@@ -97,14 +94,14 @@ func (w *workspaceFGASubroutine) Process(ctx context.Context, instance runtimeob
 		if !validateCreator(normalized) {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("creator string is in the protected service account prefix range"), false, false)
 		}
-		if err := w.writeTuple(ctxWithTimeout, accountInfo.Spec.FGA.Store.Id, &openfgav1.TupleKey{
+		if err := w.writeTuple(ctx, accountInfo.Spec.FGA.Store.Id, &openfgav1.TupleKey{
 			User:     fmt.Sprintf("user:%s", normalized),
 			Relation: "assignee",
 			Object:   fmt.Sprintf("role:%s/%s/%s/owner", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, accountInfo.Spec.Account.Name),
 		}); err != nil {
 			return ctrl.Result{}, err
 		}
-		if err := w.writeTuple(ctxWithTimeout, accountInfo.Spec.FGA.Store.Id, &openfgav1.TupleKey{
+		if err := w.writeTuple(ctx, accountInfo.Spec.FGA.Store.Id, &openfgav1.TupleKey{
 			User:     fmt.Sprintf("role:%s/%s/%s/owner#assignee", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, accountInfo.Spec.Account.Name),
 			Relation: w.fgaCreatorRel,
 			Object:   fmt.Sprintf("%s:%s/%s", w.fgaObjectType, accountInfo.Spec.Account.OriginClusterId, accountInfo.Spec.Account.Name),
@@ -114,7 +111,7 @@ func (w *workspaceFGASubroutine) Process(ctx context.Context, instance runtimeob
 
 		// Mark creator tuple as written
 		accountInfo.Status.CreatorTupleWritten = true
-		if err := workspaceClient.Status().Update(ctxWithTimeout, accountInfo); err != nil {
+		if err := workspaceClient.Status().Update(ctx, accountInfo); err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to update accountInfo status: %w", err), true, true)
 		}
 	}

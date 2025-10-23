@@ -102,14 +102,10 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 	}
 	fmt.Printf("[DEBUG] Successfully fetched account: %s, type: %s\n", account.Name, account.Spec.Type)
 
-	// Timeout for AccountInfo retrieval/creation
-	ctxGetTimeout, cancelGet := context.WithTimeout(ctx, 5*time.Second)
-	defer cancelGet()
-
 	// Ensure AccountInfo exists (create if missing) so account-operator can populate it
 	fmt.Printf("[DEBUG] Creating/updating AccountInfo in workspace\n")
 	accountInfo := &accountsv1alpha1.AccountInfo{ObjectMeta: metav1.ObjectMeta{Name: accountinfo.DefaultAccountInfoName}}
-	op, err := controllerutil.CreateOrUpdate(ctxGetTimeout, workspaceClient, accountInfo, func() error {
+	op, err := controllerutil.CreateOrUpdate(ctx, workspaceClient, accountInfo, func() error {
 		// Set Creator immediately when creating AccountInfo to avoid race with account-operator
 		if accountInfo.Spec.Creator == nil && account.Spec.Creator != nil {
 			creatorValue := *account.Spec.Creator
@@ -158,10 +154,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 	storeClusterName := logicalcluster.Name(path)
 	fmt.Printf("[DEBUG] Resolved store: cluster=%s, name=%s\n", storeClusterName, storeName)
 
-	// Fresh timeout for store operations
-	ctxStoreTimeout, cancelStore := context.WithTimeout(ctx, 5*time.Second)
-	defer cancelStore()
-	ctxStore := mccontext.WithCluster(ctxStoreTimeout, storeClusterName.String())
+	ctxStore := mccontext.WithCluster(ctx, storeClusterName.String())
 
 	// Create Store for org account
 	store := &v1alpha1.Store{}
@@ -201,11 +194,8 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 
 	// Update AccountInfo with Store ID and Creator
 	fmt.Printf("[DEBUG] Updating AccountInfo with StoreID=%s and Creator\n", store.Status.StoreID)
-	ctxUpdateTimeout, cancelUpdate := context.WithTimeout(ctx, 5*time.Second)
-	defer cancelUpdate()
-
 	accountInfo = &accountsv1alpha1.AccountInfo{ObjectMeta: metav1.ObjectMeta{Name: accountinfo.DefaultAccountInfoName}}
-	_, err = controllerutil.CreateOrUpdate(ctxUpdateTimeout, workspaceClient, accountInfo, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctx, workspaceClient, accountInfo, func() error {
 		accountInfo.Spec.FGA.Store.Id = store.Status.StoreID
 		// Copy creator value (not pointer) to avoid issues with pointer sharing
 		if account.Spec.Creator != nil {
