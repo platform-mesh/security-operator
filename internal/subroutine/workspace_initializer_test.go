@@ -17,9 +17,11 @@ func TestWorkspaceInitializer_ErrorWhenOwnerClusterEmpty(t *testing.T) {
 	// Create temp file for core module
 	tmpFile, err := os.CreateTemp("", "coreModule*.fga")
 	assert.NoError(t, err)
-	defer os.Remove(tmpFile.Name())
-	tmpFile.WriteString("model\n  schema 1.1")
-	tmpFile.Close()
+	defer func() { _ = os.Remove(tmpFile.Name()) }()
+	_, err = tmpFile.WriteString("model\n  schema 1.1")
+	assert.NoError(t, err)
+	err = tmpFile.Close()
+	assert.NoError(t, err)
 
 	mgr := mocks.NewMockManager(t)
 	orgsClient := mocks.NewMockClient(t)

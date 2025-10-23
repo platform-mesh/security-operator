@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
-	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
@@ -65,14 +64,14 @@ func (w *workspaceFGASubroutine) Process(ctx context.Context, instance runtimeob
 	accountInfo := &accountsv1alpha1.AccountInfo{}
 	if err := workspaceClient.Get(ctx, client.ObjectKey{Name: accountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
 		if apierrors.IsNotFound(err) {
-			// AccountInfo not created yet by workspace_initializer, wait and retry
-			return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
+			// AccountInfo not created yet by workspace_initializer, requeue immediately
+			return ctrl.Result{RequeueAfter: 1}, nil
 		}
 		// Other errors (permissions, network, etc) should be surfaced
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get AccountInfo: %w", err), true, true)
 	}
 	if accountInfo.Spec.Account.Name == "" || accountInfo.Spec.Account.OriginClusterId == "" || accountInfo.Spec.FGA.Store.Id == "" {
-		return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
+		return ctrl.Result{RequeueAfter: 1}, nil
 	}
 
 	// Parent relation for non-org accounts

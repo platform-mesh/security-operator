@@ -36,7 +36,7 @@ func TestWorkspaceFGA_Requeue_WhenAccountInfoMissing(t *testing.T) {
 	ctx := mccontext.WithCluster(context.Background(), "ws")
 	res, opErr := sub.Process(ctx, lc)
 	assert.Nil(t, opErr)
-	assert.True(t, res.RequeueAfter > 0, "Expected requeue with delay")
+	assert.Equal(t, 1, int(res.RequeueAfter), "Expected immediate requeue")
 }
 
 func TestWorkspaceFGA_Requeue_WhenAccountInfoIncomplete(t *testing.T) {
@@ -61,7 +61,7 @@ func TestWorkspaceFGA_Requeue_WhenAccountInfoIncomplete(t *testing.T) {
 	ctx := mccontext.WithCluster(context.Background(), "ws")
 	res, opErr := sub.Process(ctx, lc)
 	assert.Nil(t, opErr)
-	assert.True(t, res.RequeueAfter > 0, "Expected requeue with delay")
+	assert.Equal(t, 1, int(res.RequeueAfter), "Expected immediate requeue")
 }
 
 func TestWorkspaceFGA_WritesParentAndOwnerTuples(t *testing.T) {
