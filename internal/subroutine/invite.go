@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 
 	"github.com/platform-mesh/golang-commons/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -21,10 +22,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	"k8s.io/client-go/util/retry"
-
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 )
+
+const defaultOrgName = "default"
 
 func NewInviteSubroutine(orgsClient client.Client, mgr mcmanager.Manager) *inviteSubroutine {
 	return &inviteSubroutine{
@@ -54,8 +55,12 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
 
 	wsName := getWorkspaceName(lc)
-	if wsName == "" {
+
+	switch wsName {
+	case "":
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace name"), true, false)
+	case defaultOrgName:
+		return ctrl.Result{}, nil
 	}
 
 	cl, err := w.mgr.ClusterFromContext(ctx)
