@@ -152,7 +152,7 @@ func (r *realmSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 	releaseName := fmt.Sprintf("%s-idp", workspaceName)
 
 	if r.cfg.RepositoryVersion == "" {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get oci repository version from config"), true, false)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("oci-repository-version must be configured"), true, false)
 	}
 
 	repositoryPatch := map[string]string{
