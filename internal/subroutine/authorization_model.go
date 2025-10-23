@@ -35,24 +35,24 @@ var (
 	priviledgedGroupVersions = []string{"rbac.authorization.k8s.io/v1"}
 	groupVersions            = []string{"authentication.k8s.io/v1", "authorization.k8s.io/v1", "v1"}
 
-	coreModelTemplate = template.Must(template.New("model").Parse(`module internal_core_types_{{ .Name }}
-type {{ .Group }}_{{ .Singular }}
-	relations
-		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
-		define member: [role#assignee] or owner or member from parent
-		define owner: [role#assignee] or owner from parent
-		
-		define get: member
-		define update: member
-		define delete: member
-		define patch: member
-		define watch: member
-
-		define manage_iam_roles: owner
-		define get_iam_roles: member
-		define get_iam_users: member
-`))
 	priviledgedTemplate = template.Must(template.New("model").Parse(`module internal_core_types_{{ .Name }}
+
+{{ if eq .Scope "Cluster" }}
+extend type core_platform-mesh_io_account
+	relations
+		define create_{{ .Group }}_{{ .Name }}: owner
+		define list_{{ .Group }}_{{ .Name }}: member
+		define watch_{{ .Group }}_{{ .Name }}: member
+{{ end }}
+
+{{ if eq .Scope "Namespaced" }}
+extend type core_namespace
+	relations
+		define create_{{ .Group }}_{{ .Name }}: owner
+		define list_{{ .Group }}_{{ .Name }}: member
+		define watch_{{ .Group }}_{{ .Name }}: member
+{{ end }}
+
 type {{ .Group }}_{{ .Singular }}
 	relations
 		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
@@ -71,17 +71,21 @@ type {{ .Group }}_{{ .Singular }}
 `))
 )
 
+type NewDiscoveryClientFunc func(cfg *rest.Config) discovery.DiscoveryInterface
+
 type authorizationModelSubroutine struct {
-	fga       openfgav1.OpenFGAServiceClient
-	mgr       mcmanager.Manager
-	allClient client.Client
+	fga                    openfgav1.OpenFGAServiceClient
+	mgr                    mcmanager.Manager
+	allClient              client.Client
+	newDiscoveryClientFunc NewDiscoveryClientFunc
 }
 
-func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, allClient client.Client, log *logger.Logger) *authorizationModelSubroutine {
+func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, allClient client.Client, newDiscoveryClientFunc NewDiscoveryClientFunc, log *logger.Logger) *authorizationModelSubroutine {
 	return &authorizationModelSubroutine{
-		fga:       fga,
-		mgr:       mgr,
-		allClient: allClient,
+		fga:                    fga,
+		mgr:                    mgr,
+		allClient:              allClient,
+		newDiscoveryClientFunc: newDiscoveryClientFunc,
 	}
 }
 
@@ -159,9 +163,9 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 
 		cfg.Host = parsed.String()
 
-		discoveryClient := discovery.NewDiscoveryClientForConfigOrDie(cfg)
+		discoveryClient := a.newDiscoveryClientFunc(cfg)
 
-		coreModules, err := discoverAndRender(discoveryClient, coreModelTemplate, groupVersions)
+		coreModules, err := discoverAndRender(discoveryClient, modelTpl, groupVersions)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 		}
@@ -254,7 +258,7 @@ func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Temp
 	var buffer bytes.Buffer
 	err := tpl.Execute(&buffer, modelInput{
 		Name:     resource.Name,
-		Group:    strings.ReplaceAll(group, ".", "_"),
+		Group:    strings.ReplaceAll(group, ".", "_"), // TODO: group name length capping
 		Singular: resource.SingularName,
 		Scope:    string(scope),
 	})

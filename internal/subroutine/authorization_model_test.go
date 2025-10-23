@@ -19,6 +19,8 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 )
@@ -53,18 +55,18 @@ type user
 `
 
 func TestAuthorizationModelGetName(t *testing.T) {
-	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil, nil)
+	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil, nil, nil)
 	assert.Equal(t, "AuthorizationModel", subroutine.GetName())
 }
 
 func TestAuthorizationModelFinalizers(t *testing.T) {
-	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil, nil)
+	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil, nil, nil)
 	assert.Equal(t, []string(nil), subroutine.Finalizers(nil))
 }
 
 func TestAuthorizationModelFinalize(t *testing.T) {
-	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil, nil)
-	_, err := subroutine.Finalize(context.Background(), nil)
+	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil, nil, nil)
+	_, err := subroutine.Finalize(t.Context(), nil)
 	assert.Nil(t, err)
 }
 
@@ -332,7 +334,14 @@ func TestAuthorizationModelProcess(t *testing.T) {
 
 			logger := testlogger.New()
 
-			subroutine := subroutine.NewAuthorizationModelSubroutine(fga, manager, client, logger.Logger)
+			ctrlManager := mocks.NewCTRLManager(t)
+			manager.EXPECT().GetLocalManager().Return(ctrlManager).Maybe()
+			ctrlManager.EXPECT().GetConfig().Return(&rest.Config{}).Maybe()
+
+			discoveryMock := mocks.NewMockDiscoveryInterface(t)
+			discoveryMock.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{}, nil).Maybe()
+
+			subroutine := subroutine.NewAuthorizationModelSubroutine(fga, manager, client, func(cfg *rest.Config) discovery.DiscoveryInterface { return discoveryMock }, logger.Logger)
 			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("path")))
 
 			_, err := subroutine.Process(ctx, test.store)
