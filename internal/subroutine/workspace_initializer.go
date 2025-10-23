@@ -76,18 +76,18 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		fmt.Printf("[DEBUG] Workspace phase=%s, ensuring resources remain consistent\n", lc.Status.Phase)
 	}
 
-	clusterRef, err := w.mgr.ClusterFromContext(ctx)
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
-	}
-	workspaceClient := clusterRef.GetClient()
-
-	// Validate that owner cluster is specified
+	// Validate that owner cluster is specified before getting workspace client
 	if lc.Spec.Owner.Cluster == "" {
 		return ctrl.Result{}, errors.NewOperatorError(
 			fmt.Errorf("spec.owner.cluster is empty for LogicalCluster %s", lc.Name),
 			true, true)
 	}
+
+	clusterRef, err := w.mgr.ClusterFromContext(ctx)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
+	}
+	workspaceClient := clusterRef.GetClient()
 
 	// Use orgsClient directly since lc.Spec.Owner.Cluster contains short cluster ID
 	// which cannot be resolved via mgr.GetCluster()
