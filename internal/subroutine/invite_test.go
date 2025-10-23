@@ -36,7 +36,7 @@ func TestInviteSubroutine_GetName(t *testing.T) {
 	subroutine := NewInviteSubroutine(orgsClient, mgr)
 
 	name := subroutine.GetName()
-	assert.Equal(t, "inviteSubroutine", name)
+	assert.Equal(t, "InviteInitilizationSubroutine", name)
 }
 
 func TestInviteSubroutine_Finalizers(t *testing.T) {
@@ -267,7 +267,7 @@ func TestInviteSubroutine_Process_CreateOrUpdate_Ready(t *testing.T) {
 			inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
 			return nil
 		}).Once()
-	
+
 	// Mock the Get call in the backoff function - returns the invite with Ready condition
 	orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Invite")).
 		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
@@ -312,7 +312,7 @@ func TestInviteSubroutine_Process_CreateOrUpdate_NotReady(t *testing.T) {
 			inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse}}
 			return nil
 		}).Once()
-	
+
 	// Mock the Get call in the backoff function - returns the invite with Ready condition False
 	orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Invite")).
 		RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {

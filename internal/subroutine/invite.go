@@ -3,8 +3,6 @@ package subroutine
 import (
 	"context"
 	"fmt"
-	"strings"
-	"time"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
@@ -23,13 +21,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
+	"k8s.io/client-go/util/retry"
+
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
-const orgsWorkspaceName = "orgs"
-
-// this subroutine is responsible for Invite resource creation
-// Invite resource reconciliation happens in the subroutine in invite package
 func NewInviteSubroutine(orgsClient client.Client, mgr mcmanager.Manager) *inviteSubroutine {
 	return &inviteSubroutine{
 		orgsClient: orgsClient,
@@ -52,18 +48,10 @@ func (w *inviteSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
 	return nil
 }
 
-func (w *inviteSubroutine) GetName() string { return "inviteSubroutine" }
+func (w *inviteSubroutine) GetName() string { return "InviteInitilizationSubroutine" }
 
 func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
-
-	// the invite resource should be created only for newly created organizations
-	// for other new logical clusters, we should skip this step
-	parentWsName := getParentWorkspaceName(lc)
-	if parentWsName != orgsWorkspaceName {
-		log.Info().Msg(fmt.Sprintf("the created workspace is not an organization. Skipping invite resource creation for cluster %s", lc.Name))
-		return ctrl.Result{}, nil
-	}
 
 	wsName := getWorkspaceName(lc)
 
@@ -73,11 +61,14 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 	}
 
 	var account accountv1alpha1.Account
-
-	// to find a newly created organization account we need to point :root:orgs workspace
 	err = w.orgsClient.Get(ctx, types.NamespacedName{Name: wsName}, &account)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get account resource %w", err), true, true)
+	}
+
+	if account.Spec.Type != accountv1alpha1.AccountTypeOrg {
+		log.Info().Str("workspace", wsName).Msg("account is not of type organization, skipping invite creation")
+		return ctrl.Result{}, nil
 	}
 
 	if account.Spec.Creator == nil {
@@ -94,16 +85,17 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create invite resource %w", err), true, true)
 	}
+
 	log.Info().Str("workspace", wsName).Msg("invite resource created")
 
-	err = wait.ExponentialBackoffWithContext(ctx, wait.Backoff{Duration: 1 * time.Second, Factor: 2.0, Jitter: 0.1, Steps: 5},
-		func(ctx context.Context) (done bool, err error) {
+	err = wait.ExponentialBackoffWithContext(ctx, retry.DefaultBackoff,
+		func(ctx context.Context) (bool, error) {
 			if err := cl.GetClient().Get(ctx, types.NamespacedName{Name: wsName}, invite); err != nil {
 				return false, err
 			}
+
 			return meta.IsStatusConditionTrue(invite.GetConditions(), "Ready"), nil
 		})
-
 	if err != nil {
 		log.Info().Str("workspace", wsName).Msg("invite resource not ready yet")
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("invite resource is not ready yet"), true, false)
@@ -111,14 +103,4 @@ func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.R
 
 	log.Info().Str("workspace", wsName).Msg("invite resource ready")
 	return ctrl.Result{}, nil
-}
-
-func getParentWorkspaceName(lc *kcpv1alpha1.LogicalCluster) string {
-	if path, ok := lc.Annotations["kcp.io/path"]; ok {
-		pathElements := strings.Split(path, ":")
-		if len(pathElements) >= 2 {
-			return pathElements[len(pathElements)-2]
-		}
-	}
-	return ""
 }
