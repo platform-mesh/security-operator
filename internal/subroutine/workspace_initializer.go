@@ -36,26 +36,20 @@ func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mc
 	}
 
 	return &workspaceInitializer{
-		orgsClient:    orgsClient,
-		mgr:           mgr,
-		coreModule:    string(data),
-		fga:           fga,
-		fgaObjectType: cfg.FGA.ObjectType,
-		fgaParentRel:  cfg.FGA.ParentRelation,
-		fgaCreatorRel: cfg.FGA.CreatorRelation,
+		orgsClient: orgsClient,
+		mgr:        mgr,
+		coreModule: string(data),
+		fga:        fga,
 	}
 }
 
 var _ lifecyclesubroutine.Subroutine = &workspaceInitializer{}
 
 type workspaceInitializer struct {
-	orgsClient    client.Client
-	mgr           mcmanager.Manager
-	coreModule    string
-	fga           openfgav1.OpenFGAServiceClient
-	fgaObjectType string
-	fgaParentRel  string
-	fgaCreatorRel string
+	orgsClient client.Client
+	mgr        mcmanager.Manager
+	coreModule string
+	fga        openfgav1.OpenFGAServiceClient
 }
 
 func (w *workspaceInitializer) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
@@ -217,58 +211,10 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 	return ctrl.Result{RequeueAfter: time.Minute}, nil
 }
 
-func (w *workspaceInitializer) ensureAccountInfo(ctx context.Context, workspaceClient client.Client, storeID string, creator *string) errors.OperatorError {
-	accountInfo := &accountsv1alpha1.AccountInfo{ObjectMeta: metav1.ObjectMeta{Name: accountinfo.DefaultAccountInfoName}}
-	_, err := controllerutil.CreateOrUpdate(ctx, workspaceClient, accountInfo, func() error {
-		accountInfo.Spec.FGA.Store.Id = storeID
-		accountInfo.Spec.Creator = creator
-		return nil
-	})
-	if err != nil {
-		return errors.NewOperatorError(fmt.Errorf("unable to create/update accountInfo: %w", err), true, true)
-	}
-	return nil
-}
-
-func (w *workspaceInitializer) resolveStoreTarget(lc *kcpv1alpha1.LogicalCluster, account accountsv1alpha1.Account, accountInfo *accountsv1alpha1.AccountInfo) (logicalcluster.Name, string, errors.OperatorError) {
-	if account.Spec.Type == accountsv1alpha1.AccountTypeOrg {
-		path, ok := lc.Annotations["kcp.io/path"]
-		if !ok {
-			return "", "", errors.NewOperatorError(fmt.Errorf("unable to get workspace path"), true, false)
-		}
-		storeName := generateStoreName(lc)
-		if storeName == "" {
-			return "", "", errors.NewOperatorError(fmt.Errorf("unable to generate store name from workspace path"), true, false)
-		}
-		return logicalcluster.Name(path), storeName, nil
-	}
-
-	if accountInfo.Spec.Organization.Path == "" {
-		return "", "", errors.NewOperatorError(fmt.Errorf("organization path not yet set"), true, false)
-	}
-	storeName := generateStoreNameFromPath(accountInfo.Spec.Organization.Path)
-	if storeName == "" {
-		return "", "", errors.NewOperatorError(fmt.Errorf("unable to derive store name from organization path"), true, false)
-	}
-	if accountInfo.Spec.ParentAccount == nil || accountInfo.Spec.ParentAccount.Name == "" || accountInfo.Spec.ParentAccount.OriginClusterId == "" {
-		return "", "", errors.NewOperatorError(fmt.Errorf("parent account information not ready"), true, false)
-	}
-
-	return logicalcluster.Name(accountInfo.Spec.Organization.Path), storeName, nil
-}
-
 func generateStoreName(lc *kcpv1alpha1.LogicalCluster) string {
 	if path, ok := lc.Annotations["kcp.io/path"]; ok {
 		pathElements := strings.Split(path, ":")
 		return pathElements[len(pathElements)-1]
 	}
 	return ""
-}
-
-func generateStoreNameFromPath(path string) string {
-	pathElements := strings.Split(path, ":")
-	if len(pathElements) == 0 {
-		return ""
-	}
-	return pathElements[len(pathElements)-1]
 }
