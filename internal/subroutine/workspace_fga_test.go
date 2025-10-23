@@ -12,6 +12,8 @@ import (
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
@@ -22,7 +24,8 @@ func TestWorkspaceFGA_Requeue_WhenAccountInfoMissing(t *testing.T) {
 	wsCluster := mocks.NewMockCluster(t)
 	wsClient := mocks.NewMockClient(t)
 
-	wsClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+	notFoundErr := &apierrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonNotFound}}
+	wsClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(notFoundErr)
 	wsCluster.EXPECT().GetClient().Return(wsClient)
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(wsCluster, nil)
 

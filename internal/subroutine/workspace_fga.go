@@ -15,6 +15,7 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/fga/helpers"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -66,7 +67,12 @@ func (w *workspaceFGASubroutine) Process(ctx context.Context, instance runtimeob
 
 	accountInfo := &accountsv1alpha1.AccountInfo{}
 	if err := workspaceClient.Get(ctxWithTimeout, client.ObjectKey{Name: accountinfo.DefaultAccountInfoName}, accountInfo); err != nil {
-		return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
+		if apierrors.IsNotFound(err) {
+			// AccountInfo not created yet by workspace_initializer, wait and retry
+			return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
+		}
+		// Other errors (permissions, network, etc) should be surfaced
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get AccountInfo: %w", err), true, true)
 	}
 	if accountInfo.Spec.Account.Name == "" || accountInfo.Spec.Account.OriginClusterId == "" || accountInfo.Spec.FGA.Store.Id == "" {
 		return ctrl.Result{RequeueAfter: 2 * time.Second}, nil
