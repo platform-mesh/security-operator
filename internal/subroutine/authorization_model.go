@@ -195,17 +195,11 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 		}
 
-		// the following ignore comments are due to the fact, that its incredibly hard to setup a specific condition where one of the parsing methods would fail
-
+		// Compare Proto objects directly instead of DSL strings to avoid ordering issues
+		// The two models should be semantically equivalent even if DSL ordering differs
 		currentRaw, err := protojson.Marshal(res.AuthorizationModel)
 		if err != nil { // coverage-ignore
 			log.Error().Err(err).Msg("unable to marshal current model")
-			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
-		}
-
-		current, err := language.TransformJSONStringToDSL(string(currentRaw))
-		if err != nil { // coverage-ignore
-			log.Error().Err(err).Msg("unable to transform current model to dsl")
 			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 		}
 
@@ -215,13 +209,8 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 		}
 
-		desired, err := language.TransformJSONStringToDSL(string(desiredRaw))
-		if err != nil { // coverage-ignore
-			log.Error().Err(err).Msg("unable to transform desired model to dsl")
-			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
-		}
-
-		if *current == *desired {
+		// Compare JSON representations instead of DSL strings
+		if string(currentRaw) == string(desiredRaw) {
 			return ctrl.Result{}, nil
 		}
 

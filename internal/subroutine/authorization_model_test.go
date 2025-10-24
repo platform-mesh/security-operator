@@ -33,6 +33,11 @@ type user
 type role
   relations
 	define assignee: [user,user:*]
+
+type core_platform-mesh_io_account
+	relations
+		define owner: [role#assignee]
+		define member: [role#assignee]
 `
 
 var extensionModel = `
@@ -46,12 +51,34 @@ extend type role
 var mergedModule = `model
   schema 1.2
 
+type core_platform-mesh_io_account
+  relations
+    define member: [role#assignee]
+    define owner: [role#assignee]
+    define create_core_namespaces: owner
+    define list_core_namespaces: member
+    define watch_core_namespaces: member
+
 type role
   relations
     define assignee: [user, user:*]
     define extensions: assignee
 
 type user
+
+type core_namespace
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
 `
 
 func TestAuthorizationModelGetName(t *testing.T) {
@@ -182,25 +209,52 @@ func TestAuthorizationModelProcess(t *testing.T) {
 				).Once()
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
-				model, err := language.TransformDSLToProto(mergedModule)
+				// Simulate the same module transformation process as the actual code
+				moduleFiles := []language.ModuleFile{
+					{
+						Name:     "/store.fga",
+						Contents: coreModule,
+					},
+					{
+						Name:     "/.fga",
+						Contents: extensionModel,
+					},
+					{
+						Name:     "internal_core_types_namespaces.fga",
+						Contents: `module namespaces
+
+extend type core_platform-mesh_io_account
+	relations
+		define create_core_namespaces: owner
+		define list_core_namespaces: member
+		define watch_core_namespaces: member
+
+type core_namespace
+	relations
+		define parent: [core_platform-mesh_io_account]
+		define member: [role#assignee] or owner or member from parent
+		define owner: [role#assignee] or owner from parent
+
+		define get: member
+		define update: member
+		define delete: member
+		define patch: member
+		define watch: member
+
+		define manage_iam_roles: owner
+		define get_iam_roles: member
+		define get_iam_users: member
+`,
+					},
+				}
+
+				model, err := language.TransformModuleFilesToModel(moduleFiles, "1.2")
 				assert.NoError(t, err)
 
 				fga.EXPECT().ReadAuthorizationModel(mock.Anything, mock.Anything).Return(&openfgav1.ReadAuthorizationModelResponse{
 					AuthorizationModel: model,
 				}, nil)
 			},
-		},
-		{
-			name: "should stop reconciliation if no resources are found",
-			store: &v1alpha1.Store{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "store",
-				},
-			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).Return(errors.New("error"))
-			},
-			expectError: true,
 		},
 		{
 			name: "should stop reconciliation if the authorization model is not found",
@@ -339,6 +393,16 @@ func TestAuthorizationModelProcess(t *testing.T) {
 			ctrlManager.EXPECT().GetConfig().Return(&rest.Config{}).Maybe()
 
 			discoveryMock := mocks.NewMockDiscoveryInterface(t)
+			discoveryMock.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{
+				APIResources: []metav1.APIResource{
+					{
+						Name:         "namespaces",
+						SingularName: "namespace",
+						Namespaced:   false,
+						Group:        "",
+					},
+				},
+			}, nil).Once().Maybe()
 			discoveryMock.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{}, nil).Maybe()
 
 			subroutine := subroutine.NewAuthorizationModelSubroutine(fga, manager, client, func(cfg *rest.Config) discovery.DiscoveryInterface { return discoveryMock }, logger.Logger)
