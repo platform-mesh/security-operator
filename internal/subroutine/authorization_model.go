@@ -33,7 +33,7 @@ const (
 
 var (
 	privilegedGroupVersions = []string{"rbac.authorization.k8s.io/v1"}
-	groupVersions            = []string{"authentication.k8s.io/v1", "authorization.k8s.io/v1", "v1"}
+	groupVersions           = []string{"authentication.k8s.io/v1", "authorization.k8s.io/v1", "v1"}
 
 	privilegedTemplate = template.Must(template.New("model").Parse(`module internal_core_types_{{ .Name }}
 
@@ -56,13 +56,15 @@ extend type core_namespace
 type {{ .Group }}_{{ .Singular }}
 	relations
 		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
-		define member: [role#assignee] or owner or member from parent
-		define owner: [role#assignee] or owner from parent
+		define member: member from parent
+		define owner: owner from parent
 		
 		define get: member
 		define update: owner
 		define delete: owner
 		define patch: owner
+		define statusPatch: member
+		define statusUpdate: member
 		define watch: member
 
 		define manage_iam_roles: owner
