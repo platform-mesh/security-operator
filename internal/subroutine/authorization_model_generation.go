@@ -58,9 +58,12 @@ extend type core_namespace
 type {{ .Group }}_{{ .Singular }}
 	relations
 		define parent: [{{ if eq .Scope "Namespaced" }}core_namespace{{ else }}core_platform-mesh_io_account{{ end }}]
-		define member: [role#assignee] or owner or member from parent
-		define owner: [role#assignee] or owner from parent
-		
+		define member: member from parent
+		define owner: owner from parent
+
+		define statusUpdate: member
+		define statusPatch: member
+
 		define get: member
 		define update: member
 		define delete: member
@@ -70,7 +73,6 @@ type {{ .Group }}_{{ .Singular }}
 		define manage_iam_roles: owner
 		define get_iam_roles: member
 		define get_iam_users: member
-
 `))
 
 type modelInput struct {

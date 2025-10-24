@@ -73,10 +73,12 @@ type core_namespace
     define get_iam_roles: member
     define get_iam_users: member
     define manage_iam_roles: owner
-    define member: [role#assignee] or owner or member from parent
-    define owner: [role#assignee] or owner from parent
+    define member: member from parent
+    define owner: owner from parent
     define parent: [core_platform-mesh_io_account]
     define patch: member
+    define statusPatch: member
+    define statusUpdate: member
     define update: member
     define watch: member
 `
@@ -220,7 +222,7 @@ func TestAuthorizationModelProcess(t *testing.T) {
 						Contents: extensionModel,
 					},
 					{
-						Name:     "internal_core_types_namespaces.fga",
+						Name: "internal_core_types_namespaces.fga",
 						Contents: `module namespaces
 
 extend type core_platform-mesh_io_account
@@ -232,13 +234,15 @@ extend type core_platform-mesh_io_account
 type core_namespace
 	relations
 		define parent: [core_platform-mesh_io_account]
-		define member: [role#assignee] or owner or member from parent
-		define owner: [role#assignee] or owner from parent
+		define member: member from parent
+		define owner: owner from parent
 
 		define get: member
 		define update: member
 		define delete: member
 		define patch: member
+		define statusPatch: member
+		define statusUpdate: member
 		define watch: member
 
 		define manage_iam_roles: owner
