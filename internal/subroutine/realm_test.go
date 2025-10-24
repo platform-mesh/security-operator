@@ -176,7 +176,9 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 
 			repository, helmRelease = trim(repoYAML), trim(helmReleaseYAML)
 
-			rs := NewRealmSubroutine(clientMock, &config.Config{}, baseDomain)
+			cfg := &config.Config{}
+			cfg.RepositoryVersion = "1.0.0"
+			rs := NewRealmSubroutine(clientMock, cfg, baseDomain)
 			lc := &kcpv1alpha1.LogicalCluster{}
 			lc.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
 			res, opErr := rs.Process(context.Background(), lc)
@@ -192,6 +194,7 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 			})
 
 			cfg := &config.Config{}
+			cfg.RepositoryVersion = "1.0.0"
 			cfg.IDP.SMTPServer = "smtp.example.com"
 			cfg.IDP.SMTPPort = 587
 			cfg.IDP.FromAddress = "noreply@example.com"
@@ -213,6 +216,19 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 			})
 
 			repository, helmRelease = trim(repoYAML), trim(helmReleaseYAML)
+			cfg := &config.Config{}
+			cfg.RepositoryVersion = "1.0.0"
+			rs := NewRealmSubroutine(clientMock, cfg, baseDomain)
+			lc := &kcpv1alpha1.LogicalCluster{}
+			lc.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
+			res, opErr := rs.Process(context.Background(), lc)
+			require.NotNil(t, opErr)
+			require.Equal(t, ctrl.Result{}, res)
+		})
+
+		t.Run("missing repository version", func(t *testing.T) {
+			t.Parallel()
+			clientMock := newClientMock(t, nil)
 			rs := NewRealmSubroutine(clientMock, &config.Config{}, baseDomain)
 			lc := &kcpv1alpha1.LogicalCluster{}
 			lc.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
@@ -234,7 +250,9 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 		t.Run("missing workspace annotation", func(t *testing.T) {
 			t.Parallel()
 			clientMock := newClientMock(t, nil)
-			rs := NewRealmSubroutine(clientMock, &config.Config{}, baseDomain)
+			cfg := &config.Config{}
+			cfg.RepositoryVersion = "1.0.0"
+			rs := NewRealmSubroutine(clientMock, cfg, baseDomain)
 			lc := &kcpv1alpha1.LogicalCluster{}
 			res, opErr := rs.Process(context.Background(), lc)
 			require.NotNil(t, opErr)
@@ -279,7 +297,9 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				t.Parallel()
 				clientMock := newClientMock(t, tc.setupMocks)
-				rs := NewRealmSubroutine(clientMock, &config.Config{}, baseDomain)
+				cfg := &config.Config{}
+				cfg.RepositoryVersion = "1.0.0"
+				rs := NewRealmSubroutine(clientMock, cfg, baseDomain)
 				lc := &kcpv1alpha1.LogicalCluster{}
 				lc.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
 				res, opErr := rs.Finalize(context.Background(), lc)
