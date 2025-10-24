@@ -32,10 +32,10 @@ const (
 )
 
 var (
-	priviledgedGroupVersions = []string{"rbac.authorization.k8s.io/v1"}
+	privilegedGroupVersions = []string{"rbac.authorization.k8s.io/v1"}
 	groupVersions            = []string{"authentication.k8s.io/v1", "authorization.k8s.io/v1", "v1"}
 
-	priviledgedTemplate = template.Must(template.New("model").Parse(`module internal_core_types_{{ .Name }}
+	privilegedTemplate = template.Must(template.New("model").Parse(`module internal_core_types_{{ .Name }}
 
 {{ if eq .Scope "Cluster" }}
 extend type core_platform-mesh_io_account
@@ -171,11 +171,11 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 		}
 		moduleFiles = append(moduleFiles, coreModules...)
 
-		priviledgedModules, err := discoverAndRender(discoveryClient, priviledgedTemplate, priviledgedGroupVersions)
+		privilegedModules, err := discoverAndRender(discoveryClient, privilegedTemplate, privilegedGroupVersions)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 		}
-		moduleFiles = append(moduleFiles, priviledgedModules...)
+		moduleFiles = append(moduleFiles, privilegedModules...)
 	}
 
 	authorizationModel, err := language.TransformModuleFilesToModel(moduleFiles, schemaVersion)
