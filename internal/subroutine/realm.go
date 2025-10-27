@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"strings"
 	"text/template"
+	"time"
 
+	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
@@ -16,7 +18,10 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/internal/config"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/util/wait"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -74,6 +79,7 @@ func (r *realmSubroutine) Finalize(ctx context.Context, instance runtimeobject.R
 }
 
 func (r *realmSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+	log := logger.LoadLoggerFromContext(ctx)
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)
@@ -146,6 +152,23 @@ func (r *realmSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create HelmRelease: %w", err), true, true)
 	}
 
+	log.Info().Str("release", releaseName).Msg("Waiting for HelmRelease to be ready")
+
+	err = wait.PollUntilContextTimeout(ctx, 1*time.Second, 2*time.Minute, true, func(ctx context.Context) (bool, error) {
+		hr := &helmv2.HelmRelease{}
+		if err := r.k8s.Get(ctx, client.ObjectKey{Name: releaseName, Namespace: "default"}, hr); err != nil {
+			if apierrors.IsNotFound(err) {
+				return false, nil
+			}
+			return false, err
+		}
+		return meta.IsStatusConditionTrue(hr.Status.Conditions, "Ready"), nil
+	})
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed waiting for HelmRelease: %w", err), true, true)
+	}
+
+	log.Info().Str("release", releaseName).Msg("HelmRelease is ready")
 	return ctrl.Result{}, nil
 }
 
@@ -170,13 +193,9 @@ func applyReleaseWithValues(ctx context.Context, release string, k8sClient clien
 		return errors.Wrap(err, "failed to set spec.releaseName")
 	}
 
-	obj.Object["spec"].(map[string]interface{})["values"] = values
+	obj.Object["spec"].(map[string]any)["values"] = values
 
-	err = k8sClient.Patch(ctx, &obj, client.Apply, client.FieldOwner("security-operator"))
-	if err != nil {
-		return errors.Wrap(err, "Failed to apply manifest: (%s/%s)", obj.GetKind(), obj.GetName())
-	}
-	return nil
+	return k8sClient.Patch(ctx, &obj, client.Apply, client.FieldOwner("security-operator"))
 }
 
 func unstructuredFromString(manifest string, templateData map[string]string, log *logger.Logger) (unstructured.Unstructured, error) {
@@ -187,7 +206,7 @@ func unstructuredFromString(manifest string, templateData map[string]string, log
 		return unstructured.Unstructured{}, errors.Wrap(err, "Failed to replace template")
 	}
 
-	var objMap map[string]interface{}
+	var objMap map[string]any
 	if err := yaml.Unmarshal(res, &objMap); err != nil {
 		return unstructured.Unstructured{}, errors.Wrap(err, "Failed to unmarshal YAML from template. Output:\n%s", string(res))
 	}
