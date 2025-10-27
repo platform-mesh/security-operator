@@ -195,7 +195,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 		log.Err(err).Msg("Failed to verify client exists")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusOK {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to verify client exists: %s", res.Status), true, false)

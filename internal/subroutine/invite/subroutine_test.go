@@ -295,6 +295,32 @@ func TestSubroutineProcess(t *testing.T) {
 				})
 			},
 		},
+		{
+			desc: "organization name is empty in AccountInfo",
+			obj: &v1alpha1.Invite{
+				Spec: v1alpha1.InviteSpec{
+					Email: "empty@acme.corp",
+				},
+			},
+			expectErr: true,
+			setupK8sMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						accountInfo := &accountsv1alpha1.AccountInfo{
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								Organization: accountsv1alpha1.AccountLocation{
+									Name: "",
+								},
+							},
+						}
+						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						return nil
+					},
+				)
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+			},
+		},
 	}
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
