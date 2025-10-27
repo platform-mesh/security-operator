@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
@@ -14,7 +13,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -134,12 +132,6 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 						require.True(t, ok)
 						return nil
 					}).Once()
-				m.EXPECT().Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v2.HelmRelease")).
-					RunAndReturn(func(_ context.Context, _ client.ObjectKey, obj client.Object, _ ...client.GetOption) error {
-						hr := obj.(*helmv2.HelmRelease)
-						hr.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: "True"}}
-						return nil
-					}).Once()
 			})
 
 			helmRelease = trim(helmReleaseYAML)
@@ -157,12 +149,6 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 			t.Parallel()
 			clientMock := newClientMock(t, func(m *mocks.MockClient) {
 				m.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-				m.EXPECT().Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v2.HelmRelease")).
-					RunAndReturn(func(_ context.Context, _ client.ObjectKey, obj client.Object, _ ...client.GetOption) error {
-						hr := obj.(*helmv2.HelmRelease)
-						hr.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: "True"}}
-						return nil
-					}).Once()
 			})
 
 			cfg := &config.Config{}
@@ -184,23 +170,6 @@ func TestRealmSubroutine_ProcessAndFinalize(t *testing.T) {
 			clientMock := newClientMock(t, func(m *mocks.MockClient) {
 				m.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 					Return(errors.New("simulated patch failure for HelmRelease")).Once()
-			})
-
-			helmRelease = trim(helmReleaseYAML)
-			rs := NewRealmSubroutine(clientMock, &config.Config{}, baseDomain)
-			lc := &kcpv1alpha1.LogicalCluster{}
-			lc.Annotations = map[string]string{"kcp.io/path": "root:orgs:test"}
-			res, opErr := rs.Process(context.Background(), lc)
-			require.NotNil(t, opErr)
-			require.Equal(t, ctrl.Result{}, res)
-		})
-
-		t.Run("helmrelease get fails during wait", func(t *testing.T) {
-			t.Parallel()
-			clientMock := newClientMock(t, func(m *mocks.MockClient) {
-				m.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-				m.EXPECT().Get(mock.Anything, mock.Anything, mock.AnythingOfType("*v2.HelmRelease")).
-					Return(errors.New("simulated get failure")).Once()
 			})
 
 			helmRelease = trim(helmReleaseYAML)
