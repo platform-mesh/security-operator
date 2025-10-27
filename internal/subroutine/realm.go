@@ -90,7 +90,7 @@ func (r *realmSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 			"client": map[string]any{
 				"name":              workspaceName,
 				"displayName":       workspaceName,
-				"validRedirectUris": append(r.cfg.IDP.AdditionalRedirectURLs, fmt.Sprintf("https://%s.%s/*", workspaceName, r.baseDomain)),
+				"validRedirectUris": append(r.cfg.IDP.AdditionalRedirectURLs, fmt.Sprintf("https://%s.%s*", workspaceName, r.baseDomain)),
 			},
 			"organization": map[string]any{
 				"domain": "example.com", // TODO: change
