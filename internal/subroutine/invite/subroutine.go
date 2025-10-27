@@ -31,6 +31,7 @@ const (
 
 type subroutine struct {
 	keycloakBaseURL string
+	baseDomain      string
 	keycloak        *http.Client
 	mgr             mcmanager.Manager
 }
@@ -62,6 +63,7 @@ func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager, pwd str
 
 	return &subroutine{
 		keycloakBaseURL: cfg.Invite.KeycloakBaseURL,
+		baseDomain:      cfg.BaseDomain,
 		mgr:             mgr,
 		keycloak:        config.Client(ctx, token),
 	}, nil
@@ -179,16 +181,13 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 
 	log.Debug().Str("email", invite.Spec.Email).Str("id", newUser.ID).Msg("User created")
 
-	var actionsPayload bytes.Buffer
-	err = json.NewEncoder(&actionsPayload).Encode(map[string]string{
-		"client_id": realm,
-	})
-	if err != nil { // coverage-ignore
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	queryParams := url.Values{
+		"redirect_uri": {"https://%s.%s", realm, s.baseDomain},
+		"client_id":    {realm},
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/admin/realms/%s/users/%s/execute-actions-email", s.keycloakBaseURL, realm, newUser.ID), &actionsPayload)
-	if err != nil {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/admin/realms/%s/users/%s/execute-actions-email?%s", s.keycloakBaseURL, realm, newUser.ID, queryParams.Encode()), http.NoBody)
+	if err != nil { // coverage-ignore
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
