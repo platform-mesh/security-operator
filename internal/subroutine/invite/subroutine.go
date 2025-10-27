@@ -175,7 +175,15 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 
 	log.Debug().Str("email", invite.Spec.Email).Str("id", newUser.ID).Msg("User created")
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/admin/realms/%s/users/%s/execute-actions-email", s.keycloakBaseURL, realm, newUser.ID), http.NoBody)
+	var actionsPayload bytes.Buffer
+	err = json.NewEncoder(&actionsPayload).Encode(map[string]string{
+		"client_id": realm,
+	})
+	if err != nil { // coverage-ignore
+		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/admin/realms/%s/users/%s/execute-actions-email", s.keycloakBaseURL, realm, newUser.ID), &actionsPayload)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
