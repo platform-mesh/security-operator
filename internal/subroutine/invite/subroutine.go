@@ -110,6 +110,10 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	}
 
 	realm := accountInfo.Spec.Organization.Name
+	if realm == "" {
+		log.Error().Msg("Organization name is empty in AccountInfo")
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("organization name is empty in AccountInfo"), true, false)
+	}
 
 	res, err := s.keycloak.Get(fmt.Sprintf("%s/admin/realms/%s/users?%s", s.keycloakBaseURL, realm, v.Encode()))
 	if err != nil { // coverage-ignore
