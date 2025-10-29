@@ -6,7 +6,7 @@ replace github.com/kcp-dev/multicluster-provider v0.2.0 => github.com/kcp-dev/mu
 
 require (
 	github.com/coreos/go-oidc v2.4.0+incompatible
-	github.com/fluxcd/helm-controller/api v1.4.2
+	github.com/fluxcd/helm-controller/api v1.4.3
 	github.com/fluxcd/source-controller/api v1.7.3
 	github.com/go-logr/logr v1.4.3
 	github.com/google/gnostic-models v0.7.0
