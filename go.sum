@@ -157,8 +157,8 @@ github.com/pingcap/errors v0.11.4 h1:lFuQV/oaUMGcD2tqt+01ROSmJs75VG1ToEOkZIZ4nE4
 github.com/pingcap/errors v0.11.4/go.mod h1:Oi8TUi2kEtXXLMJk9l1cGmz20kV3TaQ0usTwv5KuLY8=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
-github.com/platform-mesh/account-operator v0.5.11 h1:LirLtb0vNdS9aH2pFYJg2ST1/a0y+NQeKv52/K/zjm8=
-github.com/platform-mesh/account-operator v0.5.11/go.mod h1:OGaSUBepAP4pDL0cXccZhyfpSumpnkGFIswg4e8KAYE=
+github.com/platform-mesh/account-operator v0.5.12 h1:jm8aXN8c4f1P38NsmjtyUelCvq2wKniz4nwsX9hObk0=
+github.com/platform-mesh/account-operator v0.5.12/go.mod h1:6IbXO4RjT3ZC8viBQkfAUj1EIcuU5y/MhMej8XUW9gs=
 github.com/platform-mesh/golang-commons v0.7.6 h1:0FapB3V4wlVvR3yETRG7RZ+fb4y1vAkN25woB0F6YQ4=
 github.com/platform-mesh/golang-commons v0.7.6/go.mod h1:INZhMJ6kUsJ/PCyVuPbJV+VG0zdPaizwjTOkLXbF3dE=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
@@ -336,8 +336,8 @@ k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b h1:MloQ9/bdJyIu9lb1PzujOP
 k8s.io/kube-openapi v0.0.0-20250710124328-f3f2b991d03b/go.mod h1:UZ2yyWbFTpuhSbFhv24aGNOdoRdJZgsIObGBUaYVsts=
 k8s.io/utils v0.0.0-20251002143259-bc988d571ff4 h1:SjGebBtkBqHFOli+05xYbK8YF1Dzkbzn+gDM4X9T4Ck=
 k8s.io/utils v0.0.0-20251002143259-bc988d571ff4/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
-sigs.k8s.io/controller-runtime v0.22.3 h1:I7mfqz/a/WdmDCEnXmSPm8/b/yRTy6JsKKENTijTq8Y=
-sigs.k8s.io/controller-runtime v0.22.3/go.mod h1:+QX1XUpTXN4mLoblf4tqr5CQcyHPAki2HLXqQMY6vh8=
+sigs.k8s.io/controller-runtime v0.22.4 h1:GEjV7KV3TY8e+tJ2LCTxUTanW4z/FmNB7l327UfMq9A=
+sigs.k8s.io/controller-runtime v0.22.4/go.mod h1:+QX1XUpTXN4mLoblf4tqr5CQcyHPAki2HLXqQMY6vh8=
 sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 h1:IpInykpT6ceI+QxKBbEflcR5EXP7sU1kvOlxwZh5txg=
 sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730/go.mod h1:mdzfpAEoE6DHQEN0uh9ZbOCuHbLK5wOm7dK4ctXE9Tg=
 sigs.k8s.io/multicluster-runtime v0.21.0-alpha.9 h1:baonM4f081WWct3U7O4EfqrxcUGtmCrFDbsT1FQ8xlo=
