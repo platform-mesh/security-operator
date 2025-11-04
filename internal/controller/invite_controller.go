@@ -8,10 +8,7 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
-	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
@@ -21,26 +18,12 @@ import (
 	"github.com/platform-mesh/security-operator/internal/subroutine/invite"
 )
 
-const (
-	platformeMeshNamespace = "platform-mesh-system"
-	clientSecretDataKey    = "attribute.client_secret"
-)
-
 type InviteReconciler struct {
 	mclifecycle *multicluster.LifecycleManager
 }
 
-func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, runtimeClient client.Client, cfg *config.Config, log *logger.Logger) *InviteReconciler {
-	secretKey := types.NamespacedName{Name: cfg.Invite.KeycloakClientSecret, Namespace: platformeMeshNamespace}
-
-	var clientSecret corev1.Secret
-	if err := runtimeClient.Get(ctx, secretKey, &clientSecret); err != nil {
-		log.Fatal().Err(err).Msg("Failed to get client secret")
-	}
-
-	keycloakClientSecret := string(clientSecret.Data[clientSecretDataKey])
-
-	inviteSubroutine, err := invite.New(ctx, cfg, mgr, keycloakClientSecret)
+func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, cfg *config.Config, log *logger.Logger) *InviteReconciler {
+	inviteSubroutine, err := invite.New(ctx, cfg, mgr)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create invite subroutine")
 	}

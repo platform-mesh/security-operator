@@ -353,7 +353,7 @@ func TestSubroutineProcess(t *testing.T) {
 					KeycloakClientID: "admin-cli",
 				},
 				BaseDomain: "portal.dev.local:8443",
-			}, mgr, "password")
+			}, mgr)
 			assert.NoError(t, err)
 
 			l := testlogger.New()
@@ -384,7 +384,7 @@ func TestHelperFunctions(t *testing.T) {
 			KeycloakBaseURL:  srv.URL,
 			KeycloakClientID: "admin-cli",
 		},
-	}, nil, "password")
+	}, nil)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "Invite", s.GetName())

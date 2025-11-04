@@ -48,7 +48,7 @@ type keycloakClient struct {
 	ClientID string `json:"clientId,omitempty"`
 }
 
-func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager, keycloakClientSecret string) (*subroutine, error) {
+func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager) (*subroutine, error) {
 
 	issuer := fmt.Sprintf("%s/realms/master", cfg.Invite.KeycloakBaseURL)
 	provider, err := oidc.NewProvider(ctx, issuer)
@@ -58,7 +58,7 @@ func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager, keycloa
 
 	cCfg := clientcredentials.Config{
 		ClientID:     cfg.Invite.KeycloakClientID,
-		ClientSecret: keycloakClientSecret,
+		ClientSecret: cfg.Invite.KeycloakClientSecret,
 		TokenURL:     provider.Endpoint().TokenURL,
 	}
 

@@ -4,7 +4,7 @@ type InviteConfig struct {
 	KeycloakBaseURL      string `mapstructure:"invite-keycloak-base-url"`
 	KeycloakClientID     string `mapstructure:"invite-keycloak-client-id" default:"security-operator"`
 	KeycloakUser         string `mapstructure:"invite-keycloak-user" default:"keycloak-admin"`
-	KeycloakClientSecret string `mapstructure:"keycloak-client-secret" default:"security-operator-client-secret"`
+	KeycloakClientSecret string `mapstructure:"invite-keycloak-client-secret"`
 }
 
 // Config struct to hold the app config
