@@ -13,6 +13,7 @@ require (
 	github.com/kcp-dev/kcp/sdk v0.28.1-0.20250926104223-cec2e15f24c6
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.2.0
+	github.com/oapi-codegen/runtime v1.1.2
 	github.com/openfga/api/proto v0.0.0-20250909173124-0ac19aac54f2
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251003203216-7c0d09a1cc5a
 	github.com/platform-mesh/account-operator v0.5.11
@@ -37,6 +38,7 @@ require (
 require (
 	github.com/99designs/gqlgen v0.17.81 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
+	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
