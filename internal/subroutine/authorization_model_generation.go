@@ -130,7 +130,6 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 
 	for _, latestResourceSchema := range apiExport.Spec.LatestResourceSchemas {
 		var resourceSchema kcpv1alpha1.APIResourceSchema
-
 		err := apiExportClient.Get(ctx, types.NamespacedName{Name: latestResourceSchema}, &resourceSchema)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to get resource schema for binding deletion")
