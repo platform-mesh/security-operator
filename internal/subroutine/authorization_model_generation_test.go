@@ -582,13 +582,14 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 						return nil
 					})
 
-					if test.name == "delete returns error in Finalize" {
+					switch test.name {
+					case "delete returns error in Finalize":
 						apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(assert.AnError)
-					} else if test.name == "delete model in Finalize but model is not found" {
+					case "delete model in Finalize but model is not found":
 						apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(
 							kerrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "authorizationmodels"}, "foos-org"),
 						)
-					} else if test.name == "bindings with non-matching export are skipped" || test.name == "delete model in Finalize if last binding" {
+					case "bindings with non-matching export are skipped", "delete model in Finalize if last binding":
 						apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
 					}
 				}
