@@ -8,7 +8,6 @@ import (
 	"text/template"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	"github.com/kcp-dev/logicalcluster/v3"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
@@ -86,19 +85,19 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 
 	bindingToDelete := instance.(*kcpv1alpha1.APIBinding)
 
-	cluster, err := a.mgr.ClusterFromContext(ctx)
+	bindingCluster, err := a.mgr.ClusterFromContext(ctx)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
 	}
 
 	var bindings kcpv1alpha1.APIBindingList
-	err = cluster.GetClient().List(ctx, &bindings)
+	err = bindingCluster.GetClient().List(ctx, &bindings)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
 	var toDeleteAccountInfo accountv1alpha1.AccountInfo
-	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &toDeleteAccountInfo)
+	err = bindingCluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &toDeleteAccountInfo)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to get account info for binding deletion")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
@@ -106,33 +105,9 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 
 	bindingCount := 0
 	for _, binding := range bindings.Items {
-		if binding.Spec.Reference.Export.Name != bindingToDelete.Spec.Reference.Export.Name || binding.Spec.Reference.Export.Path != bindingToDelete.Spec.Reference.Export.Path {
-			continue
+		if binding.Spec.Reference.Export.Name == bindingToDelete.Spec.Reference.Export.Name && binding.Spec.Reference.Export.Path == bindingToDelete.Spec.Reference.Export.Path {
+			bindingCount++
 		}
-
-		bindingCluster, err := a.mgr.GetCluster(ctx, string(logicalcluster.From(&binding)))
-		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
-		}
-
-		var accountInfo accountv1alpha1.AccountInfo
-		err = bindingCluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
-		if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
-			// If the accountinfo does not exist, we can skip the model generation.
-			return ctrl.Result{}, nil
-		}
-		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
-		}
-
-		// org of the binding to be counted
-		bindingOrg := accountInfo.Spec.Organization.GeneratedClusterId
-		if bindingOrg != toDeleteAccountInfo.Spec.Organization.GeneratedClusterId {
-			// If the binding is not for the same organization, we can skip it.
-			continue
-		}
-
-		bindingCount++
 	}
 
 	if bindingCount > 1 {
@@ -140,17 +115,43 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 		return ctrl.Result{}, nil
 	}
 
-	err = cluster.GetClient().Delete(ctx, &securityv1alpha1.AuthorizationModel{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", bindingToDelete.Spec.Reference.Export.Name, bindingToDelete.Spec.Reference.Export.Path),
-		},
-	})
+	apiExportCluster, err := a.mgr.GetCluster(ctx, bindingToDelete.Status.APIExportClusterName)
 	if err != nil {
-		if kerrors.IsNotFound(err) {
-			// If the model does not exist, we can skip the deletion.
-			return ctrl.Result{}, nil
-		}
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster %q: %w", bindingToDelete.Status.APIExportClusterName, err), true, false)
+	}
+	apiExportClient := apiExportCluster.GetClient()
+
+	var apiExport kcpv1alpha1.APIExport
+	err = apiExportClient.Get(ctx, types.NamespacedName{Name: bindingToDelete.Spec.Reference.Export.Name}, &apiExport)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get apiexport for binding deletion")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+
+	for _, latestResourceSchema := range apiExport.Spec.LatestResourceSchemas {
+		var resourceSchema kcpv1alpha1.APIResourceSchema
+
+		err := apiExportClient.Get(ctx, types.NamespacedName{Name: latestResourceSchema}, &resourceSchema)
+		if err != nil {
+			log.Error().Err(err).Msg("failed to get resource schema for binding deletion")
+			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		}
+
+		authModelName := fmt.Sprintf("%s-%s", resourceSchema.Spec.Names.Plural, toDeleteAccountInfo.Spec.Organization.Name)
+		err = apiExportClient.Delete(ctx, &securityv1alpha1.AuthorizationModel{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: authModelName,
+			},
+		})
+		if err != nil {
+			if kerrors.IsNotFound(err) {
+				// If the model does not exist, we can skip the deletion.
+				log.Info().Msg(fmt.Sprintf("authorization model %s does not exist", authModelName))
+				return ctrl.Result{}, nil
+			}
+			log.Error().Err(err).Msg("failed to delete authorization model")
+			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		}
 	}
 
 	return ctrl.Result{}, nil
@@ -159,7 +160,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 
 // Finalizers implements lifecycle.Subroutine.
 func (a *AuthorizationModelGenerationSubroutine) Finalizers(_ lifecyclecontrollerruntime.RuntimeObject) []string {
-	return []string{}
+	return []string{"apis.kcp.io/apibinding-finalizer"}
 }
 
 // GetName implements lifecycle.Subroutine.
