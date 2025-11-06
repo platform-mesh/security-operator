@@ -146,7 +146,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 			if kerrors.IsNotFound(err) {
 				// If the model does not exist, we can skip the deletion.
 				log.Info().Msg(fmt.Sprintf("authorization model %s does not exist", authModelName))
-				return ctrl.Result{}, nil
+				continue
 			}
 			log.Error().Err(err).Msg("failed to delete authorization model")
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
