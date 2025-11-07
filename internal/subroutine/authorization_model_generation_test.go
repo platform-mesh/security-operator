@@ -201,16 +201,17 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 			cluster := mocks.NewMockCluster(t)
 			kcpClient := mocks.NewMockClient(t)
 
-			if test.name == "error on ClusterFromContext in Process" {
+			switch test.name {
+			case "error on ClusterFromContext in Process":
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError)
-			} else if test.name == "error on GetCluster for APIExport cluster in Process" {
+			case "error on GetCluster for APIExport cluster in Process":
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient).Maybe()
 				if test.mockSetup != nil {
 					test.mockSetup(kcpClient)
 				}
 				manager.EXPECT().GetCluster(mock.Anything, test.binding.Status.APIExportClusterName).Return(nil, assert.AnError)
-			} else {
+			default:
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Maybe()
 				cluster.EXPECT().GetClient().Return(kcpClient).Maybe()
