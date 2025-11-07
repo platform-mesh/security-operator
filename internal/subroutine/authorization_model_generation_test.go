@@ -260,6 +260,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			manager := mocks.NewMockManager(t)
+			allClient := mocks.NewMockClient(t)
 			cluster := mocks.NewMockCluster(t)
 			kcpClient := mocks.NewMockClient(t)
 
@@ -273,7 +274,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					test.mockSetup(kcpClient)
 				}
 			}
-			sub := subroutine.NewAuthorizationModelGenerationSubroutine(manager)
+			sub := subroutine.NewAuthorizationModelGenerationSubroutine(manager, allClient)
 			ctx := context.Background()
 			_, err := sub.Process(ctx, test.binding)
 			if test.expectError {
@@ -285,10 +286,21 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 	}
 }
 
+type finalizeTestConfig struct {
+	earlyReturnError error
+
+	bindingsInList []*kcpv1alpha1.APIBinding
+
+	matchingBindingsCount int
+
+	deleteError error
+}
+
 func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 	tests := []struct {
 		name        string
 		binding     *kcpv1alpha1.APIBinding
+		config      finalizeTestConfig
 		mockSetup   func(*mocks.MockClient, *kcpv1alpha1.APIBinding)
 		expectError bool
 	}{
@@ -298,19 +310,34 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				Spec:   kcpv1alpha1.APIBindingSpec{Reference: kcpv1alpha1.BindingReference{Export: &kcpv1alpha1.ExportBindingReference{Name: "foo", Path: "bar"}}},
 				Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
 			},
+			config: finalizeTestConfig{
+				bindingsInList: func() []*kcpv1alpha1.APIBinding {
+					binding1 := &kcpv1alpha1.APIBinding{
+						Spec:   kcpv1alpha1.APIBindingSpec{Reference: kcpv1alpha1.BindingReference{Export: &kcpv1alpha1.ExportBindingReference{Name: "foo", Path: "bar"}}},
+						Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
+					}
+					if binding1.Annotations == nil {
+						binding1.Annotations = make(map[string]string)
+					}
+					binding1.Annotations["kcp.io/cluster"] = "cluster1"
+					other := &kcpv1alpha1.APIBinding{
+						Spec:   kcpv1alpha1.APIBindingSpec{Reference: kcpv1alpha1.BindingReference{Export: &kcpv1alpha1.ExportBindingReference{Name: "other", Path: "other"}}},
+						Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
+					}
+					if other.Annotations == nil {
+						other.Annotations = make(map[string]string)
+					}
+					other.Annotations["kcp.io/cluster"] = "cluster2"
+					return []*kcpv1alpha1.APIBinding{binding1, other}
+				}(),
+				matchingBindingsCount: 1, // Only test.binding matches (other has different export)
+			},
 			mockSetup: func(kcpClient *mocks.MockClient, binding *kcpv1alpha1.APIBinding) {
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					list := ol.(*kcpv1alpha1.APIBindingList)
-					other := binding.DeepCopy()
-					other.Spec.Reference.Export.Name = "other"
-					other.Spec.Reference.Export.Path = "other"
-					list.Items = []kcpv1alpha1.APIBinding{*binding, *other}
-					return nil
-				})
 				// Get toDeleteAccountInfo
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					if acc, ok := o.(*accountv1alpha1.AccountInfo); ok {
 						acc.Spec.Organization.Name = "org"
+						acc.Spec.Organization.GeneratedClusterId = "org-id"
 						return nil
 					}
 					return nil
@@ -323,20 +350,10 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				Spec:   kcpv1alpha1.APIBindingSpec{Reference: kcpv1alpha1.BindingReference{Export: &kcpv1alpha1.ExportBindingReference{Name: "foo", Path: "bar"}}},
 				Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
 			},
-			mockSetup: func(kcpClient *mocks.MockClient, binding *kcpv1alpha1.APIBinding) {
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					list := ol.(*kcpv1alpha1.APIBindingList)
-					list.Items = []kcpv1alpha1.APIBinding{*binding}
-					return nil
-				})
-				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-					if acc, ok := o.(*accountv1alpha1.AccountInfo); ok {
-						acc.Spec.Organization.Name = "org"
-						return nil
-					}
-					return nil
-				})
+			config: finalizeTestConfig{
+				earlyReturnError: assert.AnError, // clusterFromContext error
 			},
+			// No mockSetup needed - error happens at ClusterFromContext before Get is called
 			expectError: true,
 		},
 		{
@@ -345,12 +362,10 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				Spec:   kcpv1alpha1.APIBindingSpec{Reference: kcpv1alpha1.BindingReference{Export: &kcpv1alpha1.ExportBindingReference{Name: "foo", Path: "bar"}}},
 				Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
 			},
+			config: finalizeTestConfig{
+				earlyReturnError: kerrors.NewNotFound(schema.GroupResource{Group: "account.platform-mesh.org", Resource: "accountinfos"}, "account"), // toDeleteAccountInfo error
+			},
 			mockSetup: func(kcpClient *mocks.MockClient, binding *kcpv1alpha1.APIBinding) {
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					list := ol.(*kcpv1alpha1.APIBindingList)
-					list.Items = []kcpv1alpha1.APIBinding{*binding}
-					return nil
-				})
 				// Get toDeleteAccountInfo returns error
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(
 					kerrors.NewNotFound(schema.GroupResource{Group: "account.platform-mesh.org", Resource: "accountinfos"}, "account"),
@@ -364,17 +379,16 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				Spec:   kcpv1alpha1.APIBindingSpec{Reference: kcpv1alpha1.BindingReference{Export: &kcpv1alpha1.ExportBindingReference{Name: "foo", Path: "bar"}}},
 				Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
 			},
+			config: finalizeTestConfig{
+				matchingBindingsCount: 1,
+				deleteError:           assert.AnError,
+			},
 			mockSetup: func(kcpClient *mocks.MockClient, binding *kcpv1alpha1.APIBinding) {
-				// List bindings
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					list := ol.(*kcpv1alpha1.APIBindingList)
-					list.Items = []kcpv1alpha1.APIBinding{}
-					return nil
-				})
 				// Get toDeleteAccountInfo
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					if acc, ok := o.(*accountv1alpha1.AccountInfo); ok {
 						acc.Spec.Organization.Name = "org"
+						acc.Spec.Organization.GeneratedClusterId = "org-id"
 						return nil
 					}
 					return nil
@@ -395,16 +409,42 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				},
 				Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
 			},
+			config: finalizeTestConfig{
+				bindingsInList: func() []*kcpv1alpha1.APIBinding {
+					binding1 := &kcpv1alpha1.APIBinding{
+						Spec: kcpv1alpha1.APIBindingSpec{
+							Reference: kcpv1alpha1.BindingReference{
+								Export: &kcpv1alpha1.ExportBindingReference{Name: "foo", Path: "bar"},
+							},
+						},
+						Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
+					}
+					if binding1.Annotations == nil {
+						binding1.Annotations = make(map[string]string)
+					}
+					binding1.Annotations["kcp.io/cluster"] = "cluster1"
+					binding2 := &kcpv1alpha1.APIBinding{
+						Spec: kcpv1alpha1.APIBindingSpec{
+							Reference: kcpv1alpha1.BindingReference{
+								Export: &kcpv1alpha1.ExportBindingReference{Name: "foo", Path: "bar"},
+							},
+						},
+						Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
+					}
+					if binding2.Annotations == nil {
+						binding2.Annotations = make(map[string]string)
+					}
+					binding2.Annotations["kcp.io/cluster"] = "cluster2"
+					return []*kcpv1alpha1.APIBinding{binding1, binding2}
+				}(),
+				matchingBindingsCount: 2,
+			},
 			mockSetup: func(kcpClient *mocks.MockClient, binding *kcpv1alpha1.APIBinding) {
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					list := ol.(*kcpv1alpha1.APIBindingList)
-					list.Items = []kcpv1alpha1.APIBinding{*binding, *binding}
-					return nil
-				})
 				// Get toDeleteAccountInfo
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					if acc, ok := o.(*accountv1alpha1.AccountInfo); ok {
 						acc.Spec.Organization.Name = "org"
+						acc.Spec.Organization.GeneratedClusterId = "org-id"
 						return nil
 					}
 					return nil
@@ -424,17 +464,15 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				},
 				Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
 			},
+			config: finalizeTestConfig{
+				matchingBindingsCount: 1,
+			},
 			mockSetup: func(kcpClient *mocks.MockClient, binding *kcpv1alpha1.APIBinding) {
-				// List bindings
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					list := ol.(*kcpv1alpha1.APIBindingList)
-					list.Items = []kcpv1alpha1.APIBinding{*binding}
-					return nil
-				})
 				// Get toDeleteAccountInfo
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					if acc, ok := o.(*accountv1alpha1.AccountInfo); ok {
 						acc.Spec.Organization.Name = "org"
+						acc.Spec.Organization.GeneratedClusterId = "org-id"
 						return nil
 					}
 					return nil
@@ -454,17 +492,16 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				},
 				Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
 			},
+			config: finalizeTestConfig{
+				matchingBindingsCount: 1,
+				deleteError:           kerrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "authorizationmodels"}, "foos-org"),
+			},
 			mockSetup: func(kcpClient *mocks.MockClient, binding *kcpv1alpha1.APIBinding) {
-				// List returns a single binding
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					list := ol.(*kcpv1alpha1.APIBindingList)
-					list.Items = []kcpv1alpha1.APIBinding{*binding}
-					return nil
-				})
 				// Get toDeleteAccountInfo
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					if acc, ok := o.(*accountv1alpha1.AccountInfo); ok {
 						acc.Spec.Organization.Name = "org"
+						acc.Spec.Organization.GeneratedClusterId = "org-id"
 						return nil
 					}
 					return nil
@@ -483,8 +520,11 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 					},
 				},
 			},
+			config: finalizeTestConfig{
+				earlyReturnError: assert.AnError, // list error
+			},
 			mockSetup: func(kcpClient *mocks.MockClient, binding *kcpv1alpha1.APIBinding) {
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).Return(assert.AnError)
+				// No setup needed - List fails early, so no other calls are made
 			},
 			expectError: true,
 		},
@@ -501,13 +541,10 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				},
 				Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
 			},
+			config: finalizeTestConfig{
+				earlyReturnError: assert.AnError, // toDeleteAccountInfo error
+			},
 			mockSetup: func(kcpClient *mocks.MockClient, binding *kcpv1alpha1.APIBinding) {
-				// List returns a single binding
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					list := ol.(*kcpv1alpha1.APIBindingList)
-					list.Items = []kcpv1alpha1.APIBinding{*binding}
-					return nil
-				})
 				// Get toDeleteAccountInfo returns error
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 			},
@@ -526,18 +563,42 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				},
 				Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
 			},
+			config: finalizeTestConfig{
+				bindingsInList: func() []*kcpv1alpha1.APIBinding {
+					binding1 := &kcpv1alpha1.APIBinding{
+						Spec: kcpv1alpha1.APIBindingSpec{
+							Reference: kcpv1alpha1.BindingReference{
+								Export: &kcpv1alpha1.ExportBindingReference{Name: "foo", Path: "bar"},
+							},
+						},
+						Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
+					}
+					if binding1.Annotations == nil {
+						binding1.Annotations = make(map[string]string)
+					}
+					binding1.Annotations["kcp.io/cluster"] = "cluster1"
+					binding2 := &kcpv1alpha1.APIBinding{
+						Spec: kcpv1alpha1.APIBindingSpec{
+							Reference: kcpv1alpha1.BindingReference{
+								Export: &kcpv1alpha1.ExportBindingReference{Name: "foo", Path: "bar"},
+							},
+						},
+						Status: kcpv1alpha1.APIBindingStatus{APIExportClusterName: "export-cluster"},
+					}
+					if binding2.Annotations == nil {
+						binding2.Annotations = make(map[string]string)
+					}
+					binding2.Annotations["kcp.io/cluster"] = "cluster2"
+					return []*kcpv1alpha1.APIBinding{binding1, binding2}
+				}(),
+				matchingBindingsCount: 2, // Both bindings match
+			},
 			mockSetup: func(kcpClient *mocks.MockClient, binding *kcpv1alpha1.APIBinding) {
-				otherBinding := binding.DeepCopy()
-				// List returns two bindings with matching export name/path
-				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					list := ol.(*kcpv1alpha1.APIBindingList)
-					list.Items = []kcpv1alpha1.APIBinding{*binding, *otherBinding}
-					return nil
-				})
 				// Get toDeleteAccountInfo
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					if acc, ok := o.(*accountv1alpha1.AccountInfo); ok {
 						acc.Spec.Organization.Name = "org"
+						acc.Spec.Organization.GeneratedClusterId = "org-id"
 						return nil
 					}
 					return nil
@@ -548,57 +609,15 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			manager := mocks.NewMockManager(t)
+			allClient := mocks.NewMockClient(t)
 			bindingCluster := mocks.NewMockCluster(t)
 			bindingClient := mocks.NewMockClient(t)
 			apiExportCluster := mocks.NewMockCluster(t)
 			apiExportClient := mocks.NewMockClient(t)
 
-			if test.name == "error on lcClientFunc for binding in Finalize" {
-				manager.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError)
-			} else {
-				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-				bindingCluster.EXPECT().GetClient().Return(bindingClient).Maybe()
+			setupFinalizeExpectations(t, manager, allClient, bindingCluster, bindingClient, apiExportCluster, apiExportClient, test.config, test.binding, test.mockSetup)
 
-				if test.name == "delete model in Finalize if last binding" ||
-					test.name == "delete model in Finalize but model is not found" ||
-					test.name == "delete returns error in Finalize" ||
-					test.name == "bindings with non-matching export are skipped" {
-					manager.EXPECT().GetCluster(mock.Anything, test.binding.Status.APIExportClusterName).Return(apiExportCluster, nil)
-					apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
-
-					apiExportClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						if ae, ok := o.(*kcpv1alpha1.APIExport); ok {
-							ae.Spec.LatestResourceSchemas = []string{"schema1"}
-							return nil
-						}
-						return nil
-					})
-
-					apiExportClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						if rs, ok := o.(*kcpv1alpha1.APIResourceSchema); ok {
-							rs.Spec.Names.Plural = "foos"
-							return nil
-						}
-						return nil
-					})
-
-					switch test.name {
-					case "delete returns error in Finalize":
-						apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(assert.AnError)
-					case "delete model in Finalize but model is not found":
-						apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(
-							kerrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "authorizationmodels"}, "foos-org"),
-						)
-					case "bindings with non-matching export are skipped", "delete model in Finalize if last binding":
-						apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
-					}
-				}
-
-				if test.mockSetup != nil {
-					test.mockSetup(bindingClient, test.binding)
-				}
-			}
-			sub := subroutine.NewAuthorizationModelGenerationSubroutine(manager)
+			sub := subroutine.NewAuthorizationModelGenerationSubroutine(manager, allClient)
 			ctx := context.Background()
 			_, err := sub.Finalize(ctx, test.binding)
 			if test.expectError {
@@ -610,12 +629,149 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 	}
 }
 
+func setupFinalizeExpectations(t *testing.T, manager *mocks.MockManager, allClient *mocks.MockClient, bindingCluster *mocks.MockCluster, bindingClient *mocks.MockClient, apiExportCluster *mocks.MockCluster, apiExportClient *mocks.MockClient, config finalizeTestConfig, testBinding *kcpv1alpha1.APIBinding, mockSetup func(*mocks.MockClient, *kcpv1alpha1.APIBinding)) {
+	if config.earlyReturnError != nil {
+
+		isNotFound := kerrors.IsNotFound(config.earlyReturnError)
+		hasAPIExportClusterName := testBinding.Status.APIExportClusterName != ""
+
+		if isNotFound {
+			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+			bindingCluster.EXPECT().GetClient().Return(bindingClient).Maybe()
+			allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+				list := ol.(*kcpv1alpha1.APIBindingList)
+				binding := testBinding.DeepCopy()
+				if binding.Annotations == nil {
+					binding.Annotations = make(map[string]string)
+				}
+				binding.Annotations["kcp.io/cluster"] = "cluster1"
+				list.Items = []kcpv1alpha1.APIBinding{*binding}
+				return nil
+			}).Once()
+			if mockSetup != nil {
+				mockSetup(bindingClient, testBinding)
+			} else {
+				bindingClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(config.earlyReturnError)
+			}
+			return
+		}
+
+		if !hasAPIExportClusterName {
+			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+			bindingCluster.EXPECT().GetClient().Return(bindingClient).Maybe()
+			allClient.EXPECT().List(mock.Anything, mock.Anything).Return(config.earlyReturnError).Once()
+			return
+		}
+
+		if mockSetup != nil {
+			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+			bindingCluster.EXPECT().GetClient().Return(bindingClient).Maybe()
+			allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+				list := ol.(*kcpv1alpha1.APIBindingList)
+				binding := testBinding.DeepCopy()
+				if binding.Annotations == nil {
+					binding.Annotations = make(map[string]string)
+				}
+				binding.Annotations["kcp.io/cluster"] = "cluster1"
+				list.Items = []kcpv1alpha1.APIBinding{*binding}
+				return nil
+			}).Once()
+			mockSetup(bindingClient, testBinding)
+			return
+		}
+
+		manager.EXPECT().ClusterFromContext(mock.Anything).Return(nil, config.earlyReturnError)
+		return
+	}
+
+	manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+	bindingCluster.EXPECT().GetClient().Return(bindingClient).Maybe()
+
+	allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+		list := ol.(*kcpv1alpha1.APIBindingList)
+		if config.bindingsInList != nil {
+			items := make([]kcpv1alpha1.APIBinding, len(config.bindingsInList))
+			for i, b := range config.bindingsInList {
+				items[i] = *b
+			}
+			list.Items = items
+		} else {
+			binding := testBinding.DeepCopy()
+			if binding.Annotations == nil {
+				binding.Annotations = make(map[string]string)
+			}
+			binding.Annotations["kcp.io/cluster"] = "cluster1"
+			list.Items = []kcpv1alpha1.APIBinding{*binding}
+		}
+		return nil
+	}).Once()
+
+	if mockSetup != nil {
+		mockSetup(bindingClient, testBinding)
+	}
+
+	if config.matchingBindingsCount > 0 {
+		setupBindingLoopExpectations(t, manager, config, testBinding)
+	}
+
+	if config.matchingBindingsCount <= 1 {
+		setupAPIExportExpectations(t, manager, apiExportCluster, apiExportClient, config, testBinding)
+	}
+}
+
+func setupBindingLoopExpectations(t *testing.T, manager *mocks.MockManager, config finalizeTestConfig, testBinding *kcpv1alpha1.APIBinding) {
+	bindingWsCluster := mocks.NewMockCluster(t)
+	bindingWsClient := mocks.NewMockClient(t)
+
+	manager.EXPECT().GetCluster(mock.Anything, mock.MatchedBy(func(clusterName string) bool {
+		return clusterName != testBinding.Status.APIExportClusterName
+	})).Return(bindingWsCluster, nil).Times(config.matchingBindingsCount)
+	bindingWsCluster.EXPECT().GetClient().Return(bindingWsClient).Times(config.matchingBindingsCount)
+	bindingWsClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+		if acc, ok := o.(*accountv1alpha1.AccountInfo); ok {
+			acc.Spec.Organization.Name = "org"
+			acc.Spec.Organization.GeneratedClusterId = "org-id"
+			return nil
+		}
+		return nil
+	}).Times(config.matchingBindingsCount)
+}
+
+func setupAPIExportExpectations(t *testing.T, manager *mocks.MockManager, apiExportCluster *mocks.MockCluster, apiExportClient *mocks.MockClient, config finalizeTestConfig, testBinding *kcpv1alpha1.APIBinding) {
+	manager.EXPECT().GetCluster(mock.Anything, testBinding.Status.APIExportClusterName).Return(apiExportCluster, nil).Once()
+	apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+
+	apiExportClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+		if ae, ok := o.(*kcpv1alpha1.APIExport); ok {
+			ae.Spec.LatestResourceSchemas = []string{"schema1"}
+			return nil
+		}
+		return nil
+	})
+
+	apiExportClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+		if rs, ok := o.(*kcpv1alpha1.APIResourceSchema); ok {
+			rs.Spec.Names.Plural = "foos"
+			return nil
+		}
+		return nil
+	})
+
+	if config.deleteError != nil {
+		apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(config.deleteError)
+	} else {
+		apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
+	}
+}
+
 func TestFinalizeAuthorizationModelGeneration(t *testing.T) {
-	finalizers := subroutine.NewAuthorizationModelGenerationSubroutine(nil).Finalizers(nil)
-	assert.Equal(t, []string{"apis.kcp.io/apibinding-finalizer"}, finalizers)
+	allClient := mocks.NewMockClient(t)
+	finalizers := subroutine.NewAuthorizationModelGenerationSubroutine(nil, allClient).Finalizers(nil)
+	assert.Equal(t, []string{"core.platform-mesh.io/apibinding-finalizer"}, finalizers)
 }
 
 func TestAuthorizationModelGenerationSubroutine_GetName(t *testing.T) {
-	sub := subroutine.NewAuthorizationModelGenerationSubroutine(nil)
+	allClient := mocks.NewMockClient(t)
+	sub := subroutine.NewAuthorizationModelGenerationSubroutine(nil, allClient)
 	assert.Equal(t, "AuthorizationModelGeneration", sub.GetName())
 }

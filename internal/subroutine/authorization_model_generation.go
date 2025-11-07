@@ -8,6 +8,7 @@ import (
 	"text/template"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
+	"github.com/kcp-dev/logicalcluster/v3"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
@@ -18,22 +19,25 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
-func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager) *AuthorizationModelGenerationSubroutine {
+func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, allClient client.Client) *AuthorizationModelGenerationSubroutine {
 	return &AuthorizationModelGenerationSubroutine{
-		mgr: mcMgr,
+		mgr:       mcMgr,
+		allClient: allClient,
 	}
 }
 
 var _ lifecyclesubroutine.Subroutine = &AuthorizationModelGenerationSubroutine{}
 
 type AuthorizationModelGenerationSubroutine struct {
-	mgr mcmanager.Manager
+	mgr       mcmanager.Manager
+	allClient client.Client
 }
 
 var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
@@ -91,7 +95,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 	}
 
 	var bindings kcpv1alpha1.APIBindingList
-	err = bindingCluster.GetClient().List(ctx, &bindings)
+	err = a.allClient.List(ctx, &bindings)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
@@ -105,10 +109,35 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 
 	bindingCount := 0
 	for _, binding := range bindings.Items {
-		if binding.Spec.Reference.Export.Name == bindingToDelete.Spec.Reference.Export.Name && binding.Spec.Reference.Export.Path == bindingToDelete.Spec.Reference.Export.Path {
-			bindingCount++
+		if binding.Spec.Reference.Export.Name != bindingToDelete.Spec.Reference.Export.Name || binding.Spec.Reference.Export.Path != bindingToDelete.Spec.Reference.Export.Path {
+			continue
 		}
+
+		bindingWsCluster, err := a.mgr.GetCluster(ctx, string(logicalcluster.From(&binding)))
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		}
+
+		var accountInfo accountv1alpha1.AccountInfo
+		err = bindingWsCluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
+		if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
+			// If the accountinfo does not exist, skip this binding and continue with others
+			continue
+		}
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		}
+
+		// org of the binding to be counted
+		bindingOrg := accountInfo.Spec.Organization.GeneratedClusterId
+		if bindingOrg != toDeleteAccountInfo.Spec.Organization.GeneratedClusterId {
+			// If the binding is not for the same organization, we can skip it.
+			continue
+		}
+
+		bindingCount++
 	}
+
 
 	if bindingCount > 1 {
 		// If there are still other bindings for the same APIExport, we can skip the model deletion.
@@ -151,6 +180,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 			log.Error().Err(err).Msg("failed to delete authorization model")
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}
+		log.Info().Msg(fmt.Sprintf("authorization model %s has been deleted", authModelName))
 	}
 
 	return ctrl.Result{}, nil
@@ -159,7 +189,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 
 // Finalizers implements lifecycle.Subroutine.
 func (a *AuthorizationModelGenerationSubroutine) Finalizers(_ lifecyclecontrollerruntime.RuntimeObject) []string {
-	return []string{"apis.kcp.io/apibinding-finalizer"}
+	return []string{"core.platform-mesh.io/apibinding-finalizer"}
 }
 
 // GetName implements lifecycle.Subroutine.
