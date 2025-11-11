@@ -16,7 +16,7 @@ require (
 	github.com/openfga/api/proto v0.0.0-20251105142303-feed3db3d69d
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251027165255-0f8f255e5f6c
 	github.com/platform-mesh/account-operator v0.5.19
-	github.com/platform-mesh/golang-commons v0.7.13
+	github.com/platform-mesh/golang-commons v0.7.14
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.21.0
@@ -35,7 +35,7 @@ require (
 )
 
 require (
-	github.com/99designs/gqlgen v0.17.82 // indirect
+	github.com/99designs/gqlgen v0.17.83 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
