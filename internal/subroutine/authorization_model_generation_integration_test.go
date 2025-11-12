@@ -171,7 +171,7 @@ func (suite *ConnectionTestSuite) TestOrganizationCreation() {
 }
 
 func (suite *ConnectionTestSuite) TestAuthorizationModelGenerationAndFinalization() {
-	ctx := context.Background()
+	ctx := suite.T().Context()
 	orgName := "integration"
 	creator := "olezhka1629@gmail.com"
 	account1Name := "test-account-1"
