@@ -124,10 +124,11 @@ func (suite *ConnectionTestSuite) SetupSuite() {
 }
 
 func (suite *ConnectionTestSuite) TearDownSuite() {
-	if suite.testEnv != nil {
-		if err := suite.testEnv.Stop(); err != nil {
-			suite.T().Logf("error stopping test environment: %v", err)
-		}
+	if suite.testEnv == nil {
+		return
+	}
+	if err := suite.testEnv.Stop(); err != nil {
+		suite.T().Logf("error stopping test environment: %v", err)
 	}
 }
 
