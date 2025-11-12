@@ -1,7 +1,6 @@
 package subroutine_test
 
 import (
-	"context"
 	"fmt"
 	"net/url"
 	"os"
@@ -135,7 +134,7 @@ func (suite *ConnectionTestSuite) TearDownSuite() {
 func (suite *ConnectionTestSuite) TestOrganizationCreation() {
 	ctx := suite.T().Context()
 	orgName := "integration"
-	creator := "olezhka1629@gmail.com"
+	creator := "test@example.com"
 
 	orgsClient, err := buildWorkspaceClient(suite.rootConfig, "root:orgs", suite.scheme)
 	suite.Require().NoError(err)
@@ -174,7 +173,7 @@ func (suite *ConnectionTestSuite) TestOrganizationCreation() {
 func (suite *ConnectionTestSuite) TestAuthorizationModelGenerationAndFinalization() {
 	ctx := suite.T().Context()
 	orgName := "integration"
-	creator := "olezhka1629@gmail.com"
+	creator := "test@example.com"
 	account1Name := "test-account-1"
 	account2Name := "test-account-2"
 
