@@ -133,7 +133,7 @@ func (suite *ConnectionTestSuite) TearDownSuite() {
 }
 
 func (suite *ConnectionTestSuite) TestOrganizationCreation() {
-	ctx := context.Background()
+	ctx := suite.T().Context()
 	orgName := "integration"
 	creator := "olezhka1629@gmail.com"
 
