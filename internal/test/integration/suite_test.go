@@ -17,13 +17,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
-	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	kcpapiv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	apisv1alpha2 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha2"
 	"github.com/kcp-dev/kcp/sdk/apis/core"
 	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	kcptenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
 	topologyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/topology/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
@@ -70,7 +69,7 @@ var (
 )
 
 func init() {
-	utilruntime.Must(apisv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(kcpapiv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(tenancyv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(topologyv1alpha1.AddToScheme(scheme.Scheme))
@@ -81,12 +80,9 @@ func init() {
 
 type IntegrationSuite struct {
 	suite.Suite
-	rootConfig                   *rest.Config
 	apiExportEndpointSliceConfig *rest.Config
 	platformMeshSysPath          logicalcluster.Path
-	testAccount1Path             logicalcluster.Path
 	platformMeshSystemClient     client.Client
-	tenancyIdentityHash          string
 }
 
 func TestIntegrationSuite(t *testing.T) {
@@ -144,7 +140,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	}
 	suite.Require().NoError(err)
 
-	var apiExport apisv1alpha1.APIExport
+	var apiExport kcpapiv1alpha1.APIExport
 	suite.Require().NoError(yaml.Unmarshal(ApiExportPlatformMeshSystemYAML, &apiExport))
 
 	err = cli.Cluster(clusterPath).Create(ctx, &apiExport)

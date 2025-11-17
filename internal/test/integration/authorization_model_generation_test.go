@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/sync/errgroup"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -58,15 +59,17 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 
 	mgr := suite.createMulticlusterManager(kcpConfig, provider)
 
-	go func() {
-		if err := mgr.Start(ctx); err != nil {
-			suite.T().Fatalf("manager start failed: %v", err)
-		}
-	}()
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		return mgr.Start(egCtx)
+	})
+	eg.Go(func() error {
+		return provider.Run(egCtx, mgr)
+	})
 
 	go func() {
-		if err := provider.Run(ctx, mgr); err != nil {
-			suite.T().Fatalf("provider run failed: %v", err)
+		if err := eg.Wait(); err != nil {
+			suite.T().Errorf("manager or provider failed: %v", err)
 		}
 	}()
 
@@ -136,15 +139,17 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 
 	mgr := suite.createMulticlusterManager(kcpConfig, provider)
 
-	go func() {
-		if err := mgr.Start(ctx); err != nil {
-			suite.T().Fatalf("manager start failed: %v", err)
-		}
-	}()
+	eg, egCtx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		return mgr.Start(egCtx)
+	})
+	eg.Go(func() error {
+		return provider.Run(egCtx, mgr)
+	})
 
 	go func() {
-		if err := provider.Run(ctx, mgr); err != nil {
-			suite.T().Fatalf("provider run failed: %v", err)
+		if err := eg.Wait(); err != nil {
+			suite.T().Errorf("manager or provider failed: %v", err)
 		}
 	}()
 
