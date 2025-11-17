@@ -18,7 +18,7 @@ import (
 
 	kcpapiv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/kcp/sdk/apis/core"
-	kcptenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	tenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
@@ -44,9 +44,9 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 
 	orgsPath := logicalcluster.NewPath("root:orgs")
 
-	_, testOrgPath := envtest.NewWorkspaceFixture(suite.T(), cli, orgsPath, envtest.WithName("generator-test-process"), envtest.WithType(core.RootCluster.Path(), kcptenancyv1alpha1.WorkspaceTypeName("org")))
+	_, testOrgPath := envtest.NewWorkspaceFixture(suite.T(), cli, orgsPath, envtest.WithName("generator-test-process"), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("org")))
 
-	_, testAccountPath := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName("test-account"), envtest.WithType(core.RootCluster.Path(), kcptenancyv1alpha1.WorkspaceTypeName("account")))
+	_, testAccountPath := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName("test-account"), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("account")))
 
 	testAccountClient := cli.Cluster(testAccountPath)
 
@@ -116,14 +116,14 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 		testOrgName      = "generator-test-finalize"
 	)
 
-	_, testOrgPath := envtest.NewWorkspaceFixture(suite.T(), cli, orgsPath, envtest.WithName(testOrgName), envtest.WithType(core.RootCluster.Path(), kcptenancyv1alpha1.WorkspaceTypeName("org")))
+	_, testOrgPath := envtest.NewWorkspaceFixture(suite.T(), cli, orgsPath, envtest.WithName(testOrgName), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("org")))
 	testClient := cli.Cluster(testOrgPath)
 
 	suite.createAccount(ctx, testClient, testAccount1Name, accountv1alpha1.AccountTypeAccount, suite.T())
 	suite.createAccount(ctx, testClient, testAccount2Name, accountv1alpha1.AccountTypeAccount, suite.T())
 
-	_, testAccount1Path := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount1Name), envtest.WithType(core.RootCluster.Path(), kcptenancyv1alpha1.WorkspaceTypeName("account")))
-	_, testAccount2Path := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount2Name), envtest.WithType(core.RootCluster.Path(), kcptenancyv1alpha1.WorkspaceTypeName("account")))
+	_, testAccount1Path := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount1Name), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("account")))
+	_, testAccount2Path := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount2Name), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("account")))
 
 	testAccount1Client := cli.Cluster(testAccount1Path)
 	testAccount2Client := cli.Cluster(testAccount2Path)

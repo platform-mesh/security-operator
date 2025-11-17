@@ -22,7 +22,6 @@ import (
 	"github.com/kcp-dev/kcp/sdk/apis/core"
 	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
-	kcptenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
 	topologyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/topology/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
@@ -186,7 +185,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	t.Log("created WorkspaceType 'account' in root workspace")
 
 	// create :root:orgs ws
-	orgsWs, orgsClusterPath := envtest.NewWorkspaceFixture(suite.T(), cli, core.RootCluster.Path(), envtest.WithName("orgs"), envtest.WithType(core.RootCluster.Path(), kcptenancyv1alpha1.WorkspaceTypeName("orgs")))
+	orgsWs, orgsClusterPath := envtest.NewWorkspaceFixture(suite.T(), cli, core.RootCluster.Path(), envtest.WithName("orgs"), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("orgs")))
 	t.Logf("orgs workspace path (%s), cluster id (%s)", orgsClusterPath, orgsWs.Spec.Cluster)
 
 	var endpointSlice kcpapiv1alpha1.APIExportEndpointSlice
