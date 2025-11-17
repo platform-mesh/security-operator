@@ -93,7 +93,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 	suite.Require().Nil(opErr, "process should succeed")
 }
 
-func (suite *IntegrationSuite) TestFinalize() {
+func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	ctx := suite.T().Context()
 	cli, err := clusterclient.New(kcpConfig, client.Options{})
 	suite.Require().NoError(err)

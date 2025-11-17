@@ -152,7 +152,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 		suite.Require().NoError(err)
 	}
 
-var platformMeshBinding apisv1alpha2.APIBinding
+	var platformMeshBinding apisv1alpha2.APIBinding
 	suite.Require().NoError(yaml.Unmarshal(ApiBindingCorePlatformMeshYAML, &platformMeshBinding))
 
 	err = cli.Cluster(clusterPath).Create(ctx, &platformMeshBinding)
@@ -211,7 +211,6 @@ var platformMeshBinding apisv1alpha2.APIBinding
 	suite.apiExportEndpointSliceConfig = cfg
 	t.Logf("created apiExportEndpointSliceConfig with host: %s", suite.apiExportEndpointSliceConfig.Host)
 }
-
 
 func (suite *IntegrationSuite) createAccount(ctx context.Context, client client.Client, accountName string, accountType accountv1alpha1.AccountType, t *testing.T) {
 	account := &accountv1alpha1.Account{
