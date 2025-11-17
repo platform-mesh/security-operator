@@ -138,7 +138,6 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 		bindingCount++
 	}
 
-
 	if bindingCount > 1 {
 		// If there are still other bindings for the same APIExport, we can skip the model deletion.
 		return ctrl.Result{}, nil

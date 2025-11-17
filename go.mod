@@ -35,7 +35,7 @@ require (
 )
 
 require (
-	github.com/99designs/gqlgen v0.17.82 // indirect
+	github.com/99designs/gqlgen v0.17.83 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
