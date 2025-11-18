@@ -33,7 +33,7 @@ import (
 
 func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 	ctx := suite.T().Context()
-	cli, err := clusterclient.New(kcpConfig, client.Options{})
+	cli, err := clusterclient.New(suite.kcpConfig, client.Options{})
 	suite.Require().NoError(err)
 
 	resourceSchemaName := "v1.testresources.process.test.example.com"
@@ -57,7 +57,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 	provider, err := apiexport.New(suite.apiExportEndpointSliceConfig, apiexport.Options{Scheme: scheme.Scheme})
 	suite.Require().NoError(err)
 
-	mgr := suite.createMulticlusterManager(kcpConfig, provider)
+	mgr := suite.createMulticlusterManager(suite.kcpConfig, provider)
 
 	eg, egCtx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
@@ -98,7 +98,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 
 func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	ctx := suite.T().Context()
-	cli, err := clusterclient.New(kcpConfig, client.Options{})
+	cli, err := clusterclient.New(suite.kcpConfig, client.Options{})
 	suite.Require().NoError(err)
 
 	pluralResourceSchemaName := "testresources"
@@ -137,7 +137,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	provider, err := apiexport.New(suite.apiExportEndpointSliceConfig, apiexport.Options{Scheme: scheme.Scheme})
 	suite.Require().NoError(err)
 
-	mgr := suite.createMulticlusterManager(kcpConfig, provider)
+	mgr := suite.createMulticlusterManager(suite.kcpConfig, provider)
 
 	eg, egCtx := errgroup.WithContext(ctx)
 	eg.Go(func() error {

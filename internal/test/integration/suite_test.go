@@ -62,11 +62,6 @@ var (
 	WorkspaceTypeAccountYAML []byte
 )
 
-var (
-	env       *envtest.Environment
-	kcpConfig *rest.Config
-)
-
 func init() {
 	utilruntime.Must(kcpapiv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme.Scheme))
@@ -79,6 +74,8 @@ func init() {
 
 type IntegrationSuite struct {
 	suite.Suite
+	env                          *envtest.Environment
+	kcpConfig                    *rest.Config
 	apiExportEndpointSliceConfig *rest.Config
 	platformMeshSysPath          logicalcluster.Path
 	platformMeshSystemClient     client.Client
@@ -96,13 +93,13 @@ func (suite *IntegrationSuite) SetupSuite() {
 	require.NoError(suite.T(), err, "failed to create test logger")
 	ctrl.SetLogger(testLogger.Logr())
 
-	env = &envtest.Environment{}
+	suite.env = &envtest.Environment{}
 
-	kcpConfig, err = env.Start()
+	suite.kcpConfig, err = suite.env.Start()
 	require.NoError(suite.T(), err, "failed to start envtest environment")
 
 	suite.T().Cleanup(func() {
-		if err := env.Stop(); err != nil {
+		if err := suite.env.Stop(); err != nil {
 			suite.T().Logf("error stopping envtest environment: %v", err)
 		}
 		suite.T().Log("kcp server has been stopped")
@@ -116,7 +113,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	defer cancel()
 
 	var err error
-	cli, err := clusterclient.New(kcpConfig, client.Options{})
+	cli, err := clusterclient.New(suite.kcpConfig, client.Options{})
 	suite.Require().NoError(err)
 
 	rootClient := cli.Cluster(core.RootCluster.Path())
@@ -201,7 +198,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	suite.Require().NotEqual("", endpointSlice.Status.APIExportEndpoints[0].URL, "APIExportEndpointSlice endpoint URL should not be empty")
 
 	// set up config for virtual workspace
-	cfg := rest.CopyConfig(kcpConfig)
+	cfg := rest.CopyConfig(suite.kcpConfig)
 	cfg.Host = endpointSlice.Status.APIExportEndpoints[0].URL
 	suite.apiExportEndpointSliceConfig = cfg
 	t.Logf("created apiExportEndpointSliceConfig with host: %s", suite.apiExportEndpointSliceConfig.Host)
