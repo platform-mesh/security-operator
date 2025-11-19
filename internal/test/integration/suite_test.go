@@ -252,7 +252,7 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 		}
 	})
 
-	controller.NewAPIBindingReconciler(testLogger, mgr).SetupWithManager(mgr, defaultCfg)
+	err = controller.NewAPIBindingReconciler(testLogger, mgr).SetupWithManager(mgr, defaultCfg)
 	suite.Require().NoError(err)
 }
 
