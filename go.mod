@@ -7,7 +7,7 @@ replace github.com/kcp-dev/multicluster-provider v0.2.0 => github.com/kcp-dev/mu
 require (
 	github.com/coreos/go-oidc v2.4.0+incompatible
 	github.com/fluxcd/helm-controller/api v1.4.3
-	github.com/fluxcd/source-controller/api v1.7.3
+	github.com/fluxcd/source-controller/api v1.7.4
 	github.com/go-logr/logr v1.4.3
 	github.com/google/gnostic-models v0.7.0
 	github.com/kcp-dev/kcp/sdk v0.28.1-0.20250926104223-cec2e15f24c6
@@ -46,7 +46,7 @@ require (
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fluxcd/pkg/apis/acl v0.9.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.13.0 // indirect
-	github.com/fluxcd/pkg/apis/meta v1.22.0 // indirect
+	github.com/fluxcd/pkg/apis/meta v1.23.0 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/getsentry/sentry-go v0.38.0 // indirect
