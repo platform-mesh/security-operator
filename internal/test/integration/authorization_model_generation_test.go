@@ -3,32 +3,24 @@ package test
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strings"
 	"time"
 
-	"golang.org/x/sync/errgroup"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kcpapiv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/kcp/sdk/apis/core"
 	tenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
-	"github.com/kcp-dev/multicluster-provider/apiexport"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/envtest"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
-	"github.com/platform-mesh/security-operator/internal/subroutine"
 )
 
 func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
@@ -37,63 +29,38 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 	suite.Require().NoError(err)
 
 	resourceSchemaName := "v1.testresources.process.test.example.com"
-	suite.createTestAPIResourceSchema(ctx, suite.platformMeshSystemClient, resourceSchemaName, "process.test.example.com", "testresources", "testresource", apiextensionsv1.NamespaceScoped)
+	pluralResourceSchemaName := "testresources"
+	suite.createTestAPIResourceSchema(ctx, suite.platformMeshSystemClient, resourceSchemaName, "process.test.example.com", pluralResourceSchemaName, "testresource", apiextensionsv1.NamespaceScoped)
 
 	apiExportName := "process-test.example.com"
 	suite.createTestAPIExport(ctx, suite.platformMeshSystemClient, apiExportName, []string{resourceSchemaName})
 
 	orgsPath := logicalcluster.NewPath("root:orgs")
 
-	_, testOrgPath := envtest.NewWorkspaceFixture(suite.T(), cli, orgsPath, envtest.WithName("generator-test-process"), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("org")))
+	const (
+		testOrgName = "generator-test-process"
+		testAccount = "test-account"
+	)
 
-	_, testAccountPath := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName("test-account"), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("account")))
+	_, testOrgPath := envtest.NewWorkspaceFixture(suite.T(), cli, orgsPath, envtest.WithName(testOrgName), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("org")))
+
+	_, testAccountPath := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("account")))
 
 	testAccountClient := cli.Cluster(testAccountPath)
 
-	suite.createAccountInfo(ctx, testAccountClient, "test-account", "generator-test-process", testAccountPath, testOrgPath, suite.T())
+	suite.createAccountInfo(ctx, testAccountClient, testAccount, testOrgName, testAccountPath, testOrgPath, suite.T())
 
-	apiBinding := suite.createTestAPIBinding(ctx, testAccountClient, apiExportName, suite.platformMeshSysPath.String(), apiExportName)
+	_ = suite.createTestAPIBinding(ctx, testAccountClient, apiExportName, suite.platformMeshSysPath.String(), apiExportName)
 
-	provider, err := apiexport.New(suite.apiExportEndpointSliceConfig, apiexport.Options{Scheme: scheme.Scheme})
-	suite.Require().NoError(err)
-
-	mgr := suite.createMulticlusterManager(suite.kcpConfig, provider)
-
-	eg, egCtx := errgroup.WithContext(ctx)
-	eg.Go(func() error {
-		return mgr.Start(egCtx)
-	})
-	eg.Go(func() error {
-		return provider.Run(egCtx, mgr)
-	})
-
-	go func() {
-		if err := eg.Wait(); err != nil {
-			suite.T().Errorf("manager or provider failed: %v", err)
-		}
-	}()
-
-	bindingClusterName := logicalcluster.From(apiBinding).String()
-	suite.T().Logf("waiting for clusters to be discovered by the provider")
+	expectedModelName := fmt.Sprintf("%s-%s", pluralResourceSchemaName, testOrgName)
+	var model securityv1alpha1.AuthorizationModel
 	suite.Assert().Eventually(func() bool {
-		_, err := mgr.GetCluster(ctx, bindingClusterName)
-		if err == nil {
-			suite.T().Logf("discovered cluster: %s", bindingClusterName)
-			return true
-		}
-		return false
-	}, 5*time.Second, 200*time.Millisecond, "failed to discover cluster %s", bindingClusterName)
+		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &model)
+		return err == nil
+	}, 5*time.Second, 200*time.Millisecond, "authorizationModel should be created by controller")
 
-	allClient := suite.createAllClient(suite.apiExportEndpointSliceConfig)
-
-	bindingCtx := mccontext.WithCluster(ctx, bindingClusterName)
-	subroutine := subroutine.NewAuthorizationModelGenerationSubroutine(mgr, allClient)
-
-	_, opErr := subroutine.Process(bindingCtx, apiBinding)
-	if opErr != nil {
-		suite.T().Logf("process error: %v", opErr.Err())
-	}
-	suite.Require().Nil(opErr, "process should succeed")
+	suite.Assert().Equal(testOrgName, model.Spec.StoreRef.Name)
+	suite.Assert().Equal(testOrgPath.String(), model.Spec.StoreRef.Path)
 }
 
 func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
@@ -134,95 +101,47 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	apiBinding1 := suite.createTestAPIBinding(ctx, testAccount1Client, apiExportName, suite.platformMeshSysPath.String(), apiExportName)
 	apiBinding2 := suite.createTestAPIBinding(ctx, testAccount2Client, apiExportName, suite.platformMeshSysPath.String(), apiExportName)
 
-	provider, err := apiexport.New(suite.apiExportEndpointSliceConfig, apiexport.Options{Scheme: scheme.Scheme})
-	suite.Require().NoError(err)
-
-	mgr := suite.createMulticlusterManager(suite.kcpConfig, provider)
-
-	eg, egCtx := errgroup.WithContext(ctx)
-	eg.Go(func() error {
-		return mgr.Start(egCtx)
-	})
-	eg.Go(func() error {
-		return provider.Run(egCtx, mgr)
-	})
-
-	go func() {
-		if err := eg.Wait(); err != nil {
-			suite.T().Errorf("manager or provider failed: %v", err)
-		}
-	}()
-
-	binding1ClusterName := logicalcluster.From(apiBinding1).String()
-	binding2ClusterName := logicalcluster.From(apiBinding2).String()
-
-	suite.T().Log("waiting for clusters to be discovered by the provider")
-	suite.Assert().Eventually(func() bool {
-		_, err1 := mgr.GetCluster(ctx, binding1ClusterName)
-		_, err2 := mgr.GetCluster(ctx, binding2ClusterName)
-		return err1 == nil && err2 == nil
-	}, 5*time.Second, 200*time.Millisecond, "failed to discover clusters")
-
-	allClient := suite.createAllClient(suite.apiExportEndpointSliceConfig)
-	subroutine := subroutine.NewAuthorizationModelGenerationSubroutine(mgr, allClient)
-
-	binding1Ctx := mccontext.WithCluster(ctx, binding1ClusterName)
-	_, opErr := subroutine.Process(binding1Ctx, apiBinding1)
-	if opErr != nil {
-		suite.T().Logf("process binding1 error: %v", opErr.Err())
-	}
-	suite.Require().Nil(opErr, "process for binding1 should succeed")
-
-	binding2Ctx := mccontext.WithCluster(ctx, binding2ClusterName)
-	_, opErr = subroutine.Process(binding2Ctx, apiBinding2)
-	if opErr != nil {
-		suite.T().Logf("process binding2 error: %v", opErr.Err())
-	}
-	suite.Require().Nil(opErr, "process for binding2 should succeed")
-
 	expectedModelName := fmt.Sprintf("%s-%s", pluralResourceSchemaName, testOrgName)
-	var authModel securityv1alpha1.AuthorizationModel
-	err = suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &authModel)
-	suite.Require().NoError(err, "authorizationModel should exist after both Process calls")
+	var model securityv1alpha1.AuthorizationModel
+	suite.Assert().Eventually(func() bool {
+		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &model)
+		return err == nil
+	}, 5*time.Second, 200*time.Millisecond, "authorizationModel should exist after reconciliations")
 
-	finalize1Ctx := mccontext.WithCluster(ctx, binding1ClusterName)
-	_, opErr = subroutine.Finalize(finalize1Ctx, apiBinding1)
-	if opErr != nil {
-		suite.T().Logf("finalize binding1 error: %v", opErr.Err())
-	}
-	suite.Require().Nil(opErr, "finalize for binding1 should succeed")
+	var testApiBinding1, testApiBinding2 kcpapiv1alpha1.APIBinding
+	suite.Require().NoError(testAccount1Client.Get(ctx, client.ObjectKey{Name: apiBinding1.Name}, &testApiBinding1))
+	suite.Require().NoError(testAccount2Client.Get(ctx, client.ObjectKey{Name: apiBinding2.Name}, &testApiBinding2))
+	expectedFinalizers := []string{"apis.kcp.io/apibinding-finalizer", "core.platform-mesh.io/apibinding-finalizer"}
+	suite.Require().Equal(expectedFinalizers, testApiBinding1.Finalizers, "APIBinding %s should have the expected finalizers", testApiBinding1.Name)
+	suite.Require().Equal(expectedFinalizers, testApiBinding2.Finalizers, "APIBinding %s should have the expected finalizers", testApiBinding2.Name)
 
 	err = testAccount1Client.Delete(ctx, apiBinding1)
 	suite.Require().NoError(err)
 
 	suite.Assert().Eventually(func() bool {
 		var binding kcpapiv1alpha1.APIBinding
-		err := testAccount1Client.Get(ctx, client.ObjectKey{Name: apiExportName}, &binding)
+		err := testAccount1Client.Get(ctx, client.ObjectKey{Name: apiBinding1.Name}, &binding)
 		return kerrors.IsNotFound(err)
 	}, 5*time.Second, 200*time.Millisecond, "APIBinding1 should be deleted")
 
-	err = suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &authModel)
-	suite.Require().NoError(err, "authorizationModel should still exist after deleting first binding")
-
-	finalize2Ctx := mccontext.WithCluster(ctx, binding2ClusterName)
-	_, opErr = subroutine.Finalize(finalize2Ctx, apiBinding2)
-	if opErr != nil {
-		suite.T().Logf("finalize binding2 error: %v", opErr.Err())
-	}
-	suite.Require().Nil(opErr, "finalize for binding2 should succeed")
+	suite.Assert().Eventually(func() bool {
+		var authModel securityv1alpha1.AuthorizationModel
+		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &authModel)
+		return err == nil && authModel.DeletionTimestamp.IsZero()
+	}, 5*time.Second, 200*time.Millisecond, "authorizationModel should still exist after deleting first binding")
 
 	err = testAccount2Client.Delete(ctx, apiBinding2)
 	suite.Require().NoError(err)
 
 	suite.Assert().Eventually(func() bool {
 		var binding kcpapiv1alpha1.APIBinding
-		err := testAccount2Client.Get(ctx, client.ObjectKey{Name: apiExportName}, &binding)
+		err := testAccount2Client.Get(ctx, client.ObjectKey{Name: apiBinding2.Name}, &binding)
 		return kerrors.IsNotFound(err)
 	}, 5*time.Second, 200*time.Millisecond, "APIBinding2 should be deleted")
 
 	suite.Assert().Eventually(func() bool {
-		var model securityv1alpha1.AuthorizationModel
-		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &model)
+		var authModel securityv1alpha1.AuthorizationModel
+		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &authModel)
 		return kerrors.IsNotFound(err)
 	}, 5*time.Second, 200*time.Millisecond, "authorizationModel should be deleted after deleting both bindings")
 }
@@ -316,32 +235,4 @@ func (suite *IntegrationSuite) createTestAPIBinding(ctx context.Context, client 
 	}
 	suite.T().Logf("created APIBinding '%s'", name)
 	return binding
-}
-
-func (suite *IntegrationSuite) createMulticlusterManager(baseConfig *rest.Config, provider *apiexport.Provider) mcmanager.Manager {
-	rootConfig := rest.CopyConfig(baseConfig)
-	rootParsed, err := url.Parse(rootConfig.Host)
-	suite.Require().NoError(err)
-	rootParsed.Path, err = url.JoinPath(rootParsed.Path, suite.platformMeshSysPath.RequestPath())
-	suite.Require().NoError(err)
-	rootConfig.Host = rootParsed.String()
-
-	mgr, err := mcmanager.New(rootConfig, provider, mcmanager.Options{
-		Scheme: scheme.Scheme,
-	})
-	suite.Require().NoError(err)
-	return mgr
-}
-
-func (suite *IntegrationSuite) createAllClient(providerConfig *rest.Config) client.Client {
-	allCfg := rest.CopyConfig(providerConfig)
-	allCfgParsed, err := url.Parse(providerConfig.Host)
-	suite.Require().NoError(err)
-	allCfgParsed.Path, err = url.JoinPath(allCfgParsed.Path, "clusters", logicalcluster.Wildcard.String())
-	suite.Require().NoError(err)
-	allCfg.Host = allCfgParsed.String()
-
-	allClient, err := client.New(allCfg, client.Options{Scheme: scheme.Scheme})
-	suite.Require().NoError(err)
-	return allClient
 }
