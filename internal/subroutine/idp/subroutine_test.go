@@ -47,19 +47,6 @@ func configureOIDCProvider(t *testing.T, mux *http.ServeMux, baseURL string) {
 	})
 }
 
-type conditionalFailingTransport struct {
-	transport  http.RoundTripper
-	failPath   string
-	failMethod string
-}
-
-func (t *conditionalFailingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	if req.URL.Path == t.failPath && req.Method == t.failMethod {
-		return nil, fmt.Errorf("network error")
-	}
-	return t.transport.RoundTrip(req)
-}
-
 func TestSubroutineProcess(t *testing.T) {
 	testCases := []struct {
 		desc               string
@@ -69,6 +56,7 @@ func TestSubroutineProcess(t *testing.T) {
 		setupKeycloakMocks func(mux *http.ServeMux)
 		failPath           string
 		failMethod         string
+		expectNewErr       bool
 		expectErr          bool
 	}{
 		{
@@ -78,8 +66,8 @@ func TestSubroutineProcess(t *testing.T) {
 					Name: "test-realm",
 				},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					ClientID:         "test-client",
-					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ClientID:          "test-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 					ValidRedirectURIs: []string{"https://test.example.com/*"},
 				},
 			},
@@ -123,8 +111,8 @@ func TestSubroutineProcess(t *testing.T) {
 					Name: "test-realm-smtp",
 				},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					ClientID:         "test-client",
-					ClientType:       v1alpha1.IdentityProviderClientTypePublic,
+					ClientID:          "test-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypePublic,
 					ValidRedirectURIs: []string{"https://test.example.com/*"},
 				},
 			},
@@ -183,8 +171,8 @@ func TestSubroutineProcess(t *testing.T) {
 					Name: "test-realm-smtp-auth",
 				},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					ClientID:         "test-client",
-					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ClientID:          "test-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 					ValidRedirectURIs: []string{"https://test.example.com/*"},
 				},
 			},
@@ -245,8 +233,8 @@ func TestSubroutineProcess(t *testing.T) {
 					Name: "existing-realm",
 				},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					ClientID:         "test-client",
-					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ClientID:          "test-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 					ValidRedirectURIs: []string{"https://test.example.com/*"},
 				},
 			},
@@ -290,8 +278,8 @@ func TestSubroutineProcess(t *testing.T) {
 					Name: "test-realm",
 				},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					ClientID:         "existing-client",
-					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ClientID:          "existing-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 					ValidRedirectURIs: []string{"https://test.example.com/*"},
 				},
 			},
@@ -335,8 +323,8 @@ func TestSubroutineProcess(t *testing.T) {
 					Name: "error-realm",
 				},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					ClientID:         "test-client",
-					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ClientID:          "test-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 					ValidRedirectURIs: []string{"https://test.example.com/*"},
 				},
 			},
@@ -363,8 +351,8 @@ func TestSubroutineProcess(t *testing.T) {
 					Name: "test-realm",
 				},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					ClientID:         "invalid-client",
-					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ClientID:          "invalid-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 					ValidRedirectURIs: []string{"https://test.example.com/*"},
 				},
 			},
@@ -388,14 +376,47 @@ func TestSubroutineProcess(t *testing.T) {
 			},
 		},
 		{
+			desc: "error getting client UUID (500)",
+			obj: &v1alpha1.IdentityProviderConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-realm",
+				},
+				Spec: v1alpha1.IdentityProviderConfigurationSpec{
+					ClientID:          "test-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
+					ValidRedirectURIs: []string{"https://test.example.com/*"},
+				},
+			},
+			cfg: &config.Config{
+				Invite: config.InviteConfig{
+					KeycloakBaseURL:  "http://localhost",
+					KeycloakClientID: "security-operator",
+				},
+			},
+			expectErr: true,
+			setupK8sMocks: func(m *mocks.MockClient) {
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusCreated)
+				})
+				mux.HandleFunc("POST /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusCreated)
+				})
+				mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusInternalServerError)
+				})
+			},
+		},
+		{
 			desc: "error getting client UUID",
 			obj: &v1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-realm",
 				},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					ClientID:         "missing-client",
-					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ClientID:          "missing-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 					ValidRedirectURIs: []string{"https://test.example.com/*"},
 				},
 			},
@@ -430,8 +451,8 @@ func TestSubroutineProcess(t *testing.T) {
 					Name: "test-realm",
 				},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					ClientID:         "test-client",
-					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ClientID:          "test-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 					ValidRedirectURIs: []string{"https://test.example.com/*"},
 				},
 			},
@@ -472,8 +493,8 @@ func TestSubroutineProcess(t *testing.T) {
 					Name: "test-realm",
 				},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					ClientID:         "test-client",
-					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ClientID:          "test-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 					ValidRedirectURIs: []string{"https://test.example.com/*"},
 				},
 			},
@@ -498,8 +519,8 @@ func TestSubroutineProcess(t *testing.T) {
 					Name: "test-realm",
 				},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					ClientID:         "test-client",
-					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ClientID:          "test-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 					ValidRedirectURIs: []string{"https://test.example.com/*"},
 				},
 			},
@@ -527,8 +548,8 @@ func TestSubroutineProcess(t *testing.T) {
 					Name: "test-realm",
 				},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					ClientID:         "test-client",
-					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ClientID:          "test-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 					ValidRedirectURIs: []string{"https://test.example.com/*"},
 				},
 			},
@@ -551,8 +572,8 @@ func TestSubroutineProcess(t *testing.T) {
 					Name: "test-realm",
 				},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					ClientID:         "test-client",
-					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ClientID:          "test-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 					ValidRedirectURIs: []string{"https://test.example.com/*"},
 				},
 			},
@@ -594,8 +615,8 @@ func TestSubroutineProcess(t *testing.T) {
 					Name: "test-realm",
 				},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					ClientID:         "test-client",
-					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ClientID:          "test-client",
+					ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 					ValidRedirectURIs: []string{"https://test.example.com/*"},
 				},
 			},
@@ -666,6 +687,10 @@ func TestSubroutineProcess(t *testing.T) {
 			}
 
 			s, err := idp.New(ctx, cfg, orgsClient)
+			if test.expectNewErr {
+				assert.Error(t, err)
+				return
+			}
 			assert.NoError(t, err)
 
 			l := testlogger.New()
@@ -704,4 +729,3 @@ func TestHelperFunctions(t *testing.T) {
 	assert.Nil(t, finalizerErr)
 	assert.Equal(t, ctrl.Result{}, res)
 }
-

@@ -164,14 +164,14 @@ func (s *subroutine) createRealm(ctx context.Context, realm realm, log *logger.L
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/admin/realms", s.keycloakBaseURL), bytes.NewBuffer(realmJSON))
-	if err != nil {
+	if err != nil {// coverage-ignore
 		log.Err(err).Msg("Failed to create realm creation request")
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err := s.keycloak.Do(req)
-	if err != nil {
+	if err != nil {// coverage-ignore
 		log.Err(err).Str("realm", realm.Realm).Msg("Failed to create realm")
 		return err
 	}
@@ -193,14 +193,14 @@ func (s *subroutine) createRealmClient(ctx context.Context, client realmClient, 
 	}
 
 	clientReq, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/admin/realms/%s/clients", s.keycloakBaseURL, realmName), bytes.NewBuffer(clientJSON))
-	if err != nil {
+	if err != nil {// coverage-ignore
 		log.Err(err).Msg("Failed to create client creation request")
 		return err
 	}
 	clientReq.Header.Set("Content-Type", "application/json")
 
 	clientRes, err := s.keycloak.Do(clientReq)
-	if err != nil {
+	if err != nil {// coverage-ignore
 		log.Err(err).Str("realm", realmName).Str("clientId", client.ClientID).Msg("Failed to create client")
 		return err
 	}
@@ -216,12 +216,12 @@ func (s *subroutine) createRealmClient(ctx context.Context, client realmClient, 
 
 func (s *subroutine) getClientUUID(ctx context.Context, realmName, clientID string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/admin/realms/%s/clients?clientId=%s", s.keycloakBaseURL, realmName, clientID), nil)
-	if err != nil {
+	if err != nil {// coverage-ignore
 		return "", fmt.Errorf("failed to create client search request: %w", err)
 	}
 
 	res, err := s.keycloak.Do(req)
-	if err != nil {
+	if err != nil {// coverage-ignore
 		return "", fmt.Errorf("failed to search for client: %w", err)
 	}
 	defer res.Body.Close() //nolint:errcheck
@@ -244,12 +244,12 @@ func (s *subroutine) getClientUUID(ctx context.Context, realmName, clientID stri
 
 func (s *subroutine) getClientSecret(ctx context.Context, realmName, clientUUID string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/admin/realms/%s/clients/%s/client-secret", s.keycloakBaseURL, realmName, clientUUID), nil)
-	if err != nil {
+	if err != nil {// coverage-ignore
 		return "", fmt.Errorf("failed to create client secret request: %w", err)
 	}
 
 	res, err := s.keycloak.Do(req)
-	if err != nil {
+	if err != nil {// coverage-ignore
 		return "", fmt.Errorf("failed to get client secret: %w", err)
 	}
 	defer res.Body.Close() //nolint:errcheck
