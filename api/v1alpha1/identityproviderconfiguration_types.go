@@ -1,0 +1,72 @@
+package v1alpha1
+
+import (
+	lifecycleapi "github.com/platform-mesh/golang-commons/controller/lifecycle/api"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+type IdentityProviderClientType string
+
+const (
+	IdentityProviderClientTypeConfidential IdentityProviderClientType = "confidential"
+	IdentityProviderClientTypePublic       IdentityProviderClientType = "public"
+)
+
+// IdentityProviderConfigurationSpec defines the desired state of IdentityProviderConfiguration
+type IdentityProviderConfigurationSpec struct {
+	// +kubebuilder:validation:Enum=confidential;public
+	ClientType        IdentityProviderClientType `json:"clientType"`
+	ClientID          string                     `json:"clientID"`
+	ValidRedirectURIs []string                   `json:"validRedirectURIs"`
+}
+
+// IdentityProviderConfigurationStatus defines the observed state of IdentityProviderConfiguration.
+type IdentityProviderConfigurationStatus struct {
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:resource:scope=Cluster
+
+// IdentityProviderConfiguration is the Schema for the identityproviderconfigurations API
+type IdentityProviderConfiguration struct {
+	metav1.TypeMeta `json:",inline"`
+
+	// metadata is a standard object metadata
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty,omitzero"`
+
+	// spec defines the desired state of IdentityProviderConfiguration
+	// +required
+	Spec IdentityProviderConfigurationSpec `json:"spec"`
+
+	// status defines the observed state of IdentityProviderConfiguration
+	// +optional
+	Status IdentityProviderConfigurationStatus `json:"status,omitempty,omitzero"`
+}
+
+// GetConditions implements api.RuntimeObjectConditions.
+func (in *IdentityProviderConfiguration) GetConditions() []metav1.Condition {
+	return in.Status.Conditions
+}
+
+// SetConditions implements api.RuntimeObjectConditions.
+func (in *IdentityProviderConfiguration) SetConditions(c []metav1.Condition) {
+	in.Status.Conditions = c
+}
+
+// +kubebuilder:object:root=true
+
+// IdentityProviderConfigurationList contains a list of IdentityProviderConfiguration
+type IdentityProviderConfigurationList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []IdentityProviderConfiguration `json:"items"`
+}
+
+var _ lifecycleapi.RuntimeObjectConditions = &IdentityProviderConfiguration{}
+
+func init() {
+	SchemeBuilder.Register(&IdentityProviderConfiguration{}, &IdentityProviderConfigurationList{})
+}
