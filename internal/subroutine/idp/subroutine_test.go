@@ -47,6 +47,19 @@ func configureOIDCProvider(t *testing.T, mux *http.ServeMux, baseURL string) {
 	})
 }
 
+type conditionalFailingTransport struct {
+	transport  http.RoundTripper
+	failPath   string
+	failMethod string
+}
+
+func (t *conditionalFailingTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	if req.URL.Path == t.failPath && req.Method == t.failMethod {
+		return nil, fmt.Errorf("network error")
+	}
+	return t.transport.RoundTrip(req)
+}
+
 func TestSubroutineProcess(t *testing.T) {
 	testCases := []struct {
 		desc               string
@@ -54,6 +67,8 @@ func TestSubroutineProcess(t *testing.T) {
 		cfg                *config.Config
 		setupK8sMocks      func(m *mocks.MockClient)
 		setupKeycloakMocks func(mux *http.ServeMux)
+		failPath           string
+		failMethod         string
 		expectErr          bool
 	}{
 		{
@@ -447,6 +462,128 @@ func TestSubroutineProcess(t *testing.T) {
 				mux.HandleFunc("GET /admin/realms/test-realm/clients/client-uuid-error/client-secret", func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusInternalServerError)
 					_, _ = w.Write([]byte(`{"error":"internal server error"}`))
+				})
+			},
+		},
+		{
+			desc: "error creating realm",
+			obj: &v1alpha1.IdentityProviderConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-realm",
+				},
+				Spec: v1alpha1.IdentityProviderConfigurationSpec{
+					ClientID:         "test-client",
+					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ValidRedirectURIs: []string{"https://test.example.com/*"},
+				},
+			},
+			cfg: &config.Config{
+				Invite: config.InviteConfig{
+					KeycloakBaseURL:  "http://localhost",
+					KeycloakClientID: "security-operator",
+				},
+			},
+			failPath:   "/admin/realms",
+			failMethod: "POST",
+			expectErr:  true,
+			setupK8sMocks: func(m *mocks.MockClient) {
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+			},
+		},
+		{
+			desc: "error creating client",
+			obj: &v1alpha1.IdentityProviderConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-realm",
+				},
+				Spec: v1alpha1.IdentityProviderConfigurationSpec{
+					ClientID:         "test-client",
+					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ValidRedirectURIs: []string{"https://test.example.com/*"},
+				},
+			},
+			cfg: &config.Config{
+				Invite: config.InviteConfig{
+					KeycloakBaseURL:  "http://localhost",
+					KeycloakClientID: "security-operator",
+				},
+			},
+			failPath:   "/admin/realms/test-realm/clients",
+			failMethod: "POST",
+			expectErr:  true,
+			setupK8sMocks: func(m *mocks.MockClient) {
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusCreated)
+				})
+			},
+		},
+		{
+			desc: "error creating realm",
+			obj: &v1alpha1.IdentityProviderConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-realm",
+				},
+				Spec: v1alpha1.IdentityProviderConfigurationSpec{
+					ClientID:         "test-client",
+					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ValidRedirectURIs: []string{"https://test.example.com/*"},
+				},
+			},
+			cfg: &config.Config{
+				Invite: config.InviteConfig{
+					KeycloakBaseURL:  "http://%gh&%ij",
+					KeycloakClientID: "security-operator",
+				},
+			},
+			expectErr: true,
+			setupK8sMocks: func(m *mocks.MockClient) {
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+			},
+		},
+		{
+			desc: "error getting client secret",
+			obj: &v1alpha1.IdentityProviderConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-realm",
+				},
+				Spec: v1alpha1.IdentityProviderConfigurationSpec{
+					ClientID:         "test-client",
+					ClientType:       v1alpha1.IdentityProviderClientTypeConfidential,
+					ValidRedirectURIs: []string{"https://test.example.com/*"},
+				},
+			},
+			cfg: &config.Config{
+				Invite: config.InviteConfig{
+					KeycloakBaseURL:  "http://localhost",
+					KeycloakClientID: "security-operator",
+				},
+			},
+			expectErr: true,
+			setupK8sMocks: func(m *mocks.MockClient) {
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusCreated)
+				})
+				mux.HandleFunc("POST /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusCreated)
+				})
+				mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					clients := []map[string]any{
+						{"id": "client-uuid-bad-json", "clientId": "test-client"},
+					}
+					_ = json.NewEncoder(w).Encode(clients)
+				})
+				mux.HandleFunc("GET /admin/realms/test-realm/clients/client-uuid-bad-json/client-secret", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte(`{invalid-json`))
 				})
 			},
 		},

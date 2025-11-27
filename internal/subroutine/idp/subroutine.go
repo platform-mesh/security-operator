@@ -175,11 +175,11 @@ func (s *subroutine) createRealm(ctx context.Context, realm realm, log *logger.L
 		log.Err(err).Str("realm", realm.Realm).Msg("Failed to create realm")
 		return err
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusCreated && res.StatusCode != http.StatusConflict {
-		log.Error().Err(err).Int("status", res.StatusCode).Str("realm", realm.Realm).Msg("Failed to create realm")
-		return err
+		log.Error().Int("status", res.StatusCode).Str("realm", realm.Realm).Msg("Failed to create realm")
+		return fmt.Errorf("failed to create realm, received status %d", res.StatusCode)
 	}
 	log.Info().Str("realm", realm.Realm).Msg("realm is configured")
 	return nil
@@ -204,11 +204,11 @@ func (s *subroutine) createRealmClient(ctx context.Context, client realmClient, 
 		log.Err(err).Str("realm", realmName).Str("clientId", client.ClientID).Msg("Failed to create client")
 		return err
 	}
-	defer clientRes.Body.Close()
+	defer clientRes.Body.Close() //nolint:errcheck
 
 	if clientRes.StatusCode != http.StatusCreated && clientRes.StatusCode != http.StatusConflict {
-		log.Error().Err(err).Int("status", clientRes.StatusCode).Str("realm", realmName).Str("clientId", client.ClientID).Msg("Failed to create client")
-		return err
+		log.Error().Int("status", clientRes.StatusCode).Str("realm", realmName).Str("clientId", client.ClientID).Msg("Failed to create client")
+		return fmt.Errorf("failed to create client, received status %d", clientRes.StatusCode)
 	}
 	log.Info().Str("realm", realmName).Str("clientId", client.ClientID).Msg("Client is configured")
 	return nil
@@ -224,7 +224,7 @@ func (s *subroutine) getClientUUID(ctx context.Context, realmName, clientID stri
 	if err != nil {
 		return "", fmt.Errorf("failed to search for client: %w", err)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to search for client: received status %d", res.StatusCode)
@@ -252,7 +252,7 @@ func (s *subroutine) getClientSecret(ctx context.Context, realmName, clientUUID 
 	if err != nil {
 		return "", fmt.Errorf("failed to get client secret: %w", err)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to get client secret: received status %d", res.StatusCode)
