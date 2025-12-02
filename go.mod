@@ -2,26 +2,20 @@ module github.com/platform-mesh/security-operator
 
 go 1.25.0
 
-replace (
-	github.com/kcp-dev/client-go => github.com/kcp-dev/kcp/staging/src/github.com/kcp-dev/client-go v0.0.0-20251126144212-a6829d3f39fb
-	github.com/kcp-dev/multicluster-provider v0.2.0 => github.com/kcp-dev/multicluster-provider v0.0.0-20250827085327-2b5ca378b7b4
-	github.com/kcp-dev/sdk => github.com/kcp-dev/kcp/staging/src/github.com/kcp-dev/sdk v0.0.0-20251126144212-a6829d3f39fb
-)
-
 require (
-	github.com/coreos/go-oidc v2.3.0+incompatible
+	github.com/coreos/go-oidc v2.4.0+incompatible
 	github.com/fluxcd/helm-controller/api v1.4.5
 	github.com/fluxcd/source-controller/api v1.7.4
 	github.com/go-logr/logr v1.4.3
 	github.com/google/gnostic-models v0.7.0
-	github.com/kcp-dev/kcp/sdk v0.28.1-0.20250926104223-cec2e15f24c6
+	github.com/kcp-dev/kcp/sdk v0.28.3
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
-	github.com/kcp-dev/multicluster-provider v0.2.0
-	github.com/kcp-dev/sdk v0.0.0
+	github.com/kcp-dev/multicluster-provider v0.2.1
+	github.com/kcp-dev/sdk v0.29.0
 	github.com/openfga/api/proto v0.0.0-20251105142303-feed3db3d69d
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251027165255-0f8f255e5f6c
-	github.com/platform-mesh/account-operator v0.5.31
-	github.com/platform-mesh/golang-commons v0.8.2
+	github.com/platform-mesh/account-operator v0.5.32
+	github.com/platform-mesh/golang-commons v0.9.0
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.21.0
@@ -73,7 +67,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kcp-dev/apimachinery/v2 v2.0.1-0.20250728122101-adbf20db3e51 // indirect
+	github.com/kcp-dev/apimachinery/v2 v2.29.0 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

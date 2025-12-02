@@ -7,11 +7,9 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
@@ -21,12 +19,11 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
-	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
-	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/multicluster-runtime/pkg/handler"
+
+	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/subroutine"
 )
 
 // StoreReconciler reconciles a Store object
@@ -88,26 +85,27 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 	if err != nil {
 		return err
 	}
-	return builder.
-		Watches(
-			&corev1alpha1.AuthorizationModel{},
-			handler.TypedEnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
-				model, ok := obj.(*corev1alpha1.AuthorizationModel)
-				if !ok {
-					return nil
-				}
+	return builder.Complete(r)
+	//Watches(
+	//	&corev1alpha1.AuthorizationModel{},
+	//	handler.TypedEnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
+	//		model, ok := obj.(*corev1alpha1.AuthorizationModel)
+	//		if !ok {
+	//			return nil
+	//		}
+	//
+	//		return []mcreconcile.Request{
+	//			{
+	//				Request: reconcile.Request{
+	//					NamespacedName: types.NamespacedName{
+	//						Name: model.Spec.StoreRef.Name,
+	//					},
+	//				},
+	//				ClusterName: model.Spec.StoreRef.Path,
+	//			},
+	//		}
+	//	}),
+	//	mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{}),
+	//).
 
-				return []mcreconcile.Request{
-					{
-						Request: reconcile.Request{
-							NamespacedName: types.NamespacedName{
-								Name: model.Spec.StoreRef.Name,
-							},
-						},
-						ClusterName: model.Spec.StoreRef.Path,
-					},
-				}
-			}),
-			mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{}),
-		).Complete(r)
 }
