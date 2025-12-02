@@ -165,6 +165,10 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to update client: %w", err), true, true)
 			}
 
+			if err := s.patchIdentityProviderConfiguration(ctx, cl.GetClient(), IdentityProviderConfiguration, clientConfig.ClientName, clientInfo.ClientID, clientInfo.RegistrationClientURI); err != nil {
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to set ClientID and RegistrationClientURI in IDP resource: %w", err), true, true)
+			}
+
 			if err := s.createOrUpdateSecret(ctx, realmName, clientConfig, clientInfo, log); err != nil {
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
 			}
