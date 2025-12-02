@@ -10,7 +10,21 @@ KCP_SERVER="https://kcp.api.portal.dev.local:8443/clusters/root:platform-mesh-sy
 
 OPERATOR_YAML="$SECRET_DIR/operator.yaml"
 INITIALIZER_YAML="$SECRET_DIR/initializer.yaml"
+RUNTIME_YAML="$SECRET_DIR/runtime.yaml"
 
+echo "Retrieving kind kubeconfig and saving as runtime.yaml..."
+
+if ! kind get clusters | grep -q "^platform-mesh$"; then
+    echo "Error: Kind cluster 'platform-mesh' not found"
+    echo "Available clusters:"
+    kind get clusters
+    exit 1
+fi
+
+kind get kubeconfig --name platform-mesh > "$RUNTIME_YAML"
+echo "Saved kind kubeconfig to $RUNTIME_YAML"
+
+echo ""
 echo "Retrieving credentials from KCP kubeconfig..."
 
 if [ ! -f "$KCP_KUBECONFIG" ]; then
@@ -46,6 +60,7 @@ echo "Updating certificate-authority-data and user info in $INITIALIZER_YAML"
 yq eval ".clusters[0].cluster.certificate-authority-data = \"$CA_DATA\"" -i "$INITIALIZER_YAML"
 yq eval ".users[0].user.client-certificate-data = \"$CLIENT_CERT_DATA\"" -i "$INITIALIZER_YAML"
 yq eval ".users[0].user.client-key-data = \"$CLIENT_KEY_DATA\"" -i "$INITIALIZER_YAML"
+yq eval ".clusters[0].cluster.server = \"https://kcp.api.portal.dev.local:8443/services/initializingworkspaces/root:security\"" -i "$INITIALIZER_YAML"
 
 echo ""
 echo "Retrieving KCP APIExport server URL..."
