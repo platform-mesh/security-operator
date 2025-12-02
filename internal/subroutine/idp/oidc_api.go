@@ -56,7 +56,7 @@ func (s *subroutine) registerClient(ctx context.Context, realmName string, clien
 
 	res, err := s.oidc.Do(req)
 	if err != nil { // coverage-ignore
-		return nil, fmt.Errorf("client registration call failed: %w", err)
+		return nil, fmt.Errorf("failed to register oidc client: %w", err)
 	}
 	defer res.Body.Close() //nolint:errcheck
 
@@ -66,7 +66,7 @@ func (s *subroutine) registerClient(ctx context.Context, realmName string, clien
 	}
 
 	if res.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("client registration failed: status %d body: %s", res.StatusCode, respBody)
+		return nil, fmt.Errorf("failed to register oidc client: status %d body: %s", res.StatusCode, respBody)
 	}
 
 	var resp clientInfo
@@ -92,24 +92,24 @@ func (s *subroutine) updateClient(ctx context.Context, registrationClientURI str
 
 	body, err := json.Marshal(payload)
 	if err != nil { // coverage-ignore
-		return nil, fmt.Errorf("failed to marshal DCR update payload: %w", err)
+		return nil, fmt.Errorf("failed to marshal oidc client update payload: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, registrationClientURI, bytes.NewBuffer(body))
 	if err != nil { // coverage-ignore
-		return nil, fmt.Errorf("failed to build DCR update request: %w", err)
+		return nil, fmt.Errorf("failed to build oidc client update request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", registrationAccessToken))
 
 	res, err := s.oidc.Do(req)
 	if err != nil { // coverage-ignore
-		return nil, fmt.Errorf("DCR update call failed: %w", err)
+		return nil, fmt.Errorf("failed to update oidc client: %w", err)
 	}
 	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("DCR update failed with status %d", res.StatusCode)
+		return nil, fmt.Errorf("failed to update oidc client with status %d", res.StatusCode)
 	}
 
 	respBody, err := io.ReadAll(res.Body)
@@ -130,28 +130,28 @@ func (s *subroutine) getClientInfo(ctx context.Context, realmName, clientID, reg
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, registrationClientURI, nil)
 	if err != nil { // coverage-ignore
-		return nil, fmt.Errorf("failed to create DCR GET request: %w", err)
+		return nil, fmt.Errorf("failed to create oidc get client request: %w", err)
 	}
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", registrationAccessToken))
 
 	res, err := s.oidc.Do(req)
 	if err != nil { // coverage-ignore
-		return nil, fmt.Errorf("DCR GET call failed: %w", err)
+		return nil, fmt.Errorf("failed to get oidc client info: %w", err)
 	}
 	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("DCR GET failed with status %d", res.StatusCode)
+		return nil, fmt.Errorf("failed to get oidc client info with status %d", res.StatusCode)
 	}
 
 	respBody, err := io.ReadAll(res.Body)
 	if err != nil { // coverage-ignore
-		return nil, fmt.Errorf("failed to read DCR GET response: %w", err)
+		return nil, fmt.Errorf("failed to read oidc get client response: %w", err)
 	}
 
 	var resp clientInfo
 	if err := json.Unmarshal(respBody, &resp); err != nil { // coverage-ignore
-		return nil, fmt.Errorf("failed to parse DCR GET response: %w body: %s", err, respBody)
+		return nil, fmt.Errorf("failed to parse oidc get client response: %w body: %s", err, respBody)
 	}
 
 	return &resp, nil

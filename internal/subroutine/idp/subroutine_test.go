@@ -139,7 +139,7 @@ func TestSubroutineProcess(t *testing.T) {
 				})
 				mux.HandleFunc("POST /admin/realms/test-realm/clients-initial-access", func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusCreated)
+					w.WriteHeader(http.StatusOK)
 					_ = json.NewEncoder(w).Encode(map[string]string{"token": "initial-access-token"})
 				})
 				mux.HandleFunc("POST /realms/test-realm/clients-registrations/openid-connect", func(w http.ResponseWriter, r *http.Request) {
@@ -204,7 +204,7 @@ func TestSubroutineProcess(t *testing.T) {
 				})
 				mux.HandleFunc("POST /admin/realms/existing-realm/clients-initial-access", func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusCreated)
+					w.WriteHeader(http.StatusOK)
 					_ = json.NewEncoder(w).Encode(map[string]string{"token": "initial-access-token"})
 				})
 				mux.HandleFunc("POST /realms/existing-realm/clients-registrations/openid-connect", func(w http.ResponseWriter, r *http.Request) {
@@ -461,7 +461,7 @@ func TestSubroutineProcess(t *testing.T) {
 				})
 				mux.HandleFunc("POST /admin/realms/test-realm/clients-initial-access", func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusCreated)
+					w.WriteHeader(http.StatusOK)
 					_ = json.NewEncoder(w).Encode(map[string]string{"token": "initial-access-token"})
 				})
 				mux.HandleFunc("POST /realms/test-realm/clients-registrations/openid-connect", func(w http.ResponseWriter, r *http.Request) {
@@ -585,7 +585,7 @@ func TestSubroutineProcess(t *testing.T) {
 				})
 				mux.HandleFunc("POST /admin/realms/test-realm/clients-initial-access", func(w http.ResponseWriter, r *http.Request) {
 					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusCreated)
+					w.WriteHeader(http.StatusOK)
 					_ = json.NewEncoder(w).Encode(map[string]string{"token": "initial-access-token"})
 				})
 				mux.HandleFunc("POST /realms/test-realm/clients-registrations/openid-connect", func(w http.ResponseWriter, r *http.Request) {
@@ -962,7 +962,7 @@ func TestPublicClientType(t *testing.T) {
 	})
 	mux.HandleFunc("POST /admin/realms/public-realm/clients-initial-access", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
+		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]string{"token": "initial-access-token"})
 	})
 	mux.HandleFunc("POST /realms/public-realm/clients-registrations/openid-connect", func(w http.ResponseWriter, r *http.Request) {

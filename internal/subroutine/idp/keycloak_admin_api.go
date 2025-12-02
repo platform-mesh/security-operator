@@ -194,7 +194,7 @@ func (s *subroutine) getInitialAccessToken(ctx context.Context, realmName string
 
 	respBody, _ := io.ReadAll(res.Body)
 
-	if res.StatusCode != http.StatusCreated && res.StatusCode != http.StatusOK {
+	if res.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to create IAT: status %d body: %s", res.StatusCode, respBody)
 	}
 
@@ -205,10 +205,5 @@ func (s *subroutine) getInitialAccessToken(ctx context.Context, realmName string
 	if err := json.Unmarshal(respBody, &iatResponse); err != nil { // coverage-ignore
 		return "", fmt.Errorf("failed to parse IAT response: %w body: %s", err, respBody)
 	}
-
-	if iatResponse.Token == "" {
-		return "", fmt.Errorf("IAT token is empty in response: %s", respBody)
-	}
-
 	return iatResponse.Token, nil
 }
