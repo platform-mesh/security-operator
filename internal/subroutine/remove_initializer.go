@@ -6,12 +6,10 @@ import (
 	"slices"
 	"time"
 
-	"github.com/kcp-dev/kcp/sdk/apis/cache/initialization"
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
-	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,6 +17,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+
+	"github.com/platform-mesh/security-operator/internal/config"
 )
 
 const (
@@ -83,7 +83,7 @@ func (r *removeInitializer) Process(ctx context.Context, instance runtimeobject.
 
 	patch := client.MergeFrom(lc.DeepCopy())
 
-	lc.Status.Initializers = initialization.EnsureInitializerAbsent(initializer, lc.Status.Initializers)
+	lc.Status.Initializers = EnsureInitializerAbsent(initializer, lc.Status.Initializers)
 	if err := cluster.GetClient().Status().Patch(ctx, lc, patch); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to patch out initializers: %w", err), true, true)
 	}
@@ -91,6 +91,20 @@ func (r *removeInitializer) Process(ctx context.Context, instance runtimeobject.
 	log.Info().Msg(fmt.Sprintf("Removed initializer from LogicalCluster status, name %s,uuid %s", lc.Name, lc.UID))
 
 	return ctrl.Result{}, nil
+}
+
+func EnsureInitializerAbsent(initializer kcpv1alpha1.LogicalClusterInitializer, initializers []kcpv1alpha1.LogicalClusterInitializer) []kcpv1alpha1.LogicalClusterInitializer {
+	removeAt := -1
+	for i := range initializers {
+		if initializers[i] == initializer {
+			removeAt = i
+			break
+		}
+	}
+	if removeAt != -1 {
+		initializers = append(initializers[:removeAt], initializers[removeAt+1:]...)
+	}
+	return initializers
 }
 
 func NewRemoveInitializer(mgr mcmanager.Manager, cfg config.Config, runtimeClient client.Client) *removeInitializer {
