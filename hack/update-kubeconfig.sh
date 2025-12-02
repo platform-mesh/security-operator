@@ -21,7 +21,7 @@ if ! kind get clusters | grep -q "^platform-mesh$"; then
     exit 1
 fi
 
-kind get kubeconfig --name platform-mesh > "$RUNTIME_YAML"
+kind export kubeconfig --name platform-mesh --kubeconfig="$RUNTIME_YAML"
 echo "Saved kind kubeconfig to $RUNTIME_YAML"
 
 echo ""
@@ -66,8 +66,8 @@ echo ""
 echo "Retrieving KCP APIExport server URL..."
 
 export KUBECONFIG="$KCP_KUBECONFIG"
-
 SERVER_URL=$(kubectl get apiexportendpointslices.apis.kcp.io core.platform-mesh.io -oyaml --server="$KCP_SERVER" | yq eval '.status.endpoints[0].url' -)
+unset KUBECONFIG
 
 if [ "$SERVER_URL" == "null" ] || [ -z "$SERVER_URL" ]; then
     echo "Error: Failed to extract server URL from APIExportEndpointSlice"
