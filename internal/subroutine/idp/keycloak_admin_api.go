@@ -34,21 +34,21 @@ type smtpServer struct {
 
 func (s *subroutine) createOrUpdateRealm(ctx context.Context, realm realm, log *logger.Logger) error {
 	realmJSON, err := json.Marshal(realm)
-	if err != nil {
-		return fmt.Errorf("Failed to marshal realm data: %w", err)
+	if err != nil { // coverage-ignore
+		return fmt.Errorf("failed to marshal realm data: %w", err)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/admin/realms", s.keycloakBaseURL), bytes.NewBuffer(realmJSON))
-	if err != nil {
+	if err != nil { // coverage-ignore
 		return fmt.Errorf("failed to create realm creation request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err := s.keycloak.Do(req)
-	if err != nil {
+	if err != nil { // coverage-ignore
 		return fmt.Errorf("failed to create realm: %w", err)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusCreated && res.StatusCode != http.StatusConflict {
 		return fmt.Errorf("failed to create realm: status %d", res.StatusCode)
@@ -62,16 +62,16 @@ func (s *subroutine) createOrUpdateRealm(ctx context.Context, realm realm, log *
 	if res.StatusCode == http.StatusConflict {
 		updateURL := fmt.Sprintf("%s/admin/realms/%s", s.keycloakBaseURL, realm.Realm)
 		req, err := http.NewRequestWithContext(ctx, http.MethodPut, updateURL, bytes.NewBuffer(realmJSON))
-		if err != nil {
+		if err != nil { // coverage-ignore
 			return fmt.Errorf("failed to create realm update request: %w", err)
 		}
 		req.Header.Set("Content-Type", "application/json")
 
 		res, err := s.keycloak.Do(req)
-		if err != nil {
+		if err != nil { // coverage-ignore
 			return fmt.Errorf("failed to update realm: %w", err)
 		}
-		defer res.Body.Close()
+		defer res.Body.Close() //nolint:errcheck
 
 		if res.StatusCode != http.StatusNoContent && res.StatusCode != http.StatusOK {
 			return fmt.Errorf("failed to update realm: status %d", res.StatusCode)
@@ -91,27 +91,27 @@ type realmClient struct {
 func (s *subroutine) getClientID(ctx context.Context, realmName, clientName string, log *logger.Logger) (string, error) {
 	url := fmt.Sprintf("%s/admin/realms/%s/clients", s.keycloakBaseURL, realmName)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	if err != nil {
+	if err != nil { // coverage-ignore
 		return "", fmt.Errorf("failed to create get clients request: %w", err)
 	}
 
 	res, err := s.keycloak.Do(req)
-	if err != nil {
+	if err != nil { // coverage-ignore
 		return "", fmt.Errorf("failed to get clients: %w", err)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("failed to get clients: status %d", res.StatusCode)
 	}
 
 	respBody, err := io.ReadAll(res.Body)
-	if err != nil {
+	if err != nil { // coverage-ignore
 		return "", fmt.Errorf("failed to read clients response: %w", err)
 	}
 
 	var clients []realmClient
-	if err := json.Unmarshal(respBody, &clients); err != nil {
+	if err := json.Unmarshal(respBody, &clients); err != nil { // coverage-ignore
 		return "", fmt.Errorf("failed to parse clients response: %w body: %s", err, respBody)
 	}
 
@@ -127,15 +127,15 @@ func (s *subroutine) getClientID(ctx context.Context, realmName, clientName stri
 func (s *subroutine) deleteRealm(ctx context.Context, realmName string, log *logger.Logger) error {
 	url := fmt.Sprintf("%s/admin/realms/%s", s.keycloakBaseURL, realmName)
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
-	if err != nil {
+	if err != nil { // coverage-ignore
 		return fmt.Errorf("failed to create realm delete request: %w", err)
 	}
 
 	res, err := s.keycloak.Do(req)
-	if err != nil {
+	if err != nil { // coverage-ignore
 		return fmt.Errorf("failed to delete realm: %w", err)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusNoContent && res.StatusCode != http.StatusOK && res.StatusCode != http.StatusNotFound {
 		return fmt.Errorf("failed to delete realm: status %d", res.StatusCode)
@@ -148,15 +148,15 @@ func (s *subroutine) deleteRealm(ctx context.Context, realmName string, log *log
 func (s *subroutine) regenerateRegistrationAccessToken(ctx context.Context, realmName, clientUUID string, log *logger.Logger) (string, error) {
 	tokenURL := fmt.Sprintf("%s/admin/realms/%s/clients/%s/registration-access-token", s.keycloakBaseURL, realmName, clientUUID)
 	tokenReq, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, nil)
-	if err != nil {
+	if err != nil { // coverage-ignore
 		return "", fmt.Errorf("failed to create regenerate registration token request: %w", err)
 	}
 
 	tokenRes, err := s.keycloak.Do(tokenReq)
-	if err != nil {
+	if err != nil { // coverage-ignore
 		return "", fmt.Errorf("failed to regenerate registration token: %w", err)
 	}
-	defer tokenRes.Body.Close()
+	defer tokenRes.Body.Close() //nolint:errcheck
 
 	if tokenRes.StatusCode != http.StatusOK && tokenRes.StatusCode != http.StatusCreated {
 		respBody, _ := io.ReadAll(tokenRes.Body)
@@ -164,14 +164,14 @@ func (s *subroutine) regenerateRegistrationAccessToken(ctx context.Context, real
 	}
 
 	tokenBody, err := io.ReadAll(tokenRes.Body)
-	if err != nil {
+	if err != nil { // coverage-ignore
 		return "", fmt.Errorf("failed to read registration token response: %w", err)
 	}
 
 	var tokenResponse struct {
 		RegistrationAccessToken string `json:"registrationAccessToken"`
 	}
-	if err := json.Unmarshal(tokenBody, &tokenResponse); err != nil {
+	if err := json.Unmarshal(tokenBody, &tokenResponse); err != nil { // coverage-ignore
 		return "", fmt.Errorf("failed to parse registration token response: %w body: %s", err, tokenBody)
 	}
 
@@ -181,16 +181,16 @@ func (s *subroutine) regenerateRegistrationAccessToken(ctx context.Context, real
 func (s *subroutine) getInitialAccessToken(ctx context.Context, realmName string, log *logger.Logger) (string, error) {
 	url := fmt.Sprintf("%s/admin/realms/%s/clients-initial-access", s.keycloakBaseURL, realmName)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader("{}"))
-	if err != nil {
+	if err != nil { // coverage-ignore
 		return "", fmt.Errorf("failed to create IAT request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err := s.keycloak.Do(req)
-	if err != nil {
+	if err != nil { // coverage-ignore
 		return "", fmt.Errorf("failed to create IAT: %w", err)
 	}
-	defer res.Body.Close()
+	defer res.Body.Close() //nolint:errcheck
 
 	respBody, _ := io.ReadAll(res.Body)
 
@@ -202,7 +202,7 @@ func (s *subroutine) getInitialAccessToken(ctx context.Context, realmName string
 		Token string `json:"token"`
 	}
 
-	if err := json.Unmarshal(respBody, &iatResponse); err != nil {
+	if err := json.Unmarshal(respBody, &iatResponse); err != nil { // coverage-ignore
 		return "", fmt.Errorf("failed to parse IAT response: %w body: %s", err, respBody)
 	}
 

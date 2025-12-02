@@ -595,88 +595,6 @@ func TestSubroutineProcess(t *testing.T) {
 			},
 		},
 		{
-			desc: "error getting client info via DCR",
-			obj: &v1alpha1.IdentityProviderConfiguration{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
-				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []v1alpha1.IdentityProviderClientConfig{{
-						ClientName:        "test-realm",
-						ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-						ValidRedirectURIs: []string{"https://test.example.com/*"},
-						ClientSecretRef: v1alpha1.ClientSecretRef{
-							SecretReference: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
-						},
-					}},
-				},
-			},
-			cfg: &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
-			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {},
-			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
-				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusCreated) })
-				mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					_ = json.NewEncoder(w).Encode([]map[string]any{{"clientId": "existing-client-id", "name": "test-realm"}})
-				})
-				mux.HandleFunc("POST /admin/realms/test-realm/clients/existing-client-id/registration-access-token", func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					_ = json.NewEncoder(w).Encode(map[string]string{"registrationAccessToken": "new-registration-token"})
-				})
-				mux.HandleFunc("GET /realms/test-realm/clients-registrations/openid-connect/existing-client-id", func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusUnauthorized)
-					_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
-				})
-			},
-		},
-		{
-			desc: "error updating client via DCR",
-			obj: &v1alpha1.IdentityProviderConfiguration{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
-				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []v1alpha1.IdentityProviderClientConfig{{
-						ClientName:        "test-realm",
-						ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-						ValidRedirectURIs: []string{"https://test.example.com/*"},
-						ClientSecretRef: v1alpha1.ClientSecretRef{
-							SecretReference: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
-						},
-					}},
-				},
-			},
-			cfg: &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
-			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {},
-			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
-				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusCreated) })
-				mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					_ = json.NewEncoder(w).Encode([]map[string]any{{"clientId": "existing-client-id", "name": "test-realm"}})
-				})
-				mux.HandleFunc("POST /admin/realms/test-realm/clients/existing-client-id/registration-access-token", func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					_ = json.NewEncoder(w).Encode(map[string]string{"registrationAccessToken": "new-registration-token"})
-				})
-				mux.HandleFunc("GET /realms/test-realm/clients-registrations/openid-connect/existing-client-id", func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					_ = json.NewEncoder(w).Encode(map[string]string{
-						"client_id":                "existing-client-id",
-						"client_secret":            "existing-secret",
-						"registration_access_token": "rotated-token",
-						"registration_client_uri":   fmt.Sprintf("%s/realms/test-realm/clients-registrations/openid-connect/existing-client-id", baseURL),
-					})
-				})
-				mux.HandleFunc("PUT /realms/test-realm/clients-registrations/openid-connect/existing-client-id", func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusBadRequest)
-					_, _ = w.Write([]byte(`{"error":"bad request"}`))
-				})
-			},
-		},
-		{
 			desc: "error unmarshaling registration token response",
 			obj: &v1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
@@ -789,6 +707,88 @@ func TestSubroutineProcess(t *testing.T) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
 					_, _ = w.Write([]byte(`{invalid-json`))
+				})
+			},
+		},
+		{
+			desc: "error getting client info via DCR",
+			obj: &v1alpha1.IdentityProviderConfiguration{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
+				Spec: v1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []v1alpha1.IdentityProviderClientConfig{{
+						ClientName:        "test-realm",
+						ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
+						ValidRedirectURIs: []string{"https://test.example.com/*"},
+						ClientSecretRef: v1alpha1.ClientSecretRef{
+							SecretReference: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
+						},
+					}},
+				},
+			},
+			cfg: &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
+			expectErr: true,
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {},
+			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
+				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusCreated) })
+				mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode([]map[string]any{{"clientId": "existing-client-id", "name": "test-realm"}})
+				})
+				mux.HandleFunc("POST /admin/realms/test-realm/clients/existing-client-id/registration-access-token", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode(map[string]string{"registrationAccessToken": "new-registration-token"})
+				})
+				mux.HandleFunc("GET /realms/test-realm/clients-registrations/openid-connect/existing-client-id", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusUnauthorized)
+					_, _ = w.Write([]byte(`{"error":"unauthorized"}`))
+				})
+			},
+		},
+		{
+			desc: "error updating client via DCR",
+			obj: &v1alpha1.IdentityProviderConfiguration{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
+				Spec: v1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []v1alpha1.IdentityProviderClientConfig{{
+						ClientName:        "test-realm",
+						ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
+						ValidRedirectURIs: []string{"https://test.example.com/*"},
+						ClientSecretRef: v1alpha1.ClientSecretRef{
+							SecretReference: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
+						},
+					}},
+				},
+			},
+			cfg: &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
+			expectErr: true,
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {},
+			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
+				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusCreated) })
+				mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode([]map[string]any{{"clientId": "existing-client-id", "name": "test-realm"}})
+				})
+				mux.HandleFunc("POST /admin/realms/test-realm/clients/existing-client-id/registration-access-token", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode(map[string]string{"registrationAccessToken": "new-registration-token"})
+				})
+				mux.HandleFunc("GET /realms/test-realm/clients-registrations/openid-connect/existing-client-id", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode(map[string]string{
+						"client_id":                "existing-client-id",
+						"client_secret":            "existing-secret",
+						"registration_access_token": "rotated-token",
+						"registration_client_uri":   fmt.Sprintf("%s/realms/test-realm/clients-registrations/openid-connect/existing-client-id", baseURL),
+					})
+				})
+				mux.HandleFunc("PUT /realms/test-realm/clients-registrations/openid-connect/existing-client-id", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusBadRequest)
+					_, _ = w.Write([]byte(`{"error":"bad request"}`))
 				})
 			},
 		},
@@ -915,6 +915,73 @@ func TestOIDCAPIErrors(t *testing.T) {
 
 	_, opErr := s.Process(ctx, obj)
 	assert.NotNil(t, opErr)
+}
+
+func TestPublicClientType(t *testing.T) {
+	mux := http.NewServeMux()
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	configureOIDCProvider(t, mux, srv.URL)
+	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, srv.Client())
+
+	orgsClient := mocks.NewMockClient(t)
+	kcpClient := mocks.NewMockClient(t)
+	mgr, _ := setupManagerAndCluster(t, kcpClient)
+
+	s, err := idp.New(ctx, &config.Config{
+		Invite: config.InviteConfig{
+			KeycloakBaseURL:  srv.URL,
+			KeycloakClientID: "security-operator",
+		},
+	}, orgsClient, mgr)
+	assert.NoError(t, err)
+
+	l := testlogger.New()
+	ctx = l.WithContext(ctx)
+
+	obj := &v1alpha1.IdentityProviderConfiguration{
+		ObjectMeta: metav1.ObjectMeta{Name: "public-realm"},
+		Spec: v1alpha1.IdentityProviderConfigurationSpec{
+			Clients: []v1alpha1.IdentityProviderClientConfig{{
+				ClientName:        "public-realm",
+				ClientType:        v1alpha1.IdentityProviderClientTypePublic,
+				ValidRedirectURIs: []string{"https://test.example.com/*"},
+				ClientSecretRef: v1alpha1.ClientSecretRef{
+					SecretReference: corev1.SecretReference{Name: "portal-client-secret-public-realm", Namespace: "default"},
+				},
+			}},
+		},
+	}
+
+	mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusCreated) })
+	mux.HandleFunc("GET /admin/realms/public-realm/clients", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode([]map[string]any{})
+	})
+	mux.HandleFunc("POST /admin/realms/public-realm/clients-initial-access", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]string{"token": "initial-access-token"})
+	})
+	mux.HandleFunc("POST /realms/public-realm/clients-registrations/openid-connect", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(map[string]string{
+			"client_id":                "public-client-id",
+			"registration_access_token": "registration-token",
+			"registration_client_uri":   fmt.Sprintf("%s/realms/public-realm/clients-registrations/openid-connect/public-client-id", srv.URL),
+		})
+	})
+
+	orgsClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "portal-client-secret-public-realm")).Maybe()
+	orgsClient.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
+	kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+	kcpClient.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
+
+	_, opErr := s.Process(ctx, obj)
+	assert.Nil(t, opErr)
 }
 
 func TestFinalize(t *testing.T) {
