@@ -205,7 +205,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 
 	for _, latestResourceSchema := range apiExport.Spec.Resources {
 		var resourceSchema kcpv1alpha1.APIResourceSchema
-		err := apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: latestResourceSchema.Name}, &resourceSchema)
+		err := apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: latestResourceSchema.Schema}, &resourceSchema)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}

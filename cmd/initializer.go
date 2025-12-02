@@ -36,10 +36,13 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		k8sCfg := ctrl.GetConfigOrDie()
+
 		mgrOpts := ctrl.Options{
 			Scheme:                 scheme,
 			LeaderElection:         defaultCfg.LeaderElection.Enabled,
 			LeaderElectionID:       "security-operator-initializer.platform-mesh.io",
+			LeaderElectionConfig:   k8sCfg,
 			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
 			Metrics: server.Options{
 				BindAddress: defaultCfg.Metrics.BindAddress,
@@ -84,8 +87,6 @@ var initializerCmd = &cobra.Command{
 			setupLog.Error(err, "Failed to create org client")
 			os.Exit(1)
 		}
-
-		k8sCfg := ctrl.GetConfigOrDie()
 
 		runtimeClient, err := client.New(k8sCfg, client.Options{Scheme: scheme})
 		if err != nil {
