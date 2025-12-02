@@ -26,15 +26,15 @@ type LogicalClusterReconciler struct {
 	mclifecycle *multicluster.LifecycleManager
 }
 
-func NewLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *LogicalClusterReconciler {
+func NewLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, runtimeClient client.Client, mgr mcmanager.Manager) *LogicalClusterReconciler {
 	return &LogicalClusterReconciler{
 		log: log,
 		mclifecycle: builder.NewBuilder("logicalcluster", "LogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
 			subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr),
-			subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, cfg),
-			subroutine.NewRealmSubroutine(inClusterClient, &cfg, cfg.BaseDomain),
+			subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, runtimeClient, cfg),
+			subroutine.NewRealmSubroutine(runtimeClient, &cfg, cfg.BaseDomain),
 			subroutine.NewInviteSubroutine(orgClient, mgr),
-			subroutine.NewRemoveInitializer(mgr, cfg, inClusterClient),
+			subroutine.NewRemoveInitializer(mgr, cfg, runtimeClient),
 		}, log).
 			WithReadOnly().
 			BuildMultiCluster(mgr),
