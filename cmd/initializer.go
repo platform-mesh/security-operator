@@ -7,7 +7,6 @@ import (
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/initializingworkspaces"
 	pmcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/spf13/cobra"
@@ -80,7 +79,7 @@ var initializerCmd = &cobra.Command{
 		utilruntime.Must(sourcev1.AddToScheme(runtimeScheme))
 		utilruntime.Must(helmv2.AddToScheme(runtimeScheme))
 
-		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager(), log)(logicalcluster.Name("root:orgs"))
+		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager(), log)("root:orgs")
 		if err != nil {
 			setupLog.Error(err, "Failed to create org client")
 			os.Exit(1)

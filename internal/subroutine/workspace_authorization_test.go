@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	kcptenancyv1alphav1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"

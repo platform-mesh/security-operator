@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"net/url"
 
+	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
-	kcpv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	apisv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"google.golang.org/grpc"
@@ -124,7 +124,7 @@ var operatorCmd = &cobra.Command{
 
 		provider, err := apiexport.New(restCfg, apiexport.Options{
 			Scheme:        mgrOpts.Scheme,
-			ObjectToWatch: &kcpv1alpha2.APIBinding{},
+			ObjectToWatch: &kcpapisv1alpha2.APIBinding{},
 		})
 		if err != nil {
 			setupLog.Error(err, "unable to construct cluster provider")
@@ -189,8 +189,8 @@ var operatorCmd = &cobra.Command{
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(kcpv1alpha2.AddToScheme(scheme))
-	utilruntime.Must(apisv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(kcpapisv1alpha2.AddToScheme(scheme))
+	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
 
 	utilruntime.Must(accountsv1alpha1.AddToScheme(scheme))
