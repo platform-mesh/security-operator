@@ -1,9 +1,7 @@
 package idp
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -19,22 +17,19 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-)
-
-const (
-	kcpSecretNamespace  = "default"
-	realmClientProtocol = "openid-connect"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 type subroutine struct {
 	keycloakBaseURL string
 	keycloak        *http.Client
+	oidc            *http.Client
 	orgsClient      client.Client
+	mgr             mcmanager.Manager
 	cfg             *config.Config
 }
 
-func New(ctx context.Context, cfg *config.Config, orgsClient client.Client) (*subroutine, error) {
-
+func New(ctx context.Context, cfg *config.Config, orgsClient client.Client, mgr mcmanager.Manager) (*subroutine, error) {
 	issuer := fmt.Sprintf("%s/realms/master", cfg.Invite.KeycloakBaseURL)
 	provider, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {
@@ -52,18 +47,52 @@ func New(ctx context.Context, cfg *config.Config, orgsClient client.Client) (*su
 	return &subroutine{
 		keycloakBaseURL: cfg.Invite.KeycloakBaseURL,
 		keycloak:        httpClient,
+		oidc:            &http.Client{},
 		orgsClient:      orgsClient,
+		mgr:             mgr,
 		cfg:             cfg,
 	}, nil
 }
 
 // Finalize implements subroutine.Subroutine.
 func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	idpToDelete := instance.(*v1alpha1.IdentityProviderConfiguration)
+	log := logger.LoadLoggerFromContext(ctx)
+
+	for _, clientToDelete := range idpToDelete.Spec.Clients {
+		registrationAccessToken, err := s.regenerateRegistrationAccessToken(ctx, clientToDelete.ClientName, clientToDelete.ClientID, log)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to regenerate registration access token: %w", err), true, true)
+		}
+
+		err = s.deleteClient(ctx, clientToDelete.RegistrationClientURI, registrationAccessToken)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete oidc client %w", err), true, false)
+		}
+
+		secretToDelete := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      clientToDelete.ClientSecretRef.Name,
+				Namespace: clientToDelete.ClientSecretRef.Namespace,
+			},
+		}
+		if err := s.orgsClient.Delete(ctx, secretToDelete); err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete client secret %w", err), true, false)
+		}
+	}
+
+	err := s.deleteRealm(ctx, idpToDelete.Name, log)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete realm %w", err), true, false)
+	}
+
 	return ctrl.Result{}, nil
 }
 
 // Finalizers implements subroutine.Subroutine.
-func (s *subroutine) Finalizers(_ runtimeobject.RuntimeObject) []string { return []string{} }
+func (s *subroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
+	return []string{"core.platform-mesh.io/idp-finalizer"}
+}
 
 // GetName implements subroutine.Subroutine.
 func (s *subroutine) GetName() string { return "IdentityProviderConfiguration" }
@@ -72,6 +101,11 @@ func (s *subroutine) GetName() string { return "IdentityProviderConfiguration" }
 func (s *subroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	IdentityProviderConfiguration := instance.(*v1alpha1.IdentityProviderConfiguration)
 	log := logger.LoadLoggerFromContext(ctx)
+
+	cl, err := s.mgr.ClusterFromContext(ctx)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context %w", err), true, true)
+	}
 
 	realmName := IdentityProviderConfiguration.Name
 	realm := realm{
@@ -100,206 +134,107 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 		realm.SMTPServer = smtpConfig
 	}
 
-	err := s.createRealm(ctx, realm, log)
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create realm %w", err), true, false)
+	if err := s.createOrUpdateRealm(ctx, realm, log); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 	}
 
-	client := realmClient{
-		ClientID:               IdentityProviderConfiguration.Spec.ClientID,
-		ClientName:             IdentityProviderConfiguration.Spec.ClientID,
-		Enabled:                true,
-		PublicClient:           IdentityProviderConfiguration.Spec.ClientType == v1alpha1.IdentityProviderClientTypePublic,
-		StandardFlowEnabled:    true,
-		ServiceAccountsEnabled: IdentityProviderConfiguration.Spec.ClientType == v1alpha1.IdentityProviderClientTypeConfidential,
-		RedirectUris:           IdentityProviderConfiguration.Spec.ValidRedirectURIs,
-		Protocol:               realmClientProtocol,
-	}
+	for _, clientConfig := range IdentityProviderConfiguration.Spec.Clients {
 
-	err = s.createRealmClient(ctx, client, realmName, log)
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create realm client: %w", err), true, true)
-	}
+		clientID, err := s.getClientID(ctx, realmName, clientConfig.ClientName, log)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get client: %w", err), true, true)
+		}
 
-	clientUUID, err := s.getClientUUID(ctx, realmName, IdentityProviderConfiguration.Spec.ClientID)
-	if err != nil {
-		log.Err(err).Str("realm", realmName).Str("clientId", IdentityProviderConfiguration.Spec.ClientID).Msg("Failed to get client UUID")
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get client UUID: %w", err), true, true)
-	}
+		if clientID != "" {
+			registrationAccessToken, err := s.regenerateRegistrationAccessToken(ctx, realmName, clientID, log)
+			if err != nil {
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to regenerate registration access token: %w", err), true, true)
+			}
 
-	clientSecret, err := s.getClientSecret(ctx, realmName, clientUUID)
-	if err != nil {
-		log.Err(err).Str("realm", realmName).Str("clientId", IdentityProviderConfiguration.Spec.ClientID).Msg("Failed to get client secret")
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get client secret: %w", err), true, true)
-	}
+			if clientConfig.RegistrationClientURI == "" {
+				clientInfo, err := s.getClientInfo(ctx, realmName, clientID, registrationAccessToken, log)
+				if err != nil {
+					return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get client via DCR: %w", err), true, true)
+				}
+				clientConfig.RegistrationClientURI = clientInfo.RegistrationClientURI
+			}
+			clientConfig.ClientID = clientID
 
-	secretName := fmt.Sprintf("portal-client-secret-%s", IdentityProviderConfiguration.Name)
+			clientInfo, err := s.updateClient(ctx, clientConfig.RegistrationClientURI, registrationAccessToken, clientConfig, log)
+			if err != nil {
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to update client: %w", err), true, true)
+			}
+
+			if err := s.createOrUpdateSecret(ctx, realmName, clientConfig, clientInfo, log); err != nil {
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
+			}
+			continue
+		}
+
+		iat, err := s.getInitialAccessToken(ctx, realmName, log)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get Initial Access Token: %w", err), true, true)
+		}
+
+		clientInfo, err := s.registerClient(ctx, realmName, clientConfig, iat, IdentityProviderConfiguration, log)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to register client: %w", err), true, true)
+		}
+
+		if err := s.patchIdentityProviderConfiguration(ctx, cl.GetClient(), IdentityProviderConfiguration, clientConfig.ClientName, clientInfo.ClientID, clientInfo.RegistrationClientURI); err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to set ClientID and RegistrationClientURI in IDP resource: %w", err), true, true)
+		}
+
+		if err := s.createOrUpdateSecret(ctx, realmName, clientConfig, clientInfo, log); err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
+		}
+	}
+	return ctrl.Result{}, nil
+}
+
+func (s *subroutine) createOrUpdateSecret(ctx context.Context, realmName string, clientConfig v1alpha1.IdentityProviderClientConfig, result *clientInfo, log *logger.Logger) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      secretName,
-			Namespace: kcpSecretNamespace,
+			Name:      clientConfig.ClientSecretRef.Name,
+			Namespace: clientConfig.ClientSecretRef.Namespace,
 		},
 	}
 
-	_, err = controllerutil.CreateOrUpdate(ctx, s.orgsClient, secret, func() error {
-		secret.Data = make(map[string][]byte)
-		secret.Data["secret"] = []byte(clientSecret)
+	_, err := controllerutil.CreateOrUpdate(ctx, s.orgsClient, secret, func() error {
+		if secret.Data == nil {
+			secret.Data = make(map[string][]byte)
+		}
+		if result.Secret != "" {
+			secret.Data["secret"] = []byte(result.Secret)
+		}
 		secret.Type = corev1.SecretTypeOpaque
 		return nil
 	})
 	if err != nil {
-		log.Err(err).Str("realm", realmName).Str("clientId", IdentityProviderConfiguration.Spec.ClientID).Msg("Failed to create or update kubernetes secret")
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
+		return fmt.Errorf("failed to create or update kubernetes secret: %w", err)
 	}
-	log.Info().Str("realm", realmName).Str("clientId", IdentityProviderConfiguration.Spec.ClientID).Msg("Client secret stored in kubernetes secret")
-
-	return ctrl.Result{}, nil
-}
-
-func (s *subroutine) createRealm(ctx context.Context, realm realm, log *logger.Logger) error {
-	realmJSON, err := json.Marshal(realm)
-	if err != nil {
-		log.Err(err).Msg("Failed to marshal realm data")
-		return err
-	}
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/admin/realms", s.keycloakBaseURL), bytes.NewBuffer(realmJSON))
-	if err != nil {// coverage-ignore
-		log.Err(err).Msg("Failed to create realm creation request")
-		return err
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	res, err := s.keycloak.Do(req)
-	if err != nil {// coverage-ignore
-		log.Err(err).Str("realm", realm.Realm).Msg("Failed to create realm")
-		return err
-	}
-	defer res.Body.Close() //nolint:errcheck
-
-	if res.StatusCode != http.StatusCreated && res.StatusCode != http.StatusConflict {
-		log.Error().Int("status", res.StatusCode).Str("realm", realm.Realm).Msg("Failed to create realm")
-		return fmt.Errorf("failed to create realm, received status %d", res.StatusCode)
-	}
-	log.Info().Str("realm", realm.Realm).Msg("realm is configured")
 	return nil
 }
 
-func (s *subroutine) createRealmClient(ctx context.Context, client realmClient, realmName string, log *logger.Logger) error {
-	clientJSON, err := json.Marshal(client)
-	if err != nil {
-		log.Err(err).Msg("Failed to marshal client data")
-		return err
+func (s *subroutine) patchIdentityProviderConfiguration(ctx context.Context, kcpClient client.Client, idpConfig *v1alpha1.IdentityProviderConfiguration, clientName, clientID, registrationClientURI string) error {
+	for i := range idpConfig.Spec.Clients {
+		c := &idpConfig.Spec.Clients[i]
+		if c.ClientName != clientName {
+			continue
+		}
+
+		original := idpConfig.DeepCopy()
+		c.ClientID = clientID
+
+		if registrationClientURI != "" {
+			c.RegistrationClientURI = registrationClientURI
+		}
+
+		if err := kcpClient.Patch(ctx, idpConfig, client.MergeFrom(original)); err != nil {
+			return fmt.Errorf("failed to patch IdentityProviderConfiguration: %w", err)
+		}
+		return nil
 	}
 
-	clientReq, err := http.NewRequestWithContext(ctx, http.MethodPost, fmt.Sprintf("%s/admin/realms/%s/clients", s.keycloakBaseURL, realmName), bytes.NewBuffer(clientJSON))
-	if err != nil {// coverage-ignore
-		log.Err(err).Msg("Failed to create client creation request")
-		return err
-	}
-	clientReq.Header.Set("Content-Type", "application/json")
-
-	clientRes, err := s.keycloak.Do(clientReq)
-	if err != nil {// coverage-ignore
-		log.Err(err).Str("realm", realmName).Str("clientId", client.ClientID).Msg("Failed to create client")
-		return err
-	}
-	defer clientRes.Body.Close() //nolint:errcheck
-
-	if clientRes.StatusCode != http.StatusCreated && clientRes.StatusCode != http.StatusConflict {
-		log.Error().Int("status", clientRes.StatusCode).Str("realm", realmName).Str("clientId", client.ClientID).Msg("Failed to create client")
-		return fmt.Errorf("failed to create client, received status %d", clientRes.StatusCode)
-	}
-	log.Info().Str("realm", realmName).Str("clientId", client.ClientID).Msg("Client is configured")
-	return nil
-}
-
-func (s *subroutine) getClientUUID(ctx context.Context, realmName, clientID string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/admin/realms/%s/clients?clientId=%s", s.keycloakBaseURL, realmName, clientID), nil)
-	if err != nil {// coverage-ignore
-		return "", fmt.Errorf("failed to create client search request: %w", err)
-	}
-
-	res, err := s.keycloak.Do(req)
-	if err != nil {// coverage-ignore
-		return "", fmt.Errorf("failed to search for client: %w", err)
-	}
-	defer res.Body.Close() //nolint:errcheck
-
-	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to search for client: received status %d", res.StatusCode)
-	}
-
-	var clients []keycloakClient
-	if err := json.NewDecoder(res.Body).Decode(&clients); err != nil {
-		return "", fmt.Errorf("failed to decode client search response: %w", err)
-	}
-
-	if len(clients) == 0 {
-		return "", fmt.Errorf("client with clientId %s not found", clientID)
-	}
-
-	return clients[0].ID, nil
-}
-
-func (s *subroutine) getClientSecret(ctx context.Context, realmName, clientUUID string) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("%s/admin/realms/%s/clients/%s/client-secret", s.keycloakBaseURL, realmName, clientUUID), nil)
-	if err != nil {// coverage-ignore
-		return "", fmt.Errorf("failed to create client secret request: %w", err)
-	}
-
-	res, err := s.keycloak.Do(req)
-	if err != nil {// coverage-ignore
-		return "", fmt.Errorf("failed to get client secret: %w", err)
-	}
-	defer res.Body.Close() //nolint:errcheck
-
-	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("failed to get client secret: received status %d", res.StatusCode)
-	}
-
-	var secretResp struct {
-		Value string `json:"value"`
-	}
-	if err := json.NewDecoder(res.Body).Decode(&secretResp); err != nil {
-		return "", fmt.Errorf("failed to decode client secret response: %w", err)
-	}
-
-	return secretResp.Value, nil
-}
-
-type realmClient struct {
-	ClientID               string   `json:"clientId"`
-	ClientName             string   `json:"name"`
-	Enabled                bool     `json:"enabled"`
-	PublicClient           bool     `json:"publicClient"`
-	StandardFlowEnabled    bool     `json:"standardFlowEnabled"`
-	ServiceAccountsEnabled bool     `json:"serviceAccountsEnabled"`
-	RedirectUris           []string `json:"redirectUris"`
-	Protocol               string   `json:"protocol"`
-}
-
-type keycloakClient struct {
-	ID       string `json:"id"`
-	ClientID string `json:"clientId"`
-}
-
-type smtpServer struct {
-	Host     string `json:"host,omitempty"`
-	Port     string `json:"port,omitempty"`
-	From     string `json:"from,omitempty"`
-	SSL      bool   `json:"ssl,omitempty"`
-	StartTLS bool   `json:"starttls,omitempty"`
-	Auth     bool   `json:"auth,omitempty"`
-	User     string `json:"user,omitempty"`
-	Password string `json:"password,omitempty"`
-}
-
-type realm struct {
-	Realm                       string      `json:"realm"`
-	DisplayName                 string      `json:"displayName,omitempty"`
-	Enabled                     bool        `json:"enabled"`
-	LoginWithEmailAllowed       bool        `json:"loginWithEmailAllowed,omitempty"`
-	RegistrationEmailAsUsername bool        `json:"registrationEmailAsUsername,omitempty"`
-	SMTPServer                  *smtpServer `json:"smtpServer,omitempty"`
+	return fmt.Errorf("client %s not found in IdentityProviderConfiguration spec", clientName)
 }

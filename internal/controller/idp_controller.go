@@ -25,7 +25,7 @@ type IdentityProviderConfigurationReconciler struct {
 }
 
 func NewIdentityProviderConfigurationReconciler(ctx context.Context, mgr mcmanager.Manager, orgsClient client.Client, cfg *config.Config, log *logger.Logger) *IdentityProviderConfigurationReconciler {
-	idpSubroutine, err := idp.New(ctx, cfg, orgsClient)
+	idpSubroutine, err := idp.New(ctx, cfg, orgsClient, mgr)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to create idp subroutine")
 	}

@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	lifecycleapi "github.com/platform-mesh/golang-commons/controller/lifecycle/api"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -12,12 +13,23 @@ const (
 	IdentityProviderClientTypePublic       IdentityProviderClientType = "public"
 )
 
+type IdentityProviderClientConfig struct {
+	// +kubebuilder:validation:Enum=confidential;public
+	ClientType            IdentityProviderClientType `json:"clientType"`
+	ClientID              string                     `json:"clientID"`
+	ClientName            string                     `json:"clientName"`
+	ValidRedirectURIs     []string                   `json:"validRedirectURIs"`
+	ClientSecretRef       ClientSecretRef            `json:"clientSecretRef"`
+	RegistrationClientURI string                     `json:"registrationClientURI,omitempty"`
+}
+
+type ClientSecretRef struct {
+	corev1.SecretReference `json:",inline"`
+}
+
 // IdentityProviderConfigurationSpec defines the desired state of IdentityProviderConfiguration
 type IdentityProviderConfigurationSpec struct {
-	// +kubebuilder:validation:Enum=confidential;public
-	ClientType        IdentityProviderClientType `json:"clientType"`
-	ClientID          string                     `json:"clientID"`
-	ValidRedirectURIs []string                   `json:"validRedirectURIs"`
+	Clients []IdentityProviderClientConfig `json:"clients"`
 }
 
 // IdentityProviderConfigurationStatus defines the observed state of IdentityProviderConfiguration.

@@ -40,21 +40,46 @@ spec:
           spec:
             description: spec defines the desired state of IdentityProviderConfiguration
             properties:
-              clientID:
-                type: string
-              clientType:
-                enum:
-                - confidential
-                - public
-                type: string
-              validRedirectURIs:
+              clients:
                 items:
-                  type: string
+                  properties:
+                    clientID:
+                      type: string
+                    clientName:
+                      type: string
+                    clientSecretRef:
+                      properties:
+                        name:
+                          description: name is unique within a namespace to reference
+                            a secret resource.
+                          type: string
+                        namespace:
+                          description: namespace defines the space within which the
+                            secret name must be unique.
+                          type: string
+                      type: object
+                      x-kubernetes-map-type: atomic
+                    clientType:
+                      enum:
+                      - confidential
+                      - public
+                      type: string
+                    registrationClientURI:
+                      type: string
+                    validRedirectURIs:
+                      items:
+                        type: string
+                      type: array
+                  required:
+                  - clientID
+                  - clientName
+                  - clientSecretRef
+                  - clientType
+                  - validRedirectURIs
+                  type: object
                 type: array
             required:
-            - clientID
-            - clientType
-            - validRedirectURIs
+            - clients
             type: object
           status:
             description: status defines the observed state of IdentityProviderConfiguration
