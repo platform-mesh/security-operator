@@ -86,6 +86,7 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 		return err
 	}
 	return builder.Complete(r)
+	///FIXME: this Enqueueing does not work as it seems right now we can only requeue in the current cluster.
 	//Watches(
 	//	&corev1alpha1.AuthorizationModel{},
 	//	handler.TypedEnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
@@ -106,6 +107,5 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 	//		}
 	//	}),
 	//	mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{}),
-	//).
-
+	//)
 }
