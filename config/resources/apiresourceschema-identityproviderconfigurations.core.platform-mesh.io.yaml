@@ -70,7 +70,6 @@ spec:
                 required:
                 - clientID
                 - clientName
-                - clientSecretRef
                 - clientType
                 - validRedirectURIs
                 type: object

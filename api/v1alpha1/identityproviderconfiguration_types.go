@@ -19,7 +19,8 @@ type IdentityProviderClientConfig struct {
 	ClientID              string                     `json:"clientID"`
 	ClientName            string                     `json:"clientName"`
 	ValidRedirectURIs     []string                   `json:"validRedirectURIs"`
-	ClientSecretRef       ClientSecretRef            `json:"clientSecretRef"`
+	// +optional
+	ClientSecretRef       ClientSecretRef            `json:"clientSecretRef,omitempty"`
 	RegistrationClientURI string                     `json:"registrationClientURI,omitempty"`
 }
 

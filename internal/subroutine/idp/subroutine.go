@@ -169,8 +169,10 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to set ClientID and RegistrationClientURI in IDP resource: %w", err), true, true)
 			}
 
-			if err := s.createOrUpdateSecret(ctx, realmName, clientConfig, clientInfo, log); err != nil {
-				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
+			if clientConfig.ClientType == v1alpha1.IdentityProviderClientTypeConfidential {
+				if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo, log); err != nil {
+					return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
+				}
 			}
 			continue
 		}
@@ -189,14 +191,16 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to set ClientID and RegistrationClientURI in IDP resource: %w", err), true, true)
 		}
 
-		if err := s.createOrUpdateSecret(ctx, realmName, clientConfig, clientInfo, log); err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
+		if clientConfig.ClientType == v1alpha1.IdentityProviderClientTypeConfidential {
+			if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo, log); err != nil {
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
+			}
 		}
 	}
 	return ctrl.Result{}, nil
 }
 
-func (s *subroutine) createOrUpdateSecret(ctx context.Context, realmName string, clientConfig v1alpha1.IdentityProviderClientConfig, result *clientInfo, log *logger.Logger) error {
+func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig v1alpha1.IdentityProviderClientConfig, result *clientInfo, log *logger.Logger) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clientConfig.ClientSecretRef.Name,
