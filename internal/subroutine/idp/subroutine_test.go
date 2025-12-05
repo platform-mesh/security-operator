@@ -805,14 +805,7 @@ func TestSubroutineProcess(t *testing.T) {
 
 			orgsClient := mocks.NewMockClient(t)
 			kcpClient := mocks.NewMockClient(t)
-			var mgr *mocks.MockManager
-			
-			if test.desc == "error cluster context fails" {
-				mgr = mocks.NewMockManager(t)
-				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, fmt.Errorf("cluster context error")).Once()
-			} else {
-				mgr, _ = setupManagerAndCluster(t, kcpClient)
-			}
+			mgr, _ := setupManagerAndCluster(t, kcpClient)
 
 			if test.setupK8sMocks != nil {
 				test.setupK8sMocks(orgsClient, kcpClient)
