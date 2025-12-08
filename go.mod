@@ -15,7 +15,7 @@ require (
 	github.com/kcp-dev/multicluster-provider v0.2.0
 	github.com/openfga/api/proto v0.0.0-20251105142303-feed3db3d69d
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251027165255-0f8f255e5f6c
-	github.com/platform-mesh/account-operator v0.5.35
+	github.com/platform-mesh/account-operator v0.5.36
 	github.com/platform-mesh/golang-commons v0.9.2
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.10.2
@@ -109,7 +109,7 @@ require (
 	golang.org/x/exp v0.0.0-20251125195548-87e1e737ad39 // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
-	golang.org/x/sys v0.38.0 // indirect
+	golang.org/x/sys v0.39.0 // indirect
 	golang.org/x/term v0.37.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	golang.org/x/time v0.11.0 // indirect
