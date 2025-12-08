@@ -88,7 +88,7 @@ type realmClient struct {
 	ClientName string `json:"name"`
 }
 
-func (s *subroutine) getClientID(ctx context.Context, realmName, clientName string, log *logger.Logger) (string, error) {
+func (s *subroutine) getClientID(ctx context.Context, realmName, clientName string) (string, error) {
 	url := fmt.Sprintf("%s/admin/realms/%s/clients", s.keycloakBaseURL, realmName)
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil { // coverage-ignore
@@ -124,7 +124,7 @@ func (s *subroutine) getClientID(ctx context.Context, realmName, clientName stri
 	return "", nil
 }
 
-func (s *subroutine) deleteRealm(ctx context.Context, realmName string, log *logger.Logger) error {
+func (s *subroutine) deleteRealm(ctx context.Context, realmName string) error {
 	url := fmt.Sprintf("%s/admin/realms/%s", s.keycloakBaseURL, realmName)
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
 	if err != nil { // coverage-ignore
@@ -140,12 +140,10 @@ func (s *subroutine) deleteRealm(ctx context.Context, realmName string, log *log
 	if res.StatusCode != http.StatusNoContent && res.StatusCode != http.StatusOK && res.StatusCode != http.StatusNotFound {
 		return fmt.Errorf("failed to delete realm: status %d", res.StatusCode)
 	}
-
-	log.Info().Str("realm", realmName).Msg("Realm deleted")
 	return nil
 }
 
-func (s *subroutine) regenerateRegistrationAccessToken(ctx context.Context, realmName, clientUUID string, log *logger.Logger) (string, error) {
+func (s *subroutine) regenerateRegistrationAccessToken(ctx context.Context, realmName, clientUUID string) (string, error) {
 	tokenURL := fmt.Sprintf("%s/admin/realms/%s/clients/%s/registration-access-token", s.keycloakBaseURL, realmName, clientUUID)
 	tokenReq, err := http.NewRequestWithContext(ctx, http.MethodPost, tokenURL, nil)
 	if err != nil { // coverage-ignore
@@ -178,7 +176,7 @@ func (s *subroutine) regenerateRegistrationAccessToken(ctx context.Context, real
 	return tokenResponse.RegistrationAccessToken, nil
 }
 
-func (s *subroutine) getInitialAccessToken(ctx context.Context, realmName string, log *logger.Logger) (string, error) {
+func (s *subroutine) getInitialAccessToken(ctx context.Context, realmName string) (string, error) {
 	url := fmt.Sprintf("%s/admin/realms/%s/clients-initial-access", s.keycloakBaseURL, realmName)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, strings.NewReader("{}"))
 	if err != nil { // coverage-ignore

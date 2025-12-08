@@ -57,10 +57,9 @@ func New(ctx context.Context, cfg *config.Config, orgsClient client.Client, mgr 
 // Finalize implements subroutine.Subroutine.
 func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	idpToDelete := instance.(*v1alpha1.IdentityProviderConfiguration)
-	log := logger.LoadLoggerFromContext(ctx)
 
 	for _, clientToDelete := range idpToDelete.Spec.Clients {
-		registrationAccessToken, err := s.regenerateRegistrationAccessToken(ctx, clientToDelete.ClientName, clientToDelete.ClientID, log)
+		registrationAccessToken, err := s.regenerateRegistrationAccessToken(ctx, clientToDelete.ClientName, clientToDelete.ClientID)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to regenerate registration access token: %w", err), true, true)
 		}
@@ -81,7 +80,7 @@ func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.Runtim
 		}
 	}
 
-	err := s.deleteRealm(ctx, idpToDelete.Name, log)
+	err := s.deleteRealm(ctx, idpToDelete.Name)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete realm %w", err), true, false)
 	}
@@ -140,19 +139,19 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 
 	for _, clientConfig := range IdentityProviderConfiguration.Spec.Clients {
 
-		clientID, err := s.getClientID(ctx, realmName, clientConfig.ClientName, log)
+		clientID, err := s.getClientID(ctx, realmName, clientConfig.ClientName)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get client: %w", err), true, true)
 		}
 
 		if clientID != "" {
-			registrationAccessToken, err := s.regenerateRegistrationAccessToken(ctx, realmName, clientID, log)
+			registrationAccessToken, err := s.regenerateRegistrationAccessToken(ctx, realmName, clientID)
 			if err != nil {
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to regenerate registration access token: %w", err), true, true)
 			}
 
 			if clientConfig.RegistrationClientURI == "" {
-				clientInfo, err := s.getClientInfo(ctx, realmName, clientID, registrationAccessToken, log)
+				clientInfo, err := s.getClientInfo(ctx, realmName, clientID, registrationAccessToken)
 				if err != nil {
 					return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get client via DCR: %w", err), true, true)
 				}
@@ -160,7 +159,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 			}
 			clientConfig.ClientID = clientID
 
-			clientInfo, err := s.updateClient(ctx, clientConfig.RegistrationClientURI, registrationAccessToken, clientConfig, log)
+			clientInfo, err := s.updateClient(ctx, clientConfig.RegistrationClientURI, registrationAccessToken, clientConfig)
 			if err != nil {
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to update client: %w", err), true, true)
 			}
@@ -170,19 +169,19 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 			}
 
 			if clientConfig.ClientType == v1alpha1.IdentityProviderClientTypeConfidential {
-				if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo, log); err != nil {
+				if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo); err != nil {
 					return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
 				}
 			}
 			continue
 		}
 
-		iat, err := s.getInitialAccessToken(ctx, realmName, log)
+		iat, err := s.getInitialAccessToken(ctx, realmName)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get Initial Access Token: %w", err), true, true)
 		}
 
-		clientInfo, err := s.registerClient(ctx, realmName, clientConfig, iat, IdentityProviderConfiguration, log)
+		clientInfo, err := s.registerClient(ctx, realmName, clientConfig, iat)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to register client: %w", err), true, true)
 		}
@@ -192,7 +191,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 		}
 
 		if clientConfig.ClientType == v1alpha1.IdentityProviderClientTypeConfidential {
-			if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo, log); err != nil {
+			if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo); err != nil {
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
 			}
 		}
@@ -200,7 +199,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	return ctrl.Result{}, nil
 }
 
-func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig v1alpha1.IdentityProviderClientConfig, result *clientInfo, log *logger.Logger) error {
+func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig v1alpha1.IdentityProviderClientConfig, clientInfo clientInfo) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clientConfig.ClientSecretRef.Name,
@@ -212,8 +211,8 @@ func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig v1al
 		if secret.Data == nil {
 			secret.Data = make(map[string][]byte)
 		}
-		if result.Secret != "" {
-			secret.Data["secret"] = []byte(result.Secret)
+		if clientInfo.Secret != "" {
+			secret.Data["secret"] = []byte(clientInfo.Secret)
 		}
 		secret.Type = corev1.SecretTypeOpaque
 		return nil
