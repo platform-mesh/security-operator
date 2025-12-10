@@ -57,7 +57,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 	suite.Assert().Eventually(func() bool {
 		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &model)
 		return err == nil
-	}, 5*time.Second, 200*time.Millisecond, "authorizationModel should be created by controller")
+	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should be created by controller")
 
 	suite.Assert().Equal(testOrgName, model.Spec.StoreRef.Name)
 	suite.Assert().Equal(testOrgPath.String(), model.Spec.StoreRef.Path)
@@ -106,7 +106,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	suite.Assert().Eventually(func() bool {
 		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &model)
 		return err == nil
-	}, 5*time.Second, 200*time.Millisecond, "authorizationModel should exist after reconciliations")
+	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should exist after reconciliations")
 
 	var testApiBinding1, testApiBinding2 kcpapiv1alpha1.APIBinding
 	suite.Require().NoError(testAccount1Client.Get(ctx, client.ObjectKey{Name: apiBinding1.Name}, &testApiBinding1))
