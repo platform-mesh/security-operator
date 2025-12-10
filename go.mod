@@ -15,7 +15,7 @@ require (
 	github.com/kcp-dev/multicluster-provider v0.2.0
 	github.com/openfga/api/proto v0.0.0-20251105142303-feed3db3d69d
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251027165255-0f8f255e5f6c
-	github.com/platform-mesh/account-operator v0.5.40
+	github.com/platform-mesh/account-operator v0.5.42
 	github.com/platform-mesh/golang-commons v0.9.6
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.10.2
@@ -25,10 +25,10 @@ require (
 	golang.org/x/sync v0.19.0
 	google.golang.org/grpc v1.77.0
 	google.golang.org/protobuf v1.36.10
-	k8s.io/api v0.34.2
+	k8s.io/api v0.34.3
 	k8s.io/apiextensions-apiserver v0.34.2
-	k8s.io/apimachinery v0.34.2
-	k8s.io/client-go v0.34.2
+	k8s.io/apimachinery v0.34.3
+	k8s.io/client-go v0.34.3
 	k8s.io/utils v0.0.0-20251002143259-bc988d571ff4
 	sigs.k8s.io/controller-runtime v0.22.4
 	sigs.k8s.io/multicluster-runtime v0.21.0-alpha.9
