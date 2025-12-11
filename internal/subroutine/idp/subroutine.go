@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 
 	"github.com/coreos/go-oidc"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
@@ -137,53 +138,74 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 	}
 
+	for clientName, managedClient := range IdentityProviderConfiguration.Status.ManagedClients {
+		exists := slices.ContainsFunc(IdentityProviderConfiguration.Spec.Clients,
+			func(c v1alpha1.IdentityProviderClientConfig) bool {
+				return c.ClientName == clientName
+			},
+		)
+
+		if !exists {
+			log.Info().Str("clientName", clientName).Msg("Deleting client that is no longer in spec")
+
+			registrationAccessToken, err := s.regenerateRegistrationAccessToken(ctx, realmName, managedClient.ClientID)
+			if err != nil {
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to regenerate registration access token for client %s: %w", clientName, err), true, true)
+			}
+
+			if err := s.deleteClient(ctx, managedClient.RegistrationClientURI, registrationAccessToken); err != nil {
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete client %s: %w", clientName, err), true, false)
+			}
+
+			secretToDelete := &corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      managedClient.SecretRef.Name,
+					Namespace: managedClient.SecretRef.Namespace,
+				},
+			}
+			if err := s.orgsClient.Delete(ctx, secretToDelete); err != nil {
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete client secret %s: %w", managedClient.SecretRef.Name, err), true, false)
+			}
+
+			delete(IdentityProviderConfiguration.Status.ManagedClients, clientName)
+		}
+	}
+
+	managedClients := make(map[string]v1alpha1.ManagedClient)
 	for _, clientConfig := range IdentityProviderConfiguration.Spec.Clients {
 
-		clientID, err := s.getClientID(ctx, realmName, clientConfig.ClientName)
-		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get client: %w", err), true, true)
-		}
-
-		if clientID != "" {
-			registrationAccessToken, err := s.regenerateRegistrationAccessToken(ctx, realmName, clientID)
+		managedClient, exist := IdentityProviderConfiguration.Status.ManagedClients[clientConfig.ClientName]
+		var clientInfo clientInfo
+		if exist {
+			registrationAccessToken, err := s.regenerateRegistrationAccessToken(ctx, realmName, managedClient.ClientID)
 			if err != nil {
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to regenerate registration access token: %w", err), true, true)
 			}
 
 			if clientConfig.RegistrationClientURI == "" {
-				clientInfo, err := s.getClientInfo(ctx, realmName, clientID, registrationAccessToken)
+				clientInfo, err = s.getClientInfo(ctx, realmName, managedClient.ClientID, registrationAccessToken)
 				if err != nil {
 					return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get client via DCR: %w", err), true, true)
 				}
 				clientConfig.RegistrationClientURI = clientInfo.RegistrationClientURI
-			}
-			clientConfig.ClientID = clientID
 
-			clientInfo, err := s.updateClient(ctx, clientConfig.RegistrationClientURI, registrationAccessToken, clientConfig)
+			}
+			clientConfig.ClientID = managedClient.ClientID
+
+			clientInfo, err = s.updateClient(ctx, clientConfig.RegistrationClientURI, registrationAccessToken, clientConfig)
 			if err != nil {
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to update client: %w", err), true, true)
 			}
-
-			if err := s.patchIdentityProviderConfiguration(ctx, cl.GetClient(), IdentityProviderConfiguration, clientConfig.ClientName, clientInfo.ClientID, clientInfo.RegistrationClientURI); err != nil {
-				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to set ClientID and RegistrationClientURI in IDP resource: %w", err), true, true)
+		} else {
+			iat, err := s.getInitialAccessToken(ctx, realmName)
+			if err != nil {
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get Initial Access Token: %w", err), true, true)
 			}
 
-			if clientConfig.ClientType == v1alpha1.IdentityProviderClientTypeConfidential {
-				if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo); err != nil {
-					return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
-				}
+			clientInfo, err = s.registerClient(ctx, realmName, clientConfig, iat)
+			if err != nil {
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to register client: %w", err), true, true)
 			}
-			continue
-		}
-
-		iat, err := s.getInitialAccessToken(ctx, realmName)
-		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get Initial Access Token: %w", err), true, true)
-		}
-
-		clientInfo, err := s.registerClient(ctx, realmName, clientConfig, iat)
-		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to register client: %w", err), true, true)
 		}
 
 		if err := s.patchIdentityProviderConfiguration(ctx, cl.GetClient(), IdentityProviderConfiguration, clientConfig.ClientName, clientInfo.ClientID, clientInfo.RegistrationClientURI); err != nil {
@@ -191,19 +213,34 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 		}
 
 		if clientConfig.ClientType == v1alpha1.IdentityProviderClientTypeConfidential {
-			if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo); err != nil {
+			if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo, IdentityProviderConfiguration); err != nil {
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
 			}
 		}
+
+		managedClients[clientConfig.ClientName] = v1alpha1.ManagedClient{
+			ClientID:              clientInfo.ClientID,
+			RegistrationClientURI: clientInfo.RegistrationClientURI,
+			SecretRef:             clientConfig.ClientSecretRef,
+		}
 	}
+
+	if err := s.patchIdentityProviderConfigurationStatus(ctx, cl.GetClient(), IdentityProviderConfiguration, managedClients); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to update status with managed clients: %w", err), true, true)
+	}
+
 	return ctrl.Result{}, nil
 }
 
-func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig v1alpha1.IdentityProviderClientConfig, clientInfo clientInfo) error {
+func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig v1alpha1.IdentityProviderClientConfig, clientInfo clientInfo, idpConfig *v1alpha1.IdentityProviderConfiguration) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clientConfig.ClientSecretRef.Name,
 			Namespace: clientConfig.ClientSecretRef.Namespace,
+			Labels: map[string]string{
+				"core.platform-mesh.io/idp-name":    idpConfig.Name,
+				"core.platform-mesh.io/client-name": clientConfig.ClientName,
+			},
 		},
 	}
 
@@ -244,4 +281,14 @@ func (s *subroutine) patchIdentityProviderConfiguration(ctx context.Context, kcp
 	}
 
 	return fmt.Errorf("client %s not found in IdentityProviderConfiguration spec", clientName)
+}
+
+func (s *subroutine) patchIdentityProviderConfigurationStatus(ctx context.Context, kcpClient client.Client, idpConfig *v1alpha1.IdentityProviderConfiguration, managedClients map[string]v1alpha1.ManagedClient) error {
+	original := idpConfig.DeepCopy()
+	idpConfig.Status.ManagedClients = managedClients
+
+	if err := kcpClient.Status().Patch(ctx, idpConfig, client.MergeFrom(original)); err != nil {
+		return fmt.Errorf("failed to patch IdentityProviderConfiguration status: %w", err)
+	}
+	return nil
 }

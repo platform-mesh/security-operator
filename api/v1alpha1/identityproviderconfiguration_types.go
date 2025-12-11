@@ -33,9 +33,17 @@ type IdentityProviderConfigurationSpec struct {
 	Clients []IdentityProviderClientConfig `json:"clients"`
 }
 
+// ManagedClient tracks a client that is managed by the operator.
+type ManagedClient struct {
+	ClientID              string                     `json:"clientID"`
+	RegistrationClientURI string                     `json:"registrationClientURI"`
+	SecretRef             ClientSecretRef            `json:"secretRef,omitempty"`
+}
+
 // IdentityProviderConfigurationStatus defines the observed state of IdentityProviderConfiguration.
 type IdentityProviderConfigurationStatus struct {
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
+	Conditions    []metav1.Condition        `json:"conditions,omitempty"`
+	ManagedClients map[string]ManagedClient `json:"managedClients,omitempty"`
 }
 
 // +kubebuilder:object:root=true

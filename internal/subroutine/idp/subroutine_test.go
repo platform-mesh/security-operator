@@ -17,11 +17,16 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/oauth2"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func configureOIDCProvider(t *testing.T, mux *http.ServeMux, baseURL string) {
@@ -48,13 +53,38 @@ func configureOIDCProvider(t *testing.T, mux *http.ServeMux, baseURL string) {
 	})
 }
 
-func setupManagerAndCluster(t *testing.T, kcpClient *mocks.MockClient) (*mocks.MockManager, *mocks.MockCluster) {
+func getTestScheme() *runtime.Scheme {
+	scheme := runtime.NewScheme()
+	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+	utilruntime.Must(v1alpha1.AddToScheme(scheme))
+	return scheme
+}
+
+func setupManagerAndCluster(t *testing.T, initialObjects ...client.Object) (*mocks.MockManager, *mocks.MockCluster, client.Client) {
+	scheme := getTestScheme()
+
+	kcpClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&v1alpha1.IdentityProviderConfiguration{}).
+		WithObjects(initialObjects...).
+		Build()
+
 	mgr := mocks.NewMockManager(t)
 	cluster := mocks.NewMockCluster(t)
-	
+
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Maybe()
 	cluster.EXPECT().GetClient().Return(kcpClient).Maybe()
-	
+
+	return mgr, cluster, kcpClient
+}
+
+func setupManagerAndClusterWithClient(t *testing.T, kcpClient client.Client) (*mocks.MockManager, *mocks.MockCluster) {
+	mgr := mocks.NewMockManager(t)
+	cluster := mocks.NewMockCluster(t)
+
+	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Maybe()
+	cluster.EXPECT().GetClient().Return(kcpClient).Maybe()
+
 	return mgr, cluster
 }
 
@@ -87,7 +117,7 @@ func TestSubroutineProcess(t *testing.T) {
 		desc               string
 		obj                runtimeobject.RuntimeObject
 		cfg                *config.Config
-		setupK8sMocks      func(m *mocks.MockClient, kcpClient *mocks.MockClient)
+		setupK8sMocks      func(m *mocks.MockClient, kcpClient client.Client)
 		setupKeycloakMocks func(mux *http.ServeMux, baseURL string)
 		expectNewErr       bool
 		expectErr          bool
@@ -120,12 +150,10 @@ func TestSubroutineProcess(t *testing.T) {
 					KeycloakClientID: "security-operator",
 				},
 			},
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
 				m.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
 				m.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Maybe()
 				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "portal-client-secret-test-realm")).Maybe()
-				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-				kcpClient.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
@@ -146,8 +174,8 @@ func TestSubroutineProcess(t *testing.T) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusCreated)
 					_ = json.NewEncoder(w).Encode(map[string]string{
-						"client_id":                "generated-client-id-123",
-						"client_secret":            "client-secret-123",
+						"client_id":                 "generated-client-id-123",
+						"client_secret":             "client-secret-123",
 						"registration_access_token": "registration-token-123",
 						"registration_client_uri":   fmt.Sprintf("%s/realms/test-realm/clients-registrations/openid-connect/generated-client-id-123", baseURL),
 					})
@@ -182,12 +210,10 @@ func TestSubroutineProcess(t *testing.T) {
 					KeycloakClientID: "security-operator",
 				},
 			},
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
 				m.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
 				m.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Maybe()
 				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "portal-client-secret-existing-realm")).Maybe()
-				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-				kcpClient.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
@@ -211,8 +237,8 @@ func TestSubroutineProcess(t *testing.T) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusCreated)
 					_ = json.NewEncoder(w).Encode(map[string]string{
-						"client_id":                "generated-client-id-existing",
-						"client_secret":            "client-secret-existing",
+						"client_id":                 "generated-client-id-existing",
+						"client_secret":             "client-secret-existing",
 						"registration_access_token": "registration-token-existing",
 						"registration_client_uri":   fmt.Sprintf("%s/realms/existing-realm/clients-registrations/openid-connect/generated-client-id-existing", baseURL),
 					})
@@ -240,6 +266,20 @@ func TestSubroutineProcess(t *testing.T) {
 						},
 					},
 				},
+				Status: v1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]v1alpha1.ManagedClient{
+						"test-realm": {
+							ClientID:              "existing-client-id",
+							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/existing-client-id",
+							SecretRef: v1alpha1.ClientSecretRef{
+								SecretReference: corev1.SecretReference{
+									Name:      "portal-client-secret-test-realm",
+									Namespace: "default",
+								},
+							},
+						},
+					},
+				},
 			},
 			cfg: &config.Config{
 				Invite: config.InviteConfig{
@@ -247,12 +287,10 @@ func TestSubroutineProcess(t *testing.T) {
 					KeycloakClientID: "security-operator",
 				},
 			},
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
 				m.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
 				m.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Maybe()
 				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "portal-client-secret-test-realm")).Maybe()
-				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-				kcpClient.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
@@ -275,8 +313,8 @@ func TestSubroutineProcess(t *testing.T) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
 					_ = json.NewEncoder(w).Encode(map[string]string{
-						"client_id":                "existing-client-id",
-						"client_secret":            "existing-secret",
+						"client_id":                 "existing-client-id",
+						"client_secret":             "existing-secret",
 						"registration_access_token": "rotated-token",
 						"registration_client_uri":   fmt.Sprintf("%s/realms/test-realm/clients-registrations/openid-connect/existing-client-id", baseURL),
 					})
@@ -285,11 +323,136 @@ func TestSubroutineProcess(t *testing.T) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
 					_ = json.NewEncoder(w).Encode(map[string]string{
-						"client_id":                "existing-client-id",
-						"client_secret":            "existing-secret",
+						"client_id":                 "existing-client-id",
+						"client_secret":             "existing-secret",
 						"registration_access_token": "updated-token",
 						"registration_client_uri":   fmt.Sprintf("%s/realms/test-realm/clients-registrations/openid-connect/existing-client-id", baseURL),
 					})
+				})
+			},
+		},
+		{
+			desc: "client in status but not in spec - deletion",
+			obj: &v1alpha1.IdentityProviderConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-realm",
+				},
+				Spec: v1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []v1alpha1.IdentityProviderClientConfig{
+						{
+							ClientName:        "new-client",
+							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
+							ValidRedirectURIs: []string{"https://test.example.com/*"},
+							ClientSecretRef: v1alpha1.ClientSecretRef{
+								SecretReference: corev1.SecretReference{
+									Name:      "portal-client-secret-new-client",
+									Namespace: "default",
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]v1alpha1.ManagedClient{
+						"old-client": {
+							ClientID:              "old-client-id",
+							RegistrationClientURI: "",
+							SecretRef: v1alpha1.ClientSecretRef{
+								SecretReference: corev1.SecretReference{
+									Name:      "portal-client-secret-old-client",
+									Namespace: "default",
+								},
+							},
+						},
+					},
+				},
+			},
+			cfg: &config.Config{
+				Invite: config.InviteConfig{
+					KeycloakBaseURL:  "http://localhost",
+					KeycloakClientID: "security-operator",
+				},
+			},
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
+				m.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
+				m.EXPECT().Update(mock.Anything, mock.Anything).Return(nil).Maybe()
+				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "portal-client-secret-new-client")).Maybe()
+				m.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Maybe()
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
+				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusCreated)
+				})
+				mux.HandleFunc("POST /admin/realms/test-realm/clients/old-client-id/registration-access-token", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode(map[string]string{"registrationAccessToken": "delete-token"})
+				})
+				mux.HandleFunc("DELETE /realms/test-realm/clients-registrations/openid-connect/old-client-id", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusNoContent)
+				})
+				mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					clients := []map[string]any{}
+					_ = json.NewEncoder(w).Encode(clients)
+				})
+				mux.HandleFunc("POST /admin/realms/test-realm/clients-initial-access", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode(map[string]string{"token": "initial-access-token"})
+				})
+				mux.HandleFunc("POST /realms/test-realm/clients-registrations/openid-connect", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusCreated)
+					_ = json.NewEncoder(w).Encode(map[string]string{
+						"client_id":                 "new-client-id",
+						"client_secret":             "new-client-secret",
+						"registration_access_token": "registration-token",
+						"registration_client_uri":   fmt.Sprintf("%s/realms/test-realm/clients-registrations/openid-connect/new-client-id", baseURL),
+					})
+				})
+			},
+		},
+		{
+			desc: "error deleting client in status but not in spec",
+			obj: &v1alpha1.IdentityProviderConfiguration{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-realm",
+				},
+				Spec: v1alpha1.IdentityProviderConfigurationSpec{
+					Clients: []v1alpha1.IdentityProviderClientConfig{},
+				},
+				Status: v1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]v1alpha1.ManagedClient{
+						"old-client": {
+							ClientID:              "old-client-id",
+							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/old-client-id",
+							SecretRef: v1alpha1.ClientSecretRef{
+								SecretReference: corev1.SecretReference{
+									Name:      "portal-client-secret-old-client",
+									Namespace: "default",
+								},
+							},
+						},
+					},
+				},
+			},
+			cfg: &config.Config{
+				Invite: config.InviteConfig{
+					KeycloakBaseURL:  "http://localhost",
+					KeycloakClientID: "security-operator",
+				},
+			},
+			expectErr: true,
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
+				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusCreated)
+				})
+				mux.HandleFunc("POST /admin/realms/test-realm/clients/old-client-id/registration-access-token", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusInternalServerError)
 				})
 			},
 		},
@@ -322,7 +485,7 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
@@ -360,7 +523,7 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
@@ -400,7 +563,7 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
@@ -447,7 +610,7 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
@@ -485,9 +648,9 @@ func TestSubroutineProcess(t *testing.T) {
 					}},
 				},
 			},
-			cfg: &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
-			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {},
+			cfg:           &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
+			expectErr:     true,
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusConflict) })
 				mux.HandleFunc("PUT /admin/realms/conflict-realm", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusInternalServerError) })
@@ -522,7 +685,7 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
@@ -571,7 +734,7 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) {
@@ -609,9 +772,9 @@ func TestSubroutineProcess(t *testing.T) {
 					}},
 				},
 			},
-			cfg: &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
-			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {},
+			cfg:           &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
+			expectErr:     true,
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusCreated) })
 				mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
@@ -641,9 +804,9 @@ func TestSubroutineProcess(t *testing.T) {
 					}},
 				},
 			},
-			cfg: &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
-			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {},
+			cfg:           &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
+			expectErr:     true,
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusCreated) })
 				mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
@@ -678,9 +841,9 @@ func TestSubroutineProcess(t *testing.T) {
 					}},
 				},
 			},
-			cfg: &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
-			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {},
+			cfg:           &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
+			expectErr:     true,
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusCreated) })
 				mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
@@ -697,8 +860,8 @@ func TestSubroutineProcess(t *testing.T) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
 					_ = json.NewEncoder(w).Encode(map[string]string{
-						"client_id":                "existing-client-id",
-						"client_secret":            "existing-secret",
+						"client_id":                 "existing-client-id",
+						"client_secret":             "existing-secret",
 						"registration_access_token": "rotated-token",
 						"registration_client_uri":   fmt.Sprintf("%s/realms/test-realm/clients-registrations/openid-connect/existing-client-id", baseURL),
 					})
@@ -725,9 +888,9 @@ func TestSubroutineProcess(t *testing.T) {
 					}},
 				},
 			},
-			cfg: &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
-			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {},
+			cfg:           &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
+			expectErr:     true,
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusCreated) })
 				mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
@@ -761,9 +924,9 @@ func TestSubroutineProcess(t *testing.T) {
 					}},
 				},
 			},
-			cfg: &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
-			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient *mocks.MockClient) {},
+			cfg:           &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
+			expectErr:     true,
+			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
 				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusCreated) })
 				mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
@@ -780,8 +943,8 @@ func TestSubroutineProcess(t *testing.T) {
 					w.Header().Set("Content-Type", "application/json")
 					w.WriteHeader(http.StatusOK)
 					_ = json.NewEncoder(w).Encode(map[string]string{
-						"client_id":                "existing-client-id",
-						"client_secret":            "existing-secret",
+						"client_id":                 "existing-client-id",
+						"client_secret":             "existing-secret",
 						"registration_access_token": "rotated-token",
 						"registration_client_uri":   fmt.Sprintf("%s/realms/test-realm/clients-registrations/openid-connect/existing-client-id", baseURL),
 					})
@@ -804,18 +967,43 @@ func TestSubroutineProcess(t *testing.T) {
 			ctx := context.WithValue(context.Background(), oauth2.HTTPClient, srv.Client())
 
 			orgsClient := mocks.NewMockClient(t)
-			kcpClient := mocks.NewMockClient(t)
-			mgr, _ := setupManagerAndCluster(t, kcpClient)
-
-			if test.setupK8sMocks != nil {
-				test.setupK8sMocks(orgsClient, kcpClient)
-			}
 
 			if test.setupKeycloakMocks != nil {
 				test.setupKeycloakMocks(mux, srv.URL)
 			}
 
 			cfg := getTestConfig(test.cfg, srv.URL)
+
+			var initialObjects []client.Object
+			if idpObj, ok := test.obj.(*v1alpha1.IdentityProviderConfiguration); ok {
+				for clientName, managedClient := range idpObj.Status.ManagedClients {
+					if managedClient.RegistrationClientURI == "" && managedClient.ClientID != "" {
+						managedClients := idpObj.Status.ManagedClients
+						if managedClients == nil {
+							managedClients = make(map[string]v1alpha1.ManagedClient)
+							idpObj.Status.ManagedClients = managedClients
+						}
+						managedClients[clientName] = v1alpha1.ManagedClient{
+							ClientID:              managedClient.ClientID,
+							RegistrationClientURI: fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect/%s", srv.URL, idpObj.Name, managedClient.ClientID),
+							SecretRef:             managedClient.SecretRef,
+						}
+					}
+				}
+				initialObjects = append(initialObjects, idpObj.DeepCopy())
+			}
+
+			scheme := getTestScheme()
+			kcpClient := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithStatusSubresource(&v1alpha1.IdentityProviderConfiguration{}).
+				WithObjects(initialObjects...).
+				Build()
+			mgr, _, _ := setupManagerAndCluster(t, initialObjects...)
+
+			if test.setupK8sMocks != nil {
+				test.setupK8sMocks(orgsClient, kcpClient)
+			}
 
 			s, err := idp.New(ctx, cfg, orgsClient, mgr)
 			if test.expectNewErr {
@@ -846,8 +1034,12 @@ func TestOIDCAPIErrors(t *testing.T) {
 	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, srv.Client())
 
 	orgsClient := mocks.NewMockClient(t)
-	kcpClient := mocks.NewMockClient(t)
-	mgr, _ := setupManagerAndCluster(t, kcpClient)
+	scheme := getTestScheme()
+	kcpClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&v1alpha1.IdentityProviderConfiguration{}).
+		Build()
+	mgr, _ := setupManagerAndClusterWithClient(t, kcpClient)
 
 	s, err := idp.New(ctx, &config.Config{
 		Invite: config.InviteConfig{
@@ -889,8 +1081,8 @@ func TestOIDCAPIErrors(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(w).Encode(map[string]string{
-			"client_id":                "existing-client-id",
-			"client_secret":            "existing-secret",
+			"client_id":                 "existing-client-id",
+			"client_secret":             "existing-secret",
 			"registration_access_token": "rotated-token",
 			"registration_client_uri":   fmt.Sprintf("%s/realms/test-realm/clients-registrations/openid-connect/existing-client-id", srv.URL),
 		})
@@ -903,8 +1095,6 @@ func TestOIDCAPIErrors(t *testing.T) {
 
 	orgsClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "portal-client-secret-test-realm")).Maybe()
 	orgsClient.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
-	kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-	kcpClient.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	_, opErr := s.Process(ctx, obj)
 	assert.NotNil(t, opErr)
@@ -919,19 +1109,6 @@ func TestPublicClientType(t *testing.T) {
 	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, srv.Client())
 
 	orgsClient := mocks.NewMockClient(t)
-	kcpClient := mocks.NewMockClient(t)
-	mgr, _ := setupManagerAndCluster(t, kcpClient)
-
-	s, err := idp.New(ctx, &config.Config{
-		Invite: config.InviteConfig{
-			KeycloakBaseURL:  srv.URL,
-			KeycloakClientID: "security-operator",
-		},
-	}, orgsClient, mgr)
-	assert.NoError(t, err)
-
-	l := testlogger.New()
-	ctx = l.WithContext(ctx)
 
 	obj := &v1alpha1.IdentityProviderConfiguration{
 		ObjectMeta: metav1.ObjectMeta{Name: "public-realm"},
@@ -946,6 +1123,26 @@ func TestPublicClientType(t *testing.T) {
 			}},
 		},
 	}
+
+	scheme := getTestScheme()
+	objCopy := obj.DeepCopy()
+	kcpClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&v1alpha1.IdentityProviderConfiguration{}).
+		WithObjects(objCopy).
+		Build()
+	mgr, _ := setupManagerAndClusterWithClient(t, kcpClient)
+
+	s, err := idp.New(ctx, &config.Config{
+		Invite: config.InviteConfig{
+			KeycloakBaseURL:  srv.URL,
+			KeycloakClientID: "security-operator",
+		},
+	}, orgsClient, mgr)
+	assert.NoError(t, err)
+
+	l := testlogger.New()
+	ctx = l.WithContext(ctx)
 
 	mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusCreated) })
 	mux.HandleFunc("GET /admin/realms/public-realm/clients", func(w http.ResponseWriter, r *http.Request) {
@@ -962,7 +1159,7 @@ func TestPublicClientType(t *testing.T) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		_ = json.NewEncoder(w).Encode(map[string]string{
-			"client_id":                "public-client-id",
+			"client_id":                 "public-client-id",
 			"registration_access_token": "registration-token",
 			"registration_client_uri":   fmt.Sprintf("%s/realms/public-realm/clients-registrations/openid-connect/public-client-id", srv.URL),
 		})
@@ -970,8 +1167,6 @@ func TestPublicClientType(t *testing.T) {
 
 	orgsClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "portal-client-secret-public-realm")).Maybe()
 	orgsClient.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
-	kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
-	kcpClient.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Maybe()
 
 	_, opErr := s.Process(ctx, obj)
 	assert.Nil(t, opErr)
@@ -995,8 +1190,8 @@ func TestFinalize(t *testing.T) {
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
 					Clients: []v1alpha1.IdentityProviderClientConfig{
 						{
-							ClientName:        "test-realm",
-							ClientID:          "client-id-123",
+							ClientName: "test-realm",
+							ClientID:   "client-id-123",
 							ClientSecretRef: v1alpha1.ClientSecretRef{
 								SecretReference: corev1.SecretReference{
 									Name:      "portal-client-secret-test-realm",
@@ -1039,8 +1234,8 @@ func TestFinalize(t *testing.T) {
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
 					Clients: []v1alpha1.IdentityProviderClientConfig{
 						{
-							ClientName:        "test-realm",
-							ClientID:          "client-id-123",
+							ClientName: "test-realm",
+							ClientID:   "client-id-123",
 							ClientSecretRef: v1alpha1.ClientSecretRef{
 								SecretReference: corev1.SecretReference{
 									Name:      "portal-client-secret-test-realm",
@@ -1075,8 +1270,8 @@ func TestFinalize(t *testing.T) {
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
 					Clients: []v1alpha1.IdentityProviderClientConfig{
 						{
-							ClientName:        "test-realm",
-							ClientID:          "client-id-123",
+							ClientName: "test-realm",
+							ClientID:   "client-id-123",
 							ClientSecretRef: v1alpha1.ClientSecretRef{
 								SecretReference: corev1.SecretReference{
 									Name:      "portal-client-secret-test-realm",
@@ -1117,8 +1312,8 @@ func TestFinalize(t *testing.T) {
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
 					Clients: []v1alpha1.IdentityProviderClientConfig{
 						{
-							ClientName:        "test-realm",
-							ClientID:          "client-id-123",
+							ClientName: "test-realm",
+							ClientID:   "client-id-123",
 							ClientSecretRef: v1alpha1.ClientSecretRef{
 								SecretReference: corev1.SecretReference{
 									Name:      "portal-client-secret-test-realm",
@@ -1202,8 +1397,12 @@ func TestHelperFunctions(t *testing.T) {
 	configureOIDCProvider(t, mux, srv.URL)
 	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, srv.Client())
 
-	kcpClient := mocks.NewMockClient(t)
-	mgr, _ := setupManagerAndCluster(t, kcpClient)
+	scheme := getTestScheme()
+	kcpClient := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&v1alpha1.IdentityProviderConfiguration{}).
+		Build()
+	mgr, _ := setupManagerAndClusterWithClient(t, kcpClient)
 
 	s, err := idp.New(ctx, &config.Config{
 		Invite: config.InviteConfig{
