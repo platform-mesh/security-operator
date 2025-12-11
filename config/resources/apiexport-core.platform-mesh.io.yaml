@@ -8,5 +8,5 @@ spec:
   - v250718-a64f278.authorizationmodels.core.platform-mesh.io
   - v250718-a64f278.stores.core.platform-mesh.io
   - v251007-1d3512f.invites.core.platform-mesh.io
-  - v251210-e1e9d05.identityproviderconfigurations.core.platform-mesh.io
+  - v251211-9a4fce6.identityproviderconfigurations.core.platform-mesh.io
 status: {}

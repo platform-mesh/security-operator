@@ -17,6 +17,7 @@ type ClientRegistrationRequest struct {
 	RedirectUris            []string `json:"redirect_uris,omitempty"`
 	GrantTypes              []string `json:"grant_types,omitempty"`
 	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method,omitempty"`
+	PostLogoutRedirectUris  []string `json:"post_logout_redirect_uris,omitempty"`
 }
 
 type clientInfo struct {
@@ -28,9 +29,10 @@ type clientInfo struct {
 
 func (s *subroutine) registerClient(ctx context.Context, clientConfig v1alpha1.IdentityProviderClientConfig, realmName string, initialAccessToken string) (clientInfo, error) {
 	payload := ClientRegistrationRequest{
-		ClientName:   clientConfig.ClientName,
-		RedirectUris: clientConfig.ValidRedirectURIs,
-		GrantTypes:   []string{"authorization_code", "refresh_token"},
+		ClientName:             clientConfig.ClientName,
+		RedirectUris:           clientConfig.ValidRedirectUris,
+		GrantTypes:             []string{"authorization_code", "refresh_token"},
+		PostLogoutRedirectUris: clientConfig.ValidPostLogoutRedirectUris,
 	}
 
 	payload.TokenEndpointAuthMethod = "client_secret_basic"
@@ -111,9 +113,10 @@ func (s *subroutine) updateClient(ctx context.Context, clientConfig v1alpha1.Ide
 	payload := ClientRegistrationRequest{
 		ClientID:                clientConfig.ClientID,
 		ClientName:              clientConfig.ClientName,
-		RedirectUris:            clientConfig.ValidRedirectURIs,
+		RedirectUris:            clientConfig.ValidRedirectUris,
 		GrantTypes:              []string{"authorization_code", "refresh_token"},
 		TokenEndpointAuthMethod: "client_secret_basic",
+		PostLogoutRedirectUris:  clientConfig.ValidPostLogoutRedirectUris,
 	}
 
 	if clientConfig.ClientType == v1alpha1.IdentityProviderClientTypePublic {

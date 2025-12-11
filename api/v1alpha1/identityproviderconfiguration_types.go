@@ -15,13 +15,14 @@ const (
 
 type IdentityProviderClientConfig struct {
 	// +kubebuilder:validation:Enum=confidential;public
-	ClientType            IdentityProviderClientType `json:"clientType"`
-	ClientID              string                     `json:"clientID"`
-	ClientName            string                     `json:"clientName"`
-	ValidRedirectURIs     []string                   `json:"validRedirectURIs"`
+	ClientType                  IdentityProviderClientType `json:"clientType"`
+	ClientID                    string                     `json:"clientID"`
+	ClientName                  string                     `json:"clientName"`
+	ValidRedirectUris           []string                   `json:"validRedirectUris"`
+	ValidPostLogoutRedirectUris []string                   `json:"validPostLogoutRedirectUris,omitempty"`
 	// +optional
-	ClientSecretRef       ClientSecretRef            `json:"clientSecretRef"`
-	RegistrationClientURI string                     `json:"registrationClientURI,omitempty"`
+	ClientSecretRef       ClientSecretRef `json:"clientSecretRef"`
+	RegistrationClientURI string          `json:"registrationClientURI,omitempty"`
 }
 
 type ClientSecretRef struct {
@@ -35,14 +36,14 @@ type IdentityProviderConfigurationSpec struct {
 
 // ManagedClient tracks a client that is managed by the operator.
 type ManagedClient struct {
-	ClientID              string                     `json:"clientID"`
-	RegistrationClientURI string                     `json:"registrationClientURI"`
-	SecretRef             ClientSecretRef            `json:"secretRef"`
+	ClientID              string          `json:"clientID"`
+	RegistrationClientURI string          `json:"registrationClientURI"`
+	SecretRef             ClientSecretRef `json:"secretRef"`
 }
 
 // IdentityProviderConfigurationStatus defines the observed state of IdentityProviderConfiguration.
 type IdentityProviderConfigurationStatus struct {
-	Conditions    []metav1.Condition        `json:"conditions,omitempty"`
+	Conditions     []metav1.Condition       `json:"conditions,omitempty"`
 	ManagedClients map[string]ManagedClient `json:"managedClients,omitempty"`
 }
 
