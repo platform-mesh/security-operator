@@ -26,7 +26,7 @@ type clientInfo struct {
 	ClientID                string `json:"client_id,omitempty"`
 }
 
-func (s *subroutine) registerClient(ctx context.Context, realmName string, clientConfig v1alpha1.IdentityProviderClientConfig, initialAccessToken string) (clientInfo, error) {
+func (s *subroutine) registerClient(ctx context.Context, clientConfig v1alpha1.IdentityProviderClientConfig, realmName string, initialAccessToken string) (clientInfo, error) {
 	payload := ClientRegistrationRequest{
 		ClientName:   clientConfig.ClientName,
 		RedirectUris: clientConfig.ValidRedirectURIs,
@@ -107,7 +107,7 @@ func (s *subroutine) executeUpdateRequest(ctx context.Context, registrationClien
 	return resp, res.StatusCode, nil
 }
 
-func (s *subroutine) updateClient(ctx context.Context, clientConfig v1alpha1.IdentityProviderClientConfig, registrationClientURI, realmName, registrationAccessToken string) (clientInfo, error) {
+func (s *subroutine) updateClient(ctx context.Context, clientConfig v1alpha1.IdentityProviderClientConfig, realmName, registrationAccessToken string) (clientInfo, error) {
 	payload := ClientRegistrationRequest{
 		ClientID:                clientConfig.ClientID,
 		ClientName:              clientConfig.ClientName,
@@ -125,7 +125,7 @@ func (s *subroutine) updateClient(ctx context.Context, clientConfig v1alpha1.Ide
 		return clientInfo{}, fmt.Errorf("failed to marshal client update payload: %w", err)
 	}
 
-	info, statusCode, err := s.executeUpdateRequest(ctx, registrationClientURI, registrationAccessToken, body)
+	info, statusCode, err := s.executeUpdateRequest(ctx, clientConfig.RegistrationClientURI, registrationAccessToken, body)
 	if err == nil {
 		return info, nil
 	}
@@ -136,7 +136,7 @@ func (s *subroutine) updateClient(ctx context.Context, clientConfig v1alpha1.Ide
 			return clientInfo{}, fmt.Errorf("failed to regenerate token after 401: %w", err)
 		}
 
-		info, _, err = s.executeUpdateRequest(ctx, registrationClientURI, newToken, body)
+		info, _, err = s.executeUpdateRequest(ctx, clientConfig.RegistrationClientURI, newToken, body)
 		if err != nil {
 			return clientInfo{}, fmt.Errorf("failed to retry update after token regeneration: %w", err)
 		}

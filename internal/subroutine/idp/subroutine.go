@@ -166,8 +166,6 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 			if err := s.orgsClient.Delete(ctx, secretToDelete); err != nil {
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete client secret %s: %w", managedClient.SecretRef.Name, err), true, false)
 			}
-
-			delete(IdentityProviderConfiguration.Status.ManagedClients, clientName)
 		}
 	}
 
@@ -194,7 +192,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 				clientConfig.ClientID = clientID
 			}
 
-			clientInfo, err = s.updateClient(ctx, clientConfig, clientConfig.RegistrationClientURI, realmName, registrationAccessToken)
+			clientInfo, err = s.updateClient(ctx, clientConfig, realmName, registrationAccessToken)
 			if err != nil {
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to update client: %w", err), true, true)
 			}
@@ -204,7 +202,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get Initial Access Token: %w", err), true, true)
 			}
 
-			clientInfo, err = s.registerClient(ctx, realmName, clientConfig, iat)
+			clientInfo, err = s.registerClient(ctx, clientConfig, realmName, iat)
 			if err != nil {
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to register client: %w", err), true, true)
 			}
@@ -215,7 +213,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 		}
 
 		if clientConfig.ClientType == v1alpha1.IdentityProviderClientTypeConfidential {
-			if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo, IdentityProviderConfiguration); err != nil {
+			if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo, IdentityProviderConfiguration.Name); err != nil {
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
 			}
 		}
@@ -249,13 +247,13 @@ func (s *subroutine) readRegistrationAccessTokenFromSecret(ctx context.Context, 
 	return string(secret.Data["registration_access_token"]), nil
 }
 
-func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig v1alpha1.IdentityProviderClientConfig, clientInfo clientInfo, idpConfig *v1alpha1.IdentityProviderConfiguration) error {
+func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig v1alpha1.IdentityProviderClientConfig, clientInfo clientInfo, idpName string) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      clientConfig.ClientSecretRef.Name,
 			Namespace: clientConfig.ClientSecretRef.Namespace,
 			Labels: map[string]string{
-				"core.platform-mesh.io/idp-name":    idpConfig.Name,
+				"core.platform-mesh.io/idp-name":    idpName,
 				"core.platform-mesh.io/client-name": clientConfig.ClientName,
 			},
 		},
