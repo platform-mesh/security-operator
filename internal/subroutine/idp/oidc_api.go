@@ -76,7 +76,38 @@ func (s *subroutine) registerClient(ctx context.Context, realmName string, clien
 	return resp, nil
 }
 
-func (s *subroutine) updateClient(ctx context.Context, registrationClientURI string, registrationAccessToken string, clientConfig v1alpha1.IdentityProviderClientConfig) (clientInfo, error) {
+func (s *subroutine) executeUpdateRequest(ctx context.Context, registrationClientURI, token string, body []byte) (clientInfo, int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, registrationClientURI, bytes.NewBuffer(body))
+	if err != nil { // coverage-ignore
+		return clientInfo{}, 0, fmt.Errorf("failed to build request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+
+	res, err := s.oidc.Do(req)
+	if err != nil { // coverage-ignore
+		return clientInfo{}, 0, fmt.Errorf("failed to update client: %w", err)
+	}
+	defer res.Body.Close() //nolint:errcheck
+
+	if res.StatusCode != http.StatusOK {
+		return clientInfo{}, res.StatusCode, fmt.Errorf("failed to update client: status %d", res.StatusCode)
+	}
+
+	respBody, err := io.ReadAll(res.Body)
+	if err != nil { // coverage-ignore
+		return clientInfo{}, res.StatusCode, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	var resp clientInfo
+	if err := json.Unmarshal(respBody, &resp); err != nil { // coverage-ignore
+		return clientInfo{}, res.StatusCode, fmt.Errorf("failed to parse response: %w body: %s", err, respBody)
+	}
+
+	return resp, res.StatusCode, nil
+}
+
+func (s *subroutine) updateClient(ctx context.Context, clientConfig v1alpha1.IdentityProviderClientConfig, registrationClientURI, realmName, registrationAccessToken string) (clientInfo, error) {
 	payload := ClientRegistrationRequest{
 		ClientID:                clientConfig.ClientID,
 		ClientName:              clientConfig.ClientName,
@@ -91,69 +122,29 @@ func (s *subroutine) updateClient(ctx context.Context, registrationClientURI str
 
 	body, err := json.Marshal(payload)
 	if err != nil { // coverage-ignore
-		return clientInfo{}, fmt.Errorf("failed to marshal oidc client update payload: %w", err)
+		return clientInfo{}, fmt.Errorf("failed to marshal client update payload: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, registrationClientURI, bytes.NewBuffer(body))
-	if err != nil { // coverage-ignore
-		return clientInfo{}, fmt.Errorf("failed to build oidc client update request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", registrationAccessToken))
-
-	res, err := s.oidc.Do(req)
-	if err != nil { // coverage-ignore
-		return clientInfo{}, fmt.Errorf("failed to update oidc client: %w", err)
-	}
-	defer res.Body.Close() //nolint:errcheck
-
-	if res.StatusCode != http.StatusOK {
-		return clientInfo{}, fmt.Errorf("failed to update oidc client with status %d", res.StatusCode)
+	info, statusCode, err := s.executeUpdateRequest(ctx, registrationClientURI, registrationAccessToken, body)
+	if err == nil {
+		return info, nil
 	}
 
-	respBody, err := io.ReadAll(res.Body)
-	if err != nil { // coverage-ignore
-		return clientInfo{}, fmt.Errorf("failed to read update response: %w", err)
+	if statusCode == http.StatusUnauthorized {
+		newToken, err := s.regenerateRegistrationAccessToken(ctx, realmName, clientConfig.ClientID)
+		if err != nil {
+			return clientInfo{}, fmt.Errorf("failed to regenerate token after 401: %w", err)
+		}
+
+		info, _, err = s.executeUpdateRequest(ctx, registrationClientURI, newToken, body)
+		if err != nil {
+			return clientInfo{}, fmt.Errorf("failed to retry update after token regeneration: %w", err)
+		}
+
+		return info, nil
 	}
 
-	var resp clientInfo
-	if err := json.Unmarshal(respBody, &resp); err != nil { // coverage-ignore
-		return clientInfo{}, fmt.Errorf("failed to parse update response: %w body: %s", err, respBody)
-	}
-
-	return resp, nil
-}
-
-func (s *subroutine) getClientInfo(ctx context.Context, realmName, clientID, registrationAccessToken string) (clientInfo, error) {
-	registrationClientURI := fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect/%s", s.keycloakBaseURL, realmName, clientID)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, registrationClientURI, nil)
-	if err != nil { // coverage-ignore
-		return clientInfo{}, fmt.Errorf("failed to create oidc get client request: %w", err)
-	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", registrationAccessToken))
-
-	res, err := s.oidc.Do(req)
-	if err != nil { // coverage-ignore
-		return clientInfo{}, fmt.Errorf("failed to get oidc client info: %w", err)
-	}
-	defer res.Body.Close() //nolint:errcheck
-
-	if res.StatusCode != http.StatusOK {
-		return clientInfo{}, fmt.Errorf("failed to get oidc client info with status %d", res.StatusCode)
-	}
-
-	respBody, err := io.ReadAll(res.Body)
-	if err != nil { // coverage-ignore
-		return clientInfo{}, fmt.Errorf("failed to read oidc get client response: %w", err)
-	}
-
-	var resp clientInfo
-	if err := json.Unmarshal(respBody, &resp); err != nil { // coverage-ignore
-		return clientInfo{}, fmt.Errorf("failed to parse oidc get client response: %w body: %s", err, respBody)
-	}
-
-	return resp, nil
+	return clientInfo{}, err
 }
 
 func (s *subroutine) deleteClient(ctx context.Context, registrationClientURI string, registrationAccessToken string) error {

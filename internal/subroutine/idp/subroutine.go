@@ -148,9 +148,9 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 		if !exists {
 			log.Info().Str("clientName", clientName).Msg("Deleting client that is no longer in spec")
 
-			registrationAccessToken, err := s.regenerateRegistrationAccessToken(ctx, realmName, managedClient.ClientID)
+			registrationAccessToken, err := s.readRegistrationAccessTokenFromSecret(ctx, managedClient.SecretRef)
 			if err != nil {
-				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to regenerate registration access token for client %s: %w", clientName, err), true, true)
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
 			}
 
 			if err := s.deleteClient(ctx, managedClient.RegistrationClientURI, registrationAccessToken); err != nil {
@@ -174,25 +174,27 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	managedClients := make(map[string]v1alpha1.ManagedClient)
 	for _, clientConfig := range IdentityProviderConfiguration.Spec.Clients {
 
-		managedClient, exist := IdentityProviderConfiguration.Status.ManagedClients[clientConfig.ClientName]
+		clientID, err := s.getClientID(ctx, realmName, clientConfig.ClientName)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
+		}
+
 		var clientInfo clientInfo
-		if exist {
-			registrationAccessToken, err := s.regenerateRegistrationAccessToken(ctx, realmName, managedClient.ClientID)
+		if clientID != "" {
+			registrationAccessToken, err := s.readRegistrationAccessTokenFromSecret(ctx, clientConfig.ClientSecretRef)
 			if err != nil {
-				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to regenerate registration access token: %w", err), true, true)
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
 			}
 
 			if clientConfig.RegistrationClientURI == "" {
-				clientInfo, err = s.getClientInfo(ctx, realmName, managedClient.ClientID, registrationAccessToken)
-				if err != nil {
-					return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get client via DCR: %w", err), true, true)
-				}
-				clientConfig.RegistrationClientURI = clientInfo.RegistrationClientURI
-
+				clientConfig.RegistrationClientURI = fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect/%s", s.keycloakBaseURL, realmName, clientID)
 			}
-			clientConfig.ClientID = managedClient.ClientID
 
-			clientInfo, err = s.updateClient(ctx, clientConfig.RegistrationClientURI, registrationAccessToken, clientConfig)
+			if clientConfig.ClientID == "" {
+				clientConfig.ClientID = clientID
+			}
+
+			clientInfo, err = s.updateClient(ctx, clientConfig, clientConfig.RegistrationClientURI, realmName, registrationAccessToken)
 			if err != nil {
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to update client: %w", err), true, true)
 			}
@@ -232,6 +234,21 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	return ctrl.Result{}, nil
 }
 
+func (s *subroutine) readRegistrationAccessTokenFromSecret(ctx context.Context, secretRef v1alpha1.ClientSecretRef) (string, error) {
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretRef.Name,
+			Namespace: secretRef.Namespace,
+		},
+	}
+
+	if err := s.orgsClient.Get(ctx, client.ObjectKeyFromObject(secret), secret); err != nil {
+		return "", fmt.Errorf("failed to get secret: %w", err)
+	}
+
+	return string(secret.Data["registration_access_token"]), nil
+}
+
 func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig v1alpha1.IdentityProviderClientConfig, clientInfo clientInfo, idpConfig *v1alpha1.IdentityProviderConfiguration) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
@@ -249,7 +266,10 @@ func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig v1al
 			secret.Data = make(map[string][]byte)
 		}
 		if clientInfo.Secret != "" {
-			secret.Data["secret"] = []byte(clientInfo.Secret)
+			secret.Data["client_secret"] = []byte(clientInfo.Secret)
+		}
+		if clientInfo.RegistrationAccessToken != "" {
+			secret.Data["registration_access_token"] = []byte(clientInfo.Secret)
 		}
 		secret.Type = corev1.SecretTypeOpaque
 		return nil

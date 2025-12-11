@@ -20,7 +20,7 @@ type IdentityProviderClientConfig struct {
 	ClientName            string                     `json:"clientName"`
 	ValidRedirectURIs     []string                   `json:"validRedirectURIs"`
 	// +optional
-	ClientSecretRef       ClientSecretRef            `json:"clientSecretRef,omitempty"`
+	ClientSecretRef       ClientSecretRef            `json:"clientSecretRef"`
 	RegistrationClientURI string                     `json:"registrationClientURI,omitempty"`
 }
 
@@ -37,7 +37,7 @@ type IdentityProviderConfigurationSpec struct {
 type ManagedClient struct {
 	ClientID              string                     `json:"clientID"`
 	RegistrationClientURI string                     `json:"registrationClientURI"`
-	SecretRef             ClientSecretRef            `json:"secretRef,omitempty"`
+	SecretRef             ClientSecretRef            `json:"secretRef"`
 }
 
 // IdentityProviderConfigurationStatus defines the observed state of IdentityProviderConfiguration.

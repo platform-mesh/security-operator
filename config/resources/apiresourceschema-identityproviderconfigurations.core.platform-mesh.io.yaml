@@ -2,7 +2,7 @@ apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v251201-5cc03b0.identityproviderconfigurations.core.platform-mesh.io
+  name: v251210-e1e9d05.identityproviderconfigurations.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
@@ -136,6 +136,32 @@ spec:
                 - type
                 type: object
               type: array
+            managedClients:
+              additionalProperties:
+                description: ManagedClient tracks a client that is managed by the
+                  operator.
+                properties:
+                  clientID:
+                    type: string
+                  registrationClientURI:
+                    type: string
+                  secretRef:
+                    properties:
+                      name:
+                        description: name is unique within a namespace to reference
+                          a secret resource.
+                        type: string
+                      namespace:
+                        description: namespace defines the space within which the
+                          secret name must be unique.
+                        type: string
+                    type: object
+                    x-kubernetes-map-type: atomic
+                required:
+                - clientID
+                - registrationClientURI
+                type: object
+              type: object
           type: object
       required:
       - spec
