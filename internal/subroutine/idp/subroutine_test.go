@@ -123,7 +123,7 @@ func TestSubroutineProcess(t *testing.T) {
 						{
 							ClientName:        "test-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-							ValidRedirectURIs: []string{"https://test.example.com/*"},
+							ValidRedirectUris: []string{"https://test.example.com/*"},
 							ClientSecretRef: v1alpha1.ClientSecretRef{
 								SecretReference: corev1.SecretReference{
 									Name:      "portal-client-secret-test-realm",
@@ -183,7 +183,7 @@ func TestSubroutineProcess(t *testing.T) {
 						{
 							ClientName:        "existing-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-							ValidRedirectURIs: []string{"https://test.example.com/*"},
+							ValidRedirectUris: []string{"https://test.example.com/*"},
 							ClientSecretRef: v1alpha1.ClientSecretRef{
 								SecretReference: corev1.SecretReference{
 									Name:      "portal-client-secret-existing-realm",
@@ -246,7 +246,7 @@ func TestSubroutineProcess(t *testing.T) {
 						{
 							ClientName:        "test-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-							ValidRedirectURIs: []string{"https://test.example.com/*"},
+							ValidRedirectUris: []string{"https://test.example.com/*"},
 							ClientSecretRef: v1alpha1.ClientSecretRef{
 								SecretReference: corev1.SecretReference{
 									Name:      "portal-client-secret-test-realm",
@@ -331,7 +331,7 @@ func TestSubroutineProcess(t *testing.T) {
 						{
 							ClientName:        "test-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-							ValidRedirectURIs: []string{"https://test.example.com/*"},
+							ValidRedirectUris: []string{"https://test.example.com/*"},
 							ClientSecretRef: v1alpha1.ClientSecretRef{
 								SecretReference: corev1.SecretReference{
 									Name:      "portal-client-secret-test-realm",
@@ -427,7 +427,7 @@ func TestSubroutineProcess(t *testing.T) {
 						{
 							ClientName:        "new-client",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-							ValidRedirectURIs: []string{"https://test.example.com/*"},
+							ValidRedirectUris: []string{"https://test.example.com/*"},
 							ClientSecretRef: v1alpha1.ClientSecretRef{
 								SecretReference: corev1.SecretReference{
 									Name:      "portal-client-secret-new-client",
@@ -564,7 +564,7 @@ func TestSubroutineProcess(t *testing.T) {
 						{
 							ClientName:        "error-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-							ValidRedirectURIs: []string{"https://test.example.com/*"},
+							ValidRedirectUris: []string{"https://test.example.com/*"},
 							ClientSecretRef: v1alpha1.ClientSecretRef{
 								SecretReference: corev1.SecretReference{
 									Name:      "portal-client-secret-error-realm",
@@ -602,7 +602,7 @@ func TestSubroutineProcess(t *testing.T) {
 						{
 							ClientName:        "test-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-							ValidRedirectURIs: []string{"https://test.example.com/*"},
+							ValidRedirectUris: []string{"https://test.example.com/*"},
 							ClientSecretRef: v1alpha1.ClientSecretRef{
 								SecretReference: corev1.SecretReference{
 									Name:      "portal-client-secret-test-realm",
@@ -642,7 +642,7 @@ func TestSubroutineProcess(t *testing.T) {
 						{
 							ClientName:        "test-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-							ValidRedirectURIs: []string{"https://test.example.com/*"},
+							ValidRedirectUris: []string{"https://test.example.com/*"},
 							ClientSecretRef: v1alpha1.ClientSecretRef{
 								SecretReference: corev1.SecretReference{
 									Name:      "portal-client-secret-test-realm",
@@ -686,7 +686,7 @@ func TestSubroutineProcess(t *testing.T) {
 					Clients: []v1alpha1.IdentityProviderClientConfig{{
 						ClientName:        "conflict-realm",
 						ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-						ValidRedirectURIs: []string{"https://test.example.com/*"},
+						ValidRedirectUris: []string{"https://test.example.com/*"},
 						ClientSecretRef: v1alpha1.ClientSecretRef{
 							SecretReference: corev1.SecretReference{Name: "portal-client-secret-conflict-realm", Namespace: "default"},
 						},
@@ -712,7 +712,7 @@ func TestSubroutineProcess(t *testing.T) {
 						{
 							ClientName:        "test-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-							ValidRedirectURIs: []string{"https://test.example.com/*"},
+							ValidRedirectUris: []string{"https://test.example.com/*"},
 							ClientSecretRef: v1alpha1.ClientSecretRef{
 								SecretReference: corev1.SecretReference{
 									Name:      "portal-client-secret-test-realm",
@@ -760,7 +760,7 @@ func TestSubroutineProcess(t *testing.T) {
 						{
 							ClientName:        "test-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-							ValidRedirectURIs: []string{"https://test.example.com/*"},
+							ValidRedirectUris: []string{"https://test.example.com/*"},
 							ClientSecretRef: v1alpha1.ClientSecretRef{
 								SecretReference: corev1.SecretReference{
 									Name:      "portal-client-secret-test-realm",
@@ -809,7 +809,7 @@ func TestSubroutineProcess(t *testing.T) {
 					Clients: []v1alpha1.IdentityProviderClientConfig{{
 						ClientName:        "test-realm",
 						ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-						ValidRedirectURIs: []string{"https://test.example.com/*"},
+						ValidRedirectUris: []string{"https://test.example.com/*"},
 						ClientSecretRef: v1alpha1.ClientSecretRef{
 							SecretReference: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
 						},
@@ -857,7 +857,7 @@ func TestSubroutineProcess(t *testing.T) {
 					Clients: []v1alpha1.IdentityProviderClientConfig{{
 						ClientName:        "test-realm",
 						ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
-						ValidRedirectURIs: []string{"https://test.example.com/*"},
+						ValidRedirectUris: []string{"https://test.example.com/*"},
 						ClientSecretRef: v1alpha1.ClientSecretRef{
 							SecretReference: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
 						},
@@ -974,7 +974,7 @@ func TestPublicClientType(t *testing.T) {
 			Clients: []v1alpha1.IdentityProviderClientConfig{{
 				ClientName:        "public-realm",
 				ClientType:        v1alpha1.IdentityProviderClientTypePublic,
-				ValidRedirectURIs: []string{"https://test.example.com/*"},
+				ValidRedirectUris: []string{"https://test.example.com/*"},
 				ClientSecretRef: v1alpha1.ClientSecretRef{
 					SecretReference: corev1.SecretReference{Name: "portal-client-secret-public-realm", Namespace: "default"},
 				},
@@ -1061,55 +1061,29 @@ func TestFinalize(t *testing.T) {
 				},
 			},
 			setupK8sMocks: func(m *mocks.MockClient) {
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "portal-client-secret-test-realm",
+						Namespace: "default",
+					},
+					Data: map[string][]byte{
+						"registration_access_token": []byte("delete-token"),
+					},
+				}
+				m.EXPECT().Get(mock.Anything, mock.MatchedBy(func(key client.ObjectKey) bool {
+					return key.Name == "portal-client-secret-test-realm" && key.Namespace == "default"
+				}), mock.AnythingOfType("*v1.Secret")).Run(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) {
+					s := obj.(*corev1.Secret)
+					*s = *secret
+				}).Return(nil).Once()
 				m.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Once()
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
-				mux.HandleFunc("POST /admin/realms/test-realm/clients/client-id-123/registration-access-token", func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					_ = json.NewEncoder(w).Encode(map[string]string{"registrationAccessToken": "delete-token"})
-				})
 				mux.HandleFunc("DELETE /realms/test-realm/clients-registrations/openid-connect/client-id-123", func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusNoContent)
 				})
 				mux.HandleFunc("DELETE /admin/realms/test-realm", func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusNoContent)
-				})
-			},
-		},
-		{
-			desc: "finalize error regenerating token",
-			obj: &v1alpha1.IdentityProviderConfiguration{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-realm",
-				},
-				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []v1alpha1.IdentityProviderClientConfig{
-						{
-							ClientName: "test-realm",
-							ClientID:   "client-id-123",
-							ClientSecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-test-realm",
-									Namespace: "default",
-								},
-							},
-						},
-					},
-				},
-			},
-			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
-				},
-			},
-			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient) {
-			},
-			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
-				mux.HandleFunc("POST /admin/realms/test-realm/clients/client-id-123/registration-access-token", func(w http.ResponseWriter, r *http.Request) {
-					w.WriteHeader(http.StatusInternalServerError)
 				})
 			},
 		},
@@ -1142,13 +1116,23 @@ func TestFinalize(t *testing.T) {
 			},
 			expectErr: true,
 			setupK8sMocks: func(m *mocks.MockClient) {
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "portal-client-secret-test-realm",
+						Namespace: "default",
+					},
+					Data: map[string][]byte{
+						"registration_access_token": []byte("delete-token"),
+					},
+				}
+				m.EXPECT().Get(mock.Anything, mock.MatchedBy(func(key client.ObjectKey) bool {
+					return key.Name == "portal-client-secret-test-realm" && key.Namespace == "default"
+				}), mock.AnythingOfType("*v1.Secret")).Run(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) {
+					s := obj.(*corev1.Secret)
+					*s = *secret
+				}).Return(nil).Once()
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
-				mux.HandleFunc("POST /admin/realms/test-realm/clients/client-id-123/registration-access-token", func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					_ = json.NewEncoder(w).Encode(map[string]string{"registrationAccessToken": "delete-token"})
-				})
 				mux.HandleFunc("DELETE /realms/test-realm/clients-registrations/openid-connect/client-id-123", func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusBadRequest)
 					_, _ = w.Write([]byte(`{"error":"bad request"}`))
@@ -1184,14 +1168,24 @@ func TestFinalize(t *testing.T) {
 			},
 			expectErr: true,
 			setupK8sMocks: func(m *mocks.MockClient) {
+				secret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "portal-client-secret-test-realm",
+						Namespace: "default",
+					},
+					Data: map[string][]byte{
+						"registration_access_token": []byte("delete-token"),
+					},
+				}
+				m.EXPECT().Get(mock.Anything, mock.MatchedBy(func(key client.ObjectKey) bool {
+					return key.Name == "portal-client-secret-test-realm" && key.Namespace == "default"
+				}), mock.AnythingOfType("*v1.Secret")).Run(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) {
+					s := obj.(*corev1.Secret)
+					*s = *secret
+				}).Return(nil).Once()
 				m.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil).Once()
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
-				mux.HandleFunc("POST /admin/realms/test-realm/clients/client-id-123/registration-access-token", func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					_ = json.NewEncoder(w).Encode(map[string]string{"registrationAccessToken": "delete-token"})
-				})
 				mux.HandleFunc("DELETE /realms/test-realm/clients-registrations/openid-connect/client-id-123", func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusNoContent)
 				})

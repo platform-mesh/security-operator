@@ -14,6 +14,7 @@ import (
 	"github.com/platform-mesh/security-operator/internal/config"
 	"golang.org/x/oauth2/clientcredentials"
 	corev1 "k8s.io/api/core/v1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -58,11 +59,25 @@ func New(ctx context.Context, cfg *config.Config, orgsClient client.Client, mgr 
 // Finalize implements subroutine.Subroutine.
 func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	idpToDelete := instance.(*v1alpha1.IdentityProviderConfiguration)
+	log := logger.LoadLoggerFromContext(ctx)
 
 	for _, clientToDelete := range idpToDelete.Spec.Clients {
-		registrationAccessToken, err := s.regenerateRegistrationAccessToken(ctx, clientToDelete.ClientName, clientToDelete.ClientID)
+		registrationAccessToken, err := s.readRegistrationAccessTokenFromSecret(ctx, clientToDelete.ClientSecretRef)
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to regenerate registration access token: %w", err), true, true)
+			if kerrors.IsNotFound(err) {
+				log.Info().
+					Str("secretName", clientToDelete.ClientSecretRef.Name).
+					Msg("Secret not found, skipping client deletion (likely already cleaned up)")
+				continue
+			}
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
+		}
+
+		if registrationAccessToken == "" {
+			log.Info().
+				Str("clientName", clientToDelete.ClientName).
+				Msg("Registration access token is empty, skipping client deletion")
+			continue
 		}
 
 		err = s.deleteClient(ctx, clientToDelete.RegistrationClientURI, registrationAccessToken)
@@ -77,7 +92,9 @@ func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.Runtim
 			},
 		}
 		if err := s.orgsClient.Delete(ctx, secretToDelete); err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete client secret %w", err), true, false)
+			if !kerrors.IsNotFound(err) {
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete client secret %w", err), true, false)
+			}
 		}
 	}
 
@@ -184,6 +201,13 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
 			}
 
+			if registrationAccessToken == "" {
+				registrationAccessToken, err = s.regenerateRegistrationAccessToken(ctx, realmName, clientID)
+				if err != nil {
+					return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to regenerate registration access token: %w", err), true, true)
+				}
+			}
+
 			if clientConfig.RegistrationClientURI == "" {
 				clientConfig.RegistrationClientURI = fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect/%s", s.keycloakBaseURL, realmName, clientID)
 			}
@@ -267,7 +291,7 @@ func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig v1al
 			secret.Data["client_secret"] = []byte(clientInfo.Secret)
 		}
 		if clientInfo.RegistrationAccessToken != "" {
-			secret.Data["registration_access_token"] = []byte(clientInfo.Secret)
+			secret.Data["registration_access_token"] = []byte(clientInfo.RegistrationAccessToken)
 		}
 		secret.Type = corev1.SecretTypeOpaque
 		return nil
