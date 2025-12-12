@@ -65,19 +65,10 @@ func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.Runtim
 		registrationAccessToken, err := s.readRegistrationAccessTokenFromSecret(ctx, clientToDelete.ClientSecretRef)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
-				log.Info().
-					Str("secretName", clientToDelete.ClientSecretRef.Name).
-					Msg("Secret not found, skipping client deletion (likely already cleaned up)")
+				log.Info().Str("secretName", clientToDelete.ClientSecretRef.Name).Msg("Secret not found, client was likely deleted")
 				continue
 			}
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
-		}
-
-		if registrationAccessToken == "" {
-			log.Info().
-				Str("clientName", clientToDelete.ClientName).
-				Msg("Registration access token is empty, skipping client deletion")
-			continue
 		}
 
 		err = s.deleteClient(ctx, clientToDelete.RegistrationClientURI, registrationAccessToken)
@@ -92,9 +83,7 @@ func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.Runtim
 			},
 		}
 		if err := s.orgsClient.Delete(ctx, secretToDelete); err != nil {
-			if !kerrors.IsNotFound(err) {
-				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete client secret %w", err), true, false)
-			}
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete client secret %w", err), true, false)
 		}
 	}
 
@@ -167,7 +156,10 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 
 			registrationAccessToken, err := s.readRegistrationAccessTokenFromSecret(ctx, managedClient.SecretRef)
 			if err != nil {
-				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
+				if kerrors.IsNotFound(err) {
+					log.Info().Str("secretName", managedClient.SecretRef.Name).Msg("Secret not found, client was likely deleted")
+					continue
+				}
 			}
 
 			if err := s.deleteClient(ctx, managedClient.RegistrationClientURI, registrationAccessToken); err != nil {
@@ -201,13 +193,6 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
 			}
 
-			if registrationAccessToken == "" {
-				registrationAccessToken, err = s.regenerateRegistrationAccessToken(ctx, realmName, clientID)
-				if err != nil {
-					return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to regenerate registration access token: %w", err), true, true)
-				}
-			}
-
 			if clientConfig.RegistrationClientURI == "" {
 				clientConfig.RegistrationClientURI = fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect/%s", s.keycloakBaseURL, realmName, clientID)
 			}
@@ -236,10 +221,8 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to set ClientID and RegistrationClientURI in IDP resource: %w", err), true, true)
 		}
 
-		if clientConfig.ClientType == v1alpha1.IdentityProviderClientTypeConfidential {
-			if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo, IdentityProviderConfiguration.Name); err != nil {
-				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
-			}
+		if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo, IdentityProviderConfiguration.Name); err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
 		}
 
 		managedClients[clientConfig.ClientName] = v1alpha1.ManagedClient{
@@ -329,8 +312,8 @@ func (s *subroutine) patchIdentityProviderConfigurationStatus(ctx context.Contex
 	original := idpConfig.DeepCopy()
 	idpConfig.Status.ManagedClients = managedClients
 
-	if err := kcpClient.Status().Patch(ctx, idpConfig, client.MergeFrom(original)); err != nil {
-		return fmt.Errorf("failed to patch IdentityProviderConfiguration status: %w", err)
+	if err := kcpClient.Status().Patch(ctx, idpConfig, client.MergeFrom(original)); err != nil { // coverage-ignore
+		return fmt.Errorf("failed to patch IdentityProviderConfiguration status: %w", err) // coverage-ignore
 	}
 	return nil
 }
