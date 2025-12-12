@@ -16,7 +16,7 @@ const (
 type IdentityProviderClientConfig struct {
 	// +kubebuilder:validation:Enum=confidential;public
 	ClientType                  IdentityProviderClientType `json:"clientType"`
-	ClientID                    string                     `json:"clientID"`
+	ClientID                    string                     `json:"clientId"`
 	ClientName                  string                     `json:"clientName"`
 	ValidRedirectUris           []string                   `json:"validRedirectUris"`
 	ValidPostLogoutRedirectUris []string                   `json:"validPostLogoutRedirectUris,omitempty"`
