@@ -36,7 +36,7 @@ type IdentityProviderConfigurationSpec struct {
 
 // ManagedClient tracks a client that is managed by the operator.
 type ManagedClient struct {
-	ClientID              string          `json:"clientID"`
+	ClientID              string          `json:"clientId"`
 	RegistrationClientURI string          `json:"registrationClientURI"`
 	SecretRef             ClientSecretRef `json:"secretRef"`
 }
