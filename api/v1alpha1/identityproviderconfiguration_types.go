@@ -15,18 +15,14 @@ const (
 
 type IdentityProviderClientConfig struct {
 	// +kubebuilder:validation:Enum=confidential;public
-	ClientType                  IdentityProviderClientType `json:"clientType"`
-	ClientID                    string                     `json:"clientId"`
-	ClientName                  string                     `json:"clientName"`
-	ValidRedirectUris           []string                   `json:"validRedirectUris"`
-	ValidPostLogoutRedirectUris []string                   `json:"validPostLogoutRedirectUris,omitempty"`
+	ClientType             IdentityProviderClientType `json:"clientType"`
+	ClientID               string                     `json:"clientId"`
+	ClientName             string                     `json:"clientName"`
+	ValidRedirectUris      []string                   `json:"validRedirectUris"`
+	PostLogoutRedirectUris []string                   `json:"postLogoutRedirectUris,omitempty"`
 	// +optional
-	ClientSecretRef       ClientSecretRef `json:"clientSecretRef"`
-	RegistrationClientURI string          `json:"registrationClientURI,omitempty"`
-}
-
-type ClientSecretRef struct {
-	corev1.SecretReference `json:",inline"`
+	SecretRef             corev1.SecretReference `json:"secretRef"`
+	RegistrationClientURI string                 `json:"registrationClientURI,omitempty"`
 }
 
 // IdentityProviderConfigurationSpec defines the desired state of IdentityProviderConfiguration
@@ -36,9 +32,9 @@ type IdentityProviderConfigurationSpec struct {
 
 // ManagedClient tracks a client that is managed by the operator.
 type ManagedClient struct {
-	ClientID              string          `json:"clientId"`
-	RegistrationClientURI string          `json:"registrationClientURI"`
-	SecretRef             ClientSecretRef `json:"secretRef"`
+	ClientID              string                 `json:"clientId"`
+	RegistrationClientURI string                 `json:"registrationClientURI"`
+	SecretRef             corev1.SecretReference `json:"secretRef"`
 }
 
 // IdentityProviderConfigurationStatus defines the observed state of IdentityProviderConfiguration.

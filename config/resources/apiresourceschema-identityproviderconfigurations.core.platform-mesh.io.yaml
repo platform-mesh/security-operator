@@ -2,7 +2,7 @@ apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v251211-9a4fce6.identityproviderconfigurations.core.platform-mesh.io
+  name: v251212-90fe4fc.identityproviderconfigurations.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
@@ -40,11 +40,25 @@ spec:
             clients:
               items:
                 properties:
-                  clientID:
+                  clientId:
                     type: string
                   clientName:
                     type: string
-                  clientSecretRef:
+                  clientType:
+                    enum:
+                    - confidential
+                    - public
+                    type: string
+                  postLogoutRedirectUris:
+                    items:
+                      type: string
+                    type: array
+                  registrationClientURI:
+                    type: string
+                  secretRef:
+                    description: |-
+                      SecretReference represents a Secret Reference. It has enough information to retrieve secret
+                      in any namespace
                     properties:
                       name:
                         description: name is unique within a namespace to reference
@@ -56,23 +70,12 @@ spec:
                         type: string
                     type: object
                     x-kubernetes-map-type: atomic
-                  clientType:
-                    enum:
-                    - confidential
-                    - public
-                    type: string
-                  registrationClientURI:
-                    type: string
-                  validPostLogoutRedirectUris:
-                    items:
-                      type: string
-                    type: array
                   validRedirectUris:
                     items:
                       type: string
                     type: array
                 required:
-                - clientID
+                - clientId
                 - clientName
                 - clientType
                 - validRedirectUris
@@ -145,11 +148,14 @@ spec:
                 description: ManagedClient tracks a client that is managed by the
                   operator.
                 properties:
-                  clientID:
+                  clientId:
                     type: string
                   registrationClientURI:
                     type: string
                   secretRef:
+                    description: |-
+                      SecretReference represents a Secret Reference. It has enough information to retrieve secret
+                      in any namespace
                     properties:
                       name:
                         description: name is unique within a namespace to reference
@@ -162,7 +168,7 @@ spec:
                     type: object
                     x-kubernetes-map-type: atomic
                 required:
-                - clientID
+                - clientId
                 - registrationClientURI
                 - secretRef
                 type: object

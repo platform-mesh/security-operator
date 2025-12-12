@@ -62,10 +62,10 @@ func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.Runtim
 	log := logger.LoadLoggerFromContext(ctx)
 
 	for _, clientToDelete := range idpToDelete.Spec.Clients {
-		registrationAccessToken, err := s.readRegistrationAccessTokenFromSecret(ctx, clientToDelete.ClientSecretRef)
+		registrationAccessToken, err := s.readRegistrationAccessTokenFromSecret(ctx, clientToDelete.SecretRef)
 		if err != nil {
 			if kerrors.IsNotFound(err) {
-				log.Info().Str("secretName", clientToDelete.ClientSecretRef.Name).Msg("Secret not found, client was likely deleted")
+				log.Info().Str("secretName", clientToDelete.SecretRef.Name).Msg("Secret not found, client was likely deleted")
 				continue
 			}
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
@@ -78,8 +78,8 @@ func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.Runtim
 
 		secretToDelete := &corev1.Secret{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      clientToDelete.ClientSecretRef.Name,
-				Namespace: clientToDelete.ClientSecretRef.Namespace,
+				Name:      clientToDelete.SecretRef.Name,
+				Namespace: clientToDelete.SecretRef.Namespace,
 			},
 		}
 		if err := s.orgsClient.Delete(ctx, secretToDelete); err != nil {
@@ -188,7 +188,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 
 		var clientInfo clientInfo
 		if clientID != "" {
-			registrationAccessToken, err := s.readRegistrationAccessTokenFromSecret(ctx, clientConfig.ClientSecretRef)
+			registrationAccessToken, err := s.readRegistrationAccessTokenFromSecret(ctx, clientConfig.SecretRef)
 			if err != nil {
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
 			}
@@ -228,7 +228,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 		managedClients[clientConfig.ClientName] = v1alpha1.ManagedClient{
 			ClientID:              clientInfo.ClientID,
 			RegistrationClientURI: clientInfo.RegistrationClientURI,
-			SecretRef:             clientConfig.ClientSecretRef,
+			SecretRef:             clientConfig.SecretRef,
 		}
 	}
 
@@ -239,7 +239,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	return ctrl.Result{}, nil
 }
 
-func (s *subroutine) readRegistrationAccessTokenFromSecret(ctx context.Context, secretRef v1alpha1.ClientSecretRef) (string, error) {
+func (s *subroutine) readRegistrationAccessTokenFromSecret(ctx context.Context, secretRef corev1.SecretReference) (string, error) {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretRef.Name,
@@ -257,8 +257,8 @@ func (s *subroutine) readRegistrationAccessTokenFromSecret(ctx context.Context, 
 func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig v1alpha1.IdentityProviderClientConfig, clientInfo clientInfo, idpName string) error {
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      clientConfig.ClientSecretRef.Name,
-			Namespace: clientConfig.ClientSecretRef.Namespace,
+			Name:      clientConfig.SecretRef.Name,
+			Namespace: clientConfig.SecretRef.Namespace,
 			Labels: map[string]string{
 				"core.platform-mesh.io/idp-name":    idpName,
 				"core.platform-mesh.io/client-name": clientConfig.ClientName,

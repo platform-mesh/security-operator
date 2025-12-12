@@ -125,11 +125,9 @@ func TestSubroutineProcess(t *testing.T) {
 							ClientName:        "test-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 							ValidRedirectUris: []string{"https://test.example.com/*"},
-							ClientSecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-test-realm",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
 							},
 						},
 					},
@@ -185,11 +183,9 @@ func TestSubroutineProcess(t *testing.T) {
 							ClientName:        "existing-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 							ValidRedirectUris: []string{"https://test.example.com/*"},
-							ClientSecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-existing-realm",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-existing-realm",
+								Namespace: "default",
 							},
 						},
 					},
@@ -248,11 +244,9 @@ func TestSubroutineProcess(t *testing.T) {
 							ClientName:        "test-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 							ValidRedirectUris: []string{"https://test.example.com/*"},
-							ClientSecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-test-realm",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
 							},
 						},
 					},
@@ -262,11 +256,9 @@ func TestSubroutineProcess(t *testing.T) {
 						"test-realm": {
 							ClientID:              "existing-client-id",
 							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/existing-client-id",
-							SecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-test-realm",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
 							},
 						},
 					},
@@ -333,11 +325,9 @@ func TestSubroutineProcess(t *testing.T) {
 							ClientName:        "test-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 							ValidRedirectUris: []string{"https://test.example.com/*"},
-							ClientSecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-test-realm",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
 							},
 						},
 					},
@@ -347,11 +337,9 @@ func TestSubroutineProcess(t *testing.T) {
 						"test-realm": {
 							ClientID:              "existing-client-id",
 							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/existing-client-id",
-							SecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-test-realm",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
 							},
 						},
 					},
@@ -429,11 +417,9 @@ func TestSubroutineProcess(t *testing.T) {
 							ClientName:        "new-client",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 							ValidRedirectUris: []string{"https://test.example.com/*"},
-							ClientSecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-new-client",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-new-client",
+								Namespace: "default",
 							},
 						},
 					},
@@ -443,11 +429,9 @@ func TestSubroutineProcess(t *testing.T) {
 						"old-client": {
 							ClientID:              "old-client-id",
 							RegistrationClientURI: "",
-							SecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-old-client",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-old-client",
+								Namespace: "default",
 							},
 						},
 					},
@@ -526,11 +510,9 @@ func TestSubroutineProcess(t *testing.T) {
 						"old-client": {
 							ClientID:              "old-client-id",
 							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/old-client-id",
-							SecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-old-client",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-old-client",
+								Namespace: "default",
 							},
 						},
 					},
@@ -566,11 +548,9 @@ func TestSubroutineProcess(t *testing.T) {
 							ClientName:        "error-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 							ValidRedirectUris: []string{"https://test.example.com/*"},
-							ClientSecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-error-realm",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-error-realm",
+								Namespace: "default",
 							},
 						},
 					},
@@ -604,11 +584,9 @@ func TestSubroutineProcess(t *testing.T) {
 							ClientName:        "test-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 							ValidRedirectUris: []string{"https://test.example.com/*"},
-							ClientSecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-test-realm",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
 							},
 						},
 					},
@@ -644,11 +622,9 @@ func TestSubroutineProcess(t *testing.T) {
 							ClientName:        "test-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 							ValidRedirectUris: []string{"https://test.example.com/*"},
-							ClientSecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-test-realm",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
 							},
 						},
 					},
@@ -688,9 +664,7 @@ func TestSubroutineProcess(t *testing.T) {
 						ClientName:        "conflict-realm",
 						ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 						ValidRedirectUris: []string{"https://test.example.com/*"},
-						ClientSecretRef: v1alpha1.ClientSecretRef{
-							SecretReference: corev1.SecretReference{Name: "portal-client-secret-conflict-realm", Namespace: "default"},
-						},
+						SecretRef:         corev1.SecretReference{Name: "portal-client-secret-conflict-realm", Namespace: "default"},
 					}},
 				},
 			},
@@ -714,11 +688,9 @@ func TestSubroutineProcess(t *testing.T) {
 							ClientName:        "test-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 							ValidRedirectUris: []string{"https://test.example.com/*"},
-							ClientSecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-test-realm",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
 							},
 						},
 					},
@@ -762,11 +734,9 @@ func TestSubroutineProcess(t *testing.T) {
 							ClientName:        "test-realm",
 							ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 							ValidRedirectUris: []string{"https://test.example.com/*"},
-							ClientSecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-test-realm",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
 							},
 						},
 					},
@@ -811,9 +781,7 @@ func TestSubroutineProcess(t *testing.T) {
 						ClientName:        "test-realm",
 						ClientType:        v1alpha1.IdentityProviderClientTypeConfidential,
 						ValidRedirectUris: []string{"https://test.example.com/*"},
-						ClientSecretRef: v1alpha1.ClientSecretRef{
-							SecretReference: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
-						},
+						SecretRef:         corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
 					}},
 				},
 			},
@@ -871,7 +839,7 @@ func TestSubroutineProcess(t *testing.T) {
 					Clients: []v1alpha1.IdentityProviderClientConfig{{
 						ClientName: "test-realm", ClientType: v1alpha1.IdentityProviderClientTypeConfidential,
 						ValidRedirectUris: []string{"https://test.example.com/*"},
-						ClientSecretRef:   v1alpha1.ClientSecretRef{SecretReference: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"}},
+						SecretRef:         corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
 					}},
 				},
 			},
@@ -917,7 +885,7 @@ func TestSubroutineProcess(t *testing.T) {
 					Clients: []v1alpha1.IdentityProviderClientConfig{{
 						ClientName: "test-realm", ClientType: v1alpha1.IdentityProviderClientTypeConfidential,
 						ValidRedirectUris: []string{"https://test.example.com/*"},
-						ClientSecretRef:   v1alpha1.ClientSecretRef{SecretReference: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"}},
+						SecretRef:         corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
 					}},
 				},
 			},
@@ -1034,11 +1002,9 @@ func TestFinalize(t *testing.T) {
 						{
 							ClientName: "test-realm",
 							ClientID:   "client-id-123",
-							ClientSecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-test-realm",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
 							},
 						},
 					},
@@ -1084,7 +1050,7 @@ func TestFinalize(t *testing.T) {
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
 					Clients: []v1alpha1.IdentityProviderClientConfig{{
 						ClientName: "test-realm", ClientID: "client-id-123",
-						ClientSecretRef: v1alpha1.ClientSecretRef{SecretReference: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"}},
+						SecretRef: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
 					}},
 				},
 			},
@@ -1104,7 +1070,7 @@ func TestFinalize(t *testing.T) {
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
 					Clients: []v1alpha1.IdentityProviderClientConfig{{
 						ClientName: "test-realm", ClientID: "client-id-123",
-						ClientSecretRef: v1alpha1.ClientSecretRef{SecretReference: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"}},
+						SecretRef: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
 					}},
 				},
 			},
@@ -1134,11 +1100,9 @@ func TestFinalize(t *testing.T) {
 						{
 							ClientName: "test-realm",
 							ClientID:   "client-id-123",
-							ClientSecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-test-realm",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
 							},
 						},
 					},
@@ -1186,11 +1150,9 @@ func TestFinalize(t *testing.T) {
 						{
 							ClientName: "test-realm",
 							ClientID:   "client-id-123",
-							ClientSecretRef: v1alpha1.ClientSecretRef{
-								SecretReference: corev1.SecretReference{
-									Name:      "portal-client-secret-test-realm",
-									Namespace: "default",
-								},
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
 							},
 						},
 					},

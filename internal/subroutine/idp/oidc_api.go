@@ -32,7 +32,7 @@ func (s *subroutine) registerClient(ctx context.Context, clientConfig v1alpha1.I
 		ClientName:             clientConfig.ClientName,
 		RedirectUris:           clientConfig.ValidRedirectUris,
 		GrantTypes:             []string{"authorization_code", "refresh_token"},
-		PostLogoutRedirectUris: clientConfig.ValidPostLogoutRedirectUris,
+		PostLogoutRedirectUris: clientConfig.PostLogoutRedirectUris,
 	}
 
 	payload.TokenEndpointAuthMethod = "client_secret_basic"
@@ -118,7 +118,7 @@ func (s *subroutine) updateClient(ctx context.Context, clientConfig v1alpha1.Ide
 		RedirectUris:            clientConfig.ValidRedirectUris,
 		GrantTypes:              []string{"authorization_code", "refresh_token"},
 		TokenEndpointAuthMethod: "client_secret_basic",
-		PostLogoutRedirectUris:  clientConfig.ValidPostLogoutRedirectUris,
+		PostLogoutRedirectUris:  clientConfig.PostLogoutRedirectUris,
 	}
 
 	if clientConfig.ClientType == v1alpha1.IdentityProviderClientTypePublic {
