@@ -84,7 +84,9 @@ func (s *subroutine) executeUpdateRequest(ctx context.Context, registrationClien
 		return clientInfo{}, 0, fmt.Errorf("failed to build request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	if token != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	}
 
 	res, err := s.oidc.Do(req)
 	if err != nil { // coverage-ignore
