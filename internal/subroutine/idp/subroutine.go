@@ -71,7 +71,7 @@ func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.Runtim
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
 		}
 
-		err = s.deleteClient(ctx, clientToDelete.RegistrationClientURI, registrationAccessToken)
+		err = s.deleteClient(ctx, idpToDelete.Name, clientToDelete.ClientID, clientToDelete.RegistrationClientURI, registrationAccessToken)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete oidc client %w", err), true, false)
 		}
@@ -162,7 +162,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 				}
 			}
 
-			if err := s.deleteClient(ctx, managedClient.RegistrationClientURI, registrationAccessToken); err != nil {
+			if err := s.deleteClient(ctx, realmName, managedClient.ClientID, managedClient.RegistrationClientURI, registrationAccessToken); err != nil {
 				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete client %s: %w", clientName, err), true, false)
 			}
 

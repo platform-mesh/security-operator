@@ -152,7 +152,7 @@ func (s *subroutine) updateClient(ctx context.Context, clientConfig v1alpha1.Ide
 	return clientInfo{}, err
 }
 
-func (s *subroutine) deleteClient(ctx context.Context, registrationClientURI string, registrationAccessToken string) error {
+func (s *subroutine) deleteClient(ctx context.Context, realmName, clientID, registrationClientURI, registrationAccessToken string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, registrationClientURI, nil)
 	if err != nil { // coverage-ignore
 		return fmt.Errorf("failed to build delete request: %w", err)
@@ -165,8 +165,27 @@ func (s *subroutine) deleteClient(ctx context.Context, registrationClientURI str
 	}
 	defer res.Body.Close() //nolint:errcheck
 
-	if res.StatusCode != http.StatusNoContent && res.StatusCode != http.StatusOK {
+	if res.StatusCode != http.StatusNoContent && res.StatusCode != http.StatusUnauthorized {
 		return fmt.Errorf("client delete failed with status %d", res.StatusCode)
+	}
+
+	if res.StatusCode == http.StatusUnauthorized {
+		newToken, err := s.regenerateRegistrationAccessToken(ctx, realmName, clientID)
+		if err != nil {
+			return fmt.Errorf("failed to regenerate token after 401: %w", err)
+		}
+
+		req, err := http.NewRequestWithContext(ctx, http.MethodDelete, registrationClientURI, nil)
+		if err != nil { // coverage-ignore
+			return fmt.Errorf("failed to build retry delete request: %w", err)
+		}
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", newToken))
+
+		res, err = s.oidc.Do(req)
+		if err != nil { // coverage-ignore
+			return fmt.Errorf("client delete retry call failed: %w", err)
+		}
+		defer res.Body.Close() //nolint:errcheck
 	}
 
 	return nil
