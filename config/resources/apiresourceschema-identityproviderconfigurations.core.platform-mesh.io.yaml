@@ -2,7 +2,7 @@ apiVersion: apis.kcp.io/v1alpha1
 kind: APIResourceSchema
 metadata:
   creationTimestamp: null
-  name: v251215-015b986.identityproviderconfigurations.core.platform-mesh.io
+  name: v251215-8997bd4.identityproviderconfigurations.core.platform-mesh.io
 spec:
   group: core.platform-mesh.io
   names:
@@ -150,7 +150,7 @@ spec:
                 properties:
                   clientId:
                     type: string
-                  registrationClientURI:
+                  registrationClientUri:
                     type: string
                   secretRef:
                     description: |-
@@ -169,7 +169,7 @@ spec:
                     x-kubernetes-map-type: atomic
                 required:
                 - clientId
-                - registrationClientURI
+                - registrationClientUri
                 - secretRef
                 type: object
               type: object

@@ -153,7 +153,7 @@ spec:
                   properties:
                     clientId:
                       type: string
-                    registrationClientURI:
+                    registrationClientUri:
                       type: string
                     secretRef:
                       description: |-
@@ -172,7 +172,7 @@ spec:
                       x-kubernetes-map-type: atomic
                   required:
                   - clientId
-                  - registrationClientURI
+                  - registrationClientUri
                   - secretRef
                   type: object
                 type: object
