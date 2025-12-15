@@ -18,11 +18,11 @@ type IdentityProviderClientConfig struct {
 	ClientType             IdentityProviderClientType `json:"clientType"`
 	ClientID               string                     `json:"clientId"`
 	ClientName             string                     `json:"clientName"`
-	ValidRedirectUris      []string                   `json:"validRedirectUris"`
-	PostLogoutRedirectUris []string                   `json:"postLogoutRedirectUris,omitempty"`
+	RedirectURIs           []string                   `json:"redirectUris"`
+	PostLogoutRedirectURIs []string                   `json:"postLogoutRedirectUris,omitempty"`
 	// +optional
 	SecretRef             corev1.SecretReference `json:"secretRef"`
-	RegistrationClientURI string                 `json:"registrationClientURI,omitempty"`
+	RegistrationClientURI string                 `json:"registrationClientUri,omitempty"`
 }
 
 // IdentityProviderConfigurationSpec defines the desired state of IdentityProviderConfiguration

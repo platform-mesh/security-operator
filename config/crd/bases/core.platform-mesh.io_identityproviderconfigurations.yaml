@@ -56,7 +56,11 @@ spec:
                       items:
                         type: string
                       type: array
-                    registrationClientURI:
+                    redirectUris:
+                      items:
+                        type: string
+                      type: array
+                    registrationClientUri:
                       type: string
                     secretRef:
                       description: |-
@@ -73,15 +77,11 @@ spec:
                           type: string
                       type: object
                       x-kubernetes-map-type: atomic
-                    validRedirectUris:
-                      items:
-                        type: string
-                      type: array
                   required:
                   - clientId
                   - clientName
                   - clientType
-                  - validRedirectUris
+                  - redirectUris
                   type: object
                 type: array
             required:
