@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"slices"
+	"time"
 
 	"github.com/coreos/go-oidc"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
@@ -46,10 +47,14 @@ func New(ctx context.Context, cfg *config.Config, orgsClient client.Client, mgr 
 
 	httpClient := cCfg.Client(ctx)
 
+	oidcClient := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
 	return &subroutine{
 		keycloakBaseURL: cfg.Invite.KeycloakBaseURL,
 		keycloak:        httpClient,
-		oidc:            &http.Client{},
+		oidc:            oidcClient,
 		orgsClient:      orgsClient,
 		mgr:             mgr,
 		cfg:             cfg,
