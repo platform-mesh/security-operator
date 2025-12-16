@@ -183,7 +183,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 
 		clientID, err := s.getClientID(ctx, realmName, clientConfig.ClientName)
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get client id from keycloak: %w", err), true, true)
 		}
 
 		var clientInfo clientInfo
