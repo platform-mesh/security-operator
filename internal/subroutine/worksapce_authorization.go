@@ -20,14 +20,14 @@ import (
 )
 
 type workspaceAuthSubroutine struct {
-	client        client.Client
+	orgClient     client.Client
 	runtimeClient client.Client
 	cfg           config.Config
 }
 
-func NewWorkspaceAuthConfigurationSubroutine(client, runtimeClient client.Client, cfg config.Config) *workspaceAuthSubroutine {
+func NewWorkspaceAuthConfigurationSubroutine(orgClient, runtimeClient client.Client, cfg config.Config) *workspaceAuthSubroutine {
 	return &workspaceAuthSubroutine{
-		client:        client,
+		orgClient:     orgClient,
 		runtimeClient: runtimeClient,
 		cfg:           cfg,
 	}
@@ -62,7 +62,7 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 	}
 
 	obj := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.client, obj, func() error {
+	_, err := controllerutil.CreateOrUpdate(ctx, r.orgClient, obj, func() error {
 		obj.Spec = kcptenancyv1alphav1.WorkspaceAuthenticationConfigurationSpec{
 			JWT: []kcptenancyv1alphav1.JWTAuthenticator{
 				{
@@ -95,5 +95,30 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err), true, true)
 	}
 
+	err = r.patchWorkspaceType(ctx, r.orgClient, fmt.Sprintf("%s-org", workspaceName), workspaceName)
+	if err != nil {
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create patch workspace type resource: %w", err), true, true)
+	}
+
+	err = r.patchWorkspaceType(ctx, r.orgClient, fmt.Sprintf("%s-acc", workspaceName), workspaceName)
+	if err != nil {
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create patch workspace type resource: %w", err), true, true)
+	}
+
 	return ctrl.Result{}, nil
+}
+
+func (r *workspaceAuthSubroutine) patchWorkspaceType(ctx context.Context, client client.Client, workspaceTypeName, authConfigurationRefName string) error {
+	wsType := kcptenancyv1alphav1.WorkspaceType{
+		ObjectMeta: metav1.ObjectMeta{Name: workspaceTypeName},
+	}
+	_, err := controllerutil.CreateOrUpdate(ctx, client, &wsType, func() error {
+		wsType.Spec.AuthenticationConfigurations = []kcptenancyv1alphav1.AuthenticationConfigurationReference{{Name: authConfigurationRefName}}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
