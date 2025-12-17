@@ -1,0 +1,299 @@
+package subroutine
+
+import (
+	"context"
+	"testing"
+
+	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	"github.com/platform-mesh/golang-commons/logger/testlogger"
+	secopv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+)
+
+func TestNewIDPSubroutine(t *testing.T) {
+	orgsClient := mocks.NewMockClient(t)
+	mgr := mocks.NewMockManager(t)
+	cfg := &config.Config{
+		BaseDomain: "example.com",
+		IDP: struct {
+			SMTPServer           string   `mapstructure:"idp-smtp-server"`
+			SMTPPort             int      `mapstructure:"idp-smtp-port"`
+			FromAddress          string   `mapstructure:"idp-from-address"`
+			SSL                  bool     `mapstructure:"idp-smtp-ssl" default:"false"`
+			StartTLS             bool     `mapstructure:"idp-smtp-starttls" default:"false"`
+			SMTPUser             string   `mapstructure:"idp-smtp-user"`
+			SMTPPassword         string   `mapstructure:"idp-smtp-password"`
+			AdditionalRedirectURLs []string `mapstructure:"idp-additional-redirect-urls"`
+		}{
+			AdditionalRedirectURLs: []string{"https://example.com/callback"},
+		},
+	}
+	baseDomain := "example.com"
+
+	subroutine := NewIDPSubroutine(orgsClient, mgr, cfg, baseDomain)
+
+	assert.NotNil(t, subroutine)
+	assert.Equal(t, orgsClient, subroutine.orgsClient)
+	assert.Equal(t, mgr, subroutine.mgr)
+	assert.Equal(t, cfg, subroutine.cfg)
+	assert.Equal(t, baseDomain, subroutine.baseDomain)
+}
+
+func TestIDPSubroutine_GetName(t *testing.T) {
+	orgsClient := mocks.NewMockClient(t)
+	mgr := mocks.NewMockManager(t)
+	cfg := &config.Config{}
+	subroutine := NewIDPSubroutine(orgsClient, mgr, cfg, "example.com")
+
+	name := subroutine.GetName()
+	assert.Equal(t, "IDPSubroutine", name)
+}
+
+func TestIDPSubroutine_Finalizers(t *testing.T) {
+	orgsClient := mocks.NewMockClient(t)
+	mgr := mocks.NewMockManager(t)
+	cfg := &config.Config{}
+	subroutine := NewIDPSubroutine(orgsClient, mgr, cfg, "example.com")
+
+	finalizers := subroutine.Finalizers(nil)
+	assert.Nil(t, finalizers)
+}
+
+func TestIDPSubroutine_Finalize(t *testing.T) {
+	orgsClient := mocks.NewMockClient(t)
+	mgr := mocks.NewMockManager(t)
+	cfg := &config.Config{}
+	subroutine := NewIDPSubroutine(orgsClient, mgr, cfg, "example.com")
+
+	ctx := context.Background()
+	instance := &kcpv1alpha1.LogicalCluster{}
+
+	result, opErr := subroutine.Finalize(ctx, instance)
+
+	assert.Nil(t, opErr)
+	assert.Equal(t, ctrl.Result{}, result)
+}
+
+func TestIDPSubroutine_Process(t *testing.T) {
+	tests := []struct {
+		name           string
+		setupMocks     func(*mocks.MockClient, *mocks.MockManager, *mocks.MockCluster, *config.Config)
+		lc             *kcpv1alpha1.LogicalCluster
+		expectedErr    bool
+		expectedResult ctrl.Result
+	}{
+		{
+			name: "Empty workspace name - early return",
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, cfg *config.Config) {},
+			lc: &kcpv1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{},
+				},
+			},
+			expectedErr:    true,
+			expectedResult: ctrl.Result{},
+		},
+		{
+			name: "ClusterFromContext error",
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, cfg *config.Config) {
+				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError).Once()
+			},
+			lc: &kcpv1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kcp.io/path": "root:orgs:test",
+					},
+				},
+			},
+			expectedErr:    true,
+			expectedResult: ctrl.Result{},
+		},
+		{
+			name: "Account Get error",
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, cfg *config.Config) {
+				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
+				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test"}, mock.AnythingOfType("*v1alpha1.Account")).
+					Return(assert.AnError).Once()
+			},
+			lc: &kcpv1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kcp.io/path": "root:orgs:test",
+					},
+				},
+			},
+			expectedErr:    true,
+			expectedResult: ctrl.Result{},
+		},
+		{
+			name: "Account not of type organization - skip idp creation",
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, cfg *config.Config) {
+				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
+				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test"}, mock.AnythingOfType("*v1alpha1.Account")).
+					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
+						acc := obj.(*accountv1alpha1.Account)
+						acc.Spec.Type = accountv1alpha1.AccountTypeAccount // Not organization type
+						return nil
+					}).Once()
+			},
+			lc: &kcpv1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kcp.io/path": "root:orgs:test",
+					},
+				},
+			},
+			expectedErr:    false,
+			expectedResult: ctrl.Result{},
+		},
+		{
+			name: "CreateOrUpdate and Ready",
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, cfg *config.Config) {
+				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
+				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Account")).
+					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
+						acc := obj.(*accountv1alpha1.Account)
+						acc.Spec.Type = accountv1alpha1.AccountTypeOrg
+						return nil
+					}).Once()
+				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
+				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
+					Return(apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "identityproviderconfigurations"}, "acme")).Once()
+				orgsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
+					RunAndReturn(func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
+						idp := obj.(*secopv1alpha1.IdentityProviderConfiguration)
+						idp.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
+						return nil
+					}).Once()
+				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
+					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
+						idp := obj.(*secopv1alpha1.IdentityProviderConfiguration)
+						idp.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
+						return nil
+					}).Once()
+			},
+			lc: &kcpv1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kcp.io/path": "root:orgs:acme",
+					},
+				},
+			},
+			expectedErr:    false,
+			expectedResult: ctrl.Result{},
+		},
+		{
+			name: "CreateOrUpdate NotReady",
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, cfg *config.Config) {
+				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
+				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Account")).
+					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
+						acc := obj.(*accountv1alpha1.Account)
+						acc.Spec.Type = accountv1alpha1.AccountTypeOrg
+						return nil
+					}).Once()
+				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
+				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
+					Return(apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "identityproviderconfigurations"}, "beta")).Once()
+				orgsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
+					RunAndReturn(func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
+						idp := obj.(*secopv1alpha1.IdentityProviderConfiguration)
+						idp.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse}}
+						return nil
+					}).Once()
+				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
+					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
+						idp := obj.(*secopv1alpha1.IdentityProviderConfiguration)
+						idp.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse}}
+						return nil
+					}).Once()
+			},
+			lc: &kcpv1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kcp.io/path": "root:orgs:beta",
+					},
+				},
+			},
+			expectedErr:    true,
+			expectedResult: ctrl.Result{},
+		},
+		{
+			name: "Get IDP resource error",
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, cfg *config.Config) {
+				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
+				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "gamma"}, mock.AnythingOfType("*v1alpha1.Account")).
+					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
+						acc := obj.(*accountv1alpha1.Account)
+						acc.Spec.Type = accountv1alpha1.AccountTypeOrg
+						return nil
+					}).Once()
+				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
+				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "gamma"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
+					Return(apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "identityproviderconfigurations"}, "gamma")).Once()
+				orgsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
+					Return(nil).Once()
+				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "gamma"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
+					Return(assert.AnError).Once()
+			},
+			lc: &kcpv1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kcp.io/path": "root:orgs:gamma",
+					},
+				},
+			},
+			expectedErr:    true,
+			expectedResult: ctrl.Result{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			orgsClient := mocks.NewMockClient(t)
+			mgr := mocks.NewMockManager(t)
+			cluster := mocks.NewMockCluster(t)
+			cfg := &config.Config{
+				BaseDomain: "example.com",
+				IDP: struct {
+					SMTPServer           string   `mapstructure:"idp-smtp-server"`
+					SMTPPort             int      `mapstructure:"idp-smtp-port"`
+					FromAddress          string   `mapstructure:"idp-from-address"`
+					SSL                  bool     `mapstructure:"idp-smtp-ssl" default:"false"`
+					StartTLS             bool     `mapstructure:"idp-smtp-starttls" default:"false"`
+					SMTPUser             string   `mapstructure:"idp-smtp-user"`
+					SMTPPassword         string   `mapstructure:"idp-smtp-password"`
+					AdditionalRedirectURLs []string `mapstructure:"idp-additional-redirect-urls"`
+				}{
+					AdditionalRedirectURLs: []string{},
+				},
+			}
+			subroutine := NewIDPSubroutine(orgsClient, mgr, cfg, "example.com")
+
+			tt.setupMocks(orgsClient, mgr, cluster, cfg)
+
+			l := testlogger.New()
+			ctx := l.WithContext(context.Background())
+
+			result, opErr := subroutine.Process(ctx, tt.lc)
+
+			if tt.expectedErr {
+				assert.NotNil(t, opErr)
+			} else {
+				assert.Nil(t, opErr)
+			}
+			assert.Equal(t, tt.expectedResult, result)
+		})
+	}
+}
+
