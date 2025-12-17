@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 
 	"github.com/coreos/go-oidc"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
@@ -251,10 +252,13 @@ func (s *subroutine) getClientID(ctx context.Context, cl client.Client, clientNa
 		return "", err
 	}
 
-	for _, v := range idp.Spec.Clients {
-		if v.ClientName == clientName {
-			return v.ClientID, nil
-		}
+	clientIdx := slices.IndexFunc(idp.Spec.Clients, func(c v1alpha1.IdentityProviderClientConfig) bool {
+		return c.ClientName == clientName
+	})
+	
+	if clientIdx == -1 {
+		return "", fmt.Errorf("client %s not found", clientName)
 	}
-	return "", fmt.Errorf("client %s not found",clientName)
+
+	return idp.Spec.Clients[clientIdx].ClientID, nil
 }
