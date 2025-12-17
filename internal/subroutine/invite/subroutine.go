@@ -144,7 +144,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 
 	clientID, err := s.getClientID(ctx, cl, realm)
 	if err != nil {
-		log.Err(err).Msg(fmt.Sprintf("failed to get client ID for client %s",realm))
+		log.Err(err).Msg("failed to get client ID")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 	}
 
@@ -256,5 +256,5 @@ func (s *subroutine) getClientID(ctx context.Context, cl client.Client, clientNa
 			return v.ClientID, nil
 		}
 	}
-	return "", fmt.Errorf("client not found")
+	return "", fmt.Errorf("client %s not found",clientName)
 }

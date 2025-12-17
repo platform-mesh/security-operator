@@ -3,6 +3,7 @@ package subroutine
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
@@ -91,19 +92,18 @@ func (w *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 
 	idp := &v1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
 	_, err = controllerutil.CreateOrUpdate(ctx, cl.GetClient(), idp, func() error {
-		for i := range idp.Spec.Clients {
-			if idp.Spec.Clients[i].ClientName == clientConfig.ClientName {
-				idp.Spec.Clients[i].RedirectURIs = clientConfig.RedirectURIs
-				idp.Spec.Clients[i].ClientType = clientConfig.ClientType
-				idp.Spec.Clients[i].SecretRef = clientConfig.SecretRef
-				idp.Spec.Clients[i].PostLogoutRedirectURIs = clientConfig.PostLogoutRedirectURIs
-
-				return nil
-			}
+		clientIdx := slices.IndexFunc(idp.Spec.Clients, func(c v1alpha1.IdentityProviderClientConfig) bool {
+			return c.ClientName == clientConfig.ClientName
+		})
+		if clientIdx != -1 {
+			idp.Spec.Clients[clientIdx].RedirectURIs = clientConfig.RedirectURIs
+			idp.Spec.Clients[clientIdx].ClientType = clientConfig.ClientType
+			idp.Spec.Clients[clientIdx].SecretRef = clientConfig.SecretRef
+			idp.Spec.Clients[clientIdx].PostLogoutRedirectURIs = clientConfig.PostLogoutRedirectURIs
+			return nil
 		}
 
-		idp.Spec.Clients = []v1alpha1.IdentityProviderClientConfig{clientConfig}
-
+		idp.Spec.Clients = append(idp.Spec.Clients, clientConfig)
 		return nil
 	})
 	if err != nil {
