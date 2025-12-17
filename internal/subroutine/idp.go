@@ -83,7 +83,7 @@ func (w *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 		ClientName:             workspaceName,
 		ClientType:             v1alpha1.IdentityProviderClientTypeConfidential,
 		RedirectURIs:           append(w.cfg.IDP.AdditionalRedirectURLs, fmt.Sprintf("https://%s.%s/*", workspaceName, w.baseDomain)),
-		PostLogoutRedirectURIs: []string{fmt.Sprintf("http://%s.%s/logout*", workspaceName, w.baseDomain)},
+		PostLogoutRedirectURIs: []string{fmt.Sprintf("https://%s.%s/logout*", workspaceName, w.baseDomain)},
 		SecretRef: corev1.SecretReference{
 			Name:      fmt.Sprintf("portal-client-secret-%s-%s", workspaceName, workspaceName),
 			Namespace: "default",
