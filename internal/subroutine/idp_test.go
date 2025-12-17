@@ -23,21 +23,8 @@ import (
 func TestNewIDPSubroutine(t *testing.T) {
 	orgsClient := mocks.NewMockClient(t)
 	mgr := mocks.NewMockManager(t)
-	cfg := &config.Config{
-		BaseDomain: "example.com",
-		IDP: struct {
-			SMTPServer           string   `mapstructure:"idp-smtp-server"`
-			SMTPPort             int      `mapstructure:"idp-smtp-port"`
-			FromAddress          string   `mapstructure:"idp-from-address"`
-			SSL                  bool     `mapstructure:"idp-smtp-ssl" default:"false"`
-			StartTLS             bool     `mapstructure:"idp-smtp-starttls" default:"false"`
-			SMTPUser             string   `mapstructure:"idp-smtp-user"`
-			SMTPPassword         string   `mapstructure:"idp-smtp-password"`
-			AdditionalRedirectURLs []string `mapstructure:"idp-additional-redirect-urls"`
-		}{
-			AdditionalRedirectURLs: []string{"https://example.com/callback"},
-		},
-	}
+	cfg := &config.Config{}
+	cfg.IDP.AdditionalRedirectURLs = []string{"https://example.com/callback"}
 	baseDomain := "example.com"
 
 	subroutine := NewIDPSubroutine(orgsClient, mgr, cfg, baseDomain)
@@ -94,7 +81,8 @@ func TestIDPSubroutine_Process(t *testing.T) {
 	}{
 		{
 			name: "Empty workspace name - early return",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, cfg *config.Config) {},
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, cfg *config.Config) {
+			},
 			lc: &kcpv1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{},
@@ -263,21 +251,8 @@ func TestIDPSubroutine_Process(t *testing.T) {
 			orgsClient := mocks.NewMockClient(t)
 			mgr := mocks.NewMockManager(t)
 			cluster := mocks.NewMockCluster(t)
-			cfg := &config.Config{
-				BaseDomain: "example.com",
-				IDP: struct {
-					SMTPServer           string   `mapstructure:"idp-smtp-server"`
-					SMTPPort             int      `mapstructure:"idp-smtp-port"`
-					FromAddress          string   `mapstructure:"idp-from-address"`
-					SSL                  bool     `mapstructure:"idp-smtp-ssl" default:"false"`
-					StartTLS             bool     `mapstructure:"idp-smtp-starttls" default:"false"`
-					SMTPUser             string   `mapstructure:"idp-smtp-user"`
-					SMTPPassword         string   `mapstructure:"idp-smtp-password"`
-					AdditionalRedirectURLs []string `mapstructure:"idp-additional-redirect-urls"`
-				}{
-					AdditionalRedirectURLs: []string{},
-				},
-			}
+			cfg := &config.Config{}
+			cfg.IDP.AdditionalRedirectURLs = []string{}
 			subroutine := NewIDPSubroutine(orgsClient, mgr, cfg, "example.com")
 
 			tt.setupMocks(orgsClient, mgr, cluster, cfg)
@@ -296,4 +271,3 @@ func TestIDPSubroutine_Process(t *testing.T) {
 		})
 	}
 }
-
