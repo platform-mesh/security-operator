@@ -3,6 +3,7 @@ package subroutine
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
@@ -120,4 +121,12 @@ func (w *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 
 	log.Info().Str("workspace", workspaceName).Msg("idp resource is ready")
 	return ctrl.Result{}, nil
+}
+
+func getWorkspaceName(lc *kcpv1alpha1.LogicalCluster) string {
+	if path, ok := lc.Annotations["kcp.io/path"]; ok {
+		pathElements := strings.Split(path, ":")
+		return pathElements[len(pathElements)-1]
+	}
+	return ""
 }
