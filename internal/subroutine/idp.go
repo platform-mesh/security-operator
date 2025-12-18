@@ -27,22 +27,22 @@ import (
 	"github.com/platform-mesh/security-operator/internal/config"
 )
 
-func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg *config.Config, baseDomain string) *IDPSubroutine {
+func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg config.Config) *IDPSubroutine {
 	return &IDPSubroutine{
-		orgsClient: orgsClient,
-		mgr:        mgr,
-		cfg:        cfg,
-		baseDomain: baseDomain,
+		orgsClient:             orgsClient,
+		mgr:                    mgr,
+		additionalRedirectURLs: cfg.IDP.AdditionalRedirectURLs,
+		baseDomain:             cfg.BaseDomain,
 	}
 }
 
 var _ lifecyclesubroutine.Subroutine = &IDPSubroutine{}
 
 type IDPSubroutine struct {
-	orgsClient client.Client
-	mgr        mcmanager.Manager
-	cfg        *config.Config
-	baseDomain string
+	orgsClient             client.Client
+	mgr                    mcmanager.Manager
+	additionalRedirectURLs []string
+	baseDomain             string
 }
 
 func (w *IDPSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
@@ -82,7 +82,7 @@ func (w *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 	clientConfig := v1alpha1.IdentityProviderClientConfig{
 		ClientName:             workspaceName,
 		ClientType:             v1alpha1.IdentityProviderClientTypeConfidential,
-		RedirectURIs:           append(w.cfg.IDP.AdditionalRedirectURLs, fmt.Sprintf("https://%s.%s/*", workspaceName, w.baseDomain)),
+		RedirectURIs:           append(w.additionalRedirectURLs, fmt.Sprintf("https://%s.%s/*", workspaceName, w.baseDomain)),
 		PostLogoutRedirectURIs: []string{fmt.Sprintf("https://%s.%s/logout*", workspaceName, w.baseDomain)},
 		SecretRef: corev1.SecretReference{
 			Name:      fmt.Sprintf("portal-client-secret-%s-%s", workspaceName, workspaceName),

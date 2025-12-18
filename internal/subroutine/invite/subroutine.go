@@ -255,7 +255,7 @@ func (s *subroutine) getClientID(ctx context.Context, cl client.Client, clientNa
 	clientIdx := slices.IndexFunc(idp.Spec.Clients, func(c v1alpha1.IdentityProviderClientConfig) bool {
 		return c.ClientName == clientName
 	})
-	
+
 	if clientIdx == -1 {
 		return "", fmt.Errorf("client %s not found", clientName)
 	}
