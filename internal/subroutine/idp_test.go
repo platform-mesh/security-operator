@@ -163,6 +163,10 @@ func TestIDPSubroutine_Process(t *testing.T) {
 				orgsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
 					RunAndReturn(func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
 						idp := obj.(*secopv1alpha1.IdentityProviderConfiguration)
+						assert.Len(t, idp.Spec.Clients, 1)
+						assert.Equal(t, "acme", idp.Spec.Clients[0].ClientName)
+						assert.Equal(t, "portal-client-secret-acme-acme", idp.Spec.Clients[0].SecretRef.Name)
+						assert.Equal(t, "default", idp.Spec.Clients[0].SecretRef.Namespace)
 						idp.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
 						return nil
 					}).Once()
@@ -199,6 +203,10 @@ func TestIDPSubroutine_Process(t *testing.T) {
 				orgsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
 					RunAndReturn(func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
 						idp := obj.(*secopv1alpha1.IdentityProviderConfiguration)
+						assert.Len(t, idp.Spec.Clients, 1)
+						assert.Equal(t, "beta", idp.Spec.Clients[0].ClientName)
+						assert.Equal(t, "portal-client-secret-beta-beta", idp.Spec.Clients[0].SecretRef.Name)
+						assert.Equal(t, "default", idp.Spec.Clients[0].SecretRef.Namespace)
 						idp.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse}}
 						return nil
 					}).Once()
