@@ -97,12 +97,12 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 
 	err = r.patchWorkspaceType(ctx, r.orgClient, fmt.Sprintf("%s-org", workspaceName), workspaceName)
 	if err != nil {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create patch workspace type resource: %w", err), true, true)
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch workspace type: %w", err), true, true)
 	}
 
 	err = r.patchWorkspaceType(ctx, r.orgClient, fmt.Sprintf("%s-acc", workspaceName), workspaceName)
 	if err != nil {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create patch workspace type resource: %w", err), true, true)
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch workspace type: %w", err), true, true)
 	}
 
 	return ctrl.Result{}, nil

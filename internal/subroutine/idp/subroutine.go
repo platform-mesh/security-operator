@@ -48,7 +48,7 @@ func New(ctx context.Context, cfg *config.Config, orgsClient client.Client, mgr 
 	httpClient := cCfg.Client(ctx)
 
 	oidcClient := &http.Client{
-		Timeout: time.Duration(cfg.HttpClientTimeout) * time.Second,
+		Timeout: time.Duration(cfg.HttpClientTimeoutSeconds) * time.Second,
 	}
 
 	return &subroutine{
@@ -165,6 +165,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 					log.Info().Str("secretName", managedClient.SecretRef.Name).Msg("Secret not found, client was likely deleted")
 					continue
 				}
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
 			}
 
 			if err := s.deleteClient(ctx, realmName, managedClient.ClientID, managedClient.RegistrationClientURI, registrationAccessToken); err != nil {

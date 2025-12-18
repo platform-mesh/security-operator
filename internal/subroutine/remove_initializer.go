@@ -17,10 +17,6 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
-const (
-	PortalClientSecretNamespace = "platform-mesh-system"
-)
-
 type removeInitializer struct {
 	initializerName string
 	mgr             mcmanager.Manager
