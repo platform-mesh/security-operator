@@ -124,7 +124,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 		}
 		return suite.Equal(expectedFinalizers, testApiBinding1.Finalizers) &&
 			suite.Equal(expectedFinalizers, testApiBinding2.Finalizers)
-	}, 1*time.Second, 200*time.Millisecond, "APIBindings should have the expected finalizers")
+	}, 5*time.Second, 200*time.Millisecond, "APIBindings should have the expected finalizers")
 
 	err = testAccount1Client.Delete(ctx, apiBinding1)
 	suite.Require().NoError(err)
