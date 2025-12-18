@@ -75,7 +75,7 @@ func (w *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 	}
 
 	if account.Spec.Type != accountv1alpha1.AccountTypeOrg {
-		log.Info().Str("workspace", workspaceName).Msg("account is not of type organization, skipping idp creation")
+		log.Debug().Str("workspace", workspaceName).Msg("account is not of type organization, skipping idp creation")
 		return ctrl.Result{}, nil
 	}
 
