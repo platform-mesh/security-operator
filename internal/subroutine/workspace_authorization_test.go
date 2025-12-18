@@ -54,9 +54,13 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 					}).Once()
 
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace-org"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspacetypes"), "test-workspace-org")).Once()
-				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						wt.Name = "test-workspace-org"
+						return nil
+					}).Once()
+				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
 						assert.Equal(t, "test-workspace-org", wt.Name)
 						assert.Equal(t, "test-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
@@ -64,9 +68,13 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 					}).Once()
 
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace-acc"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspacetypes"), "test-workspace-acc")).Once()
-				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						wt.Name = "test-workspace-acc"
+						return nil
+					}).Once()
+				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
 						assert.Equal(t, "test-workspace-acc", wt.Name)
 						assert.Equal(t, "test-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
@@ -111,9 +119,13 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 					}).Once()
 
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "existing-workspace-org"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspacetypes"), "existing-workspace-org")).Once()
-				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						wt.Name = "existing-workspace-org"
+						return nil
+					}).Once()
+				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
 						assert.Equal(t, "existing-workspace-org", wt.Name)
 						assert.Equal(t, "existing-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
@@ -121,9 +133,13 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 					}).Once()
 
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "existing-workspace-acc"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspacetypes"), "existing-workspace-acc")).Once()
-				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						wt.Name = "existing-workspace-acc"
+						return nil
+					}).Once()
+				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
 						assert.Equal(t, "existing-workspace-acc", wt.Name)
 						assert.Equal(t, "existing-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
@@ -240,9 +256,13 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 					}).Once()
 
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace-org"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspacetypes"), "single-workspace-org")).Once()
-				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						wt.Name = "single-workspace-org"
+						return nil
+					}).Once()
+				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
 						assert.Equal(t, "single-workspace-org", wt.Name)
 						assert.Equal(t, "single-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
@@ -250,9 +270,13 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 					}).Once()
 
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace-acc"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspacetypes"), "single-workspace-acc")).Once()
-				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						wt.Name = "single-workspace-acc"
+						return nil
+					}).Once()
+				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
 						assert.Equal(t, "single-workspace-acc", wt.Name)
 						assert.Equal(t, "single-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
@@ -298,9 +322,13 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 					}).Once()
 
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace-org"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspacetypes"), "single-workspace-org")).Once()
-				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						wt.Name = "single-workspace-org"
+						return nil
+					}).Once()
+				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
 						assert.Equal(t, "single-workspace-org", wt.Name)
 						assert.Equal(t, "single-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
@@ -308,9 +336,13 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 					}).Once()
 
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace-acc"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspacetypes"), "single-workspace-acc")).Once()
-				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						wt.Name = "single-workspace-acc"
+						return nil
+					}).Once()
+				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
 						assert.Equal(t, "single-workspace-acc", wt.Name)
 						assert.Equal(t, "single-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
@@ -336,9 +368,13 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).Return(nil).Once()
 
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace-org"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspacetypes"), "test-workspace-org")).Once()
-				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					Return(errors.New("failed to create workspace type")).Once()
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						wt.Name = "test-workspace-org"
+						return nil
+					}).Once()
+				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
+					Return(errors.New("failed to patch workspace type")).Once()
 			},
 			expectError:    true,
 			expectedResult: ctrl.Result{},
@@ -359,13 +395,21 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).Return(nil).Once()
 
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace-org"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspacetypes"), "test-workspace-org")).Once()
-				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).Return(nil).Once()
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						wt.Name = "test-workspace-org"
+						return nil
+					}).Once()
+				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).Return(nil).Once()
 
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace-acc"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspacetypes"), "test-workspace-acc")).Once()
-				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					Return(errors.New("failed to create workspace type")).Once()
+					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
+						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
+						wt.Name = "test-workspace-acc"
+						return nil
+					}).Once()
+				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
+					Return(errors.New("failed to patch workspace type")).Once()
 			},
 			expectError:    true,
 			expectedResult: ctrl.Result{},

@@ -108,17 +108,22 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 	return ctrl.Result{}, nil
 }
 
-func (r *workspaceAuthSubroutine) patchWorkspaceType(ctx context.Context, client client.Client, workspaceTypeName, authConfigurationRefName string) error {
-	wsType := kcptenancyv1alphav1.WorkspaceType{
+func (r *workspaceAuthSubroutine) patchWorkspaceType(ctx context.Context, cl client.Client, workspaceTypeName, authConfigurationRefName string) error {
+	wsType := &kcptenancyv1alphav1.WorkspaceType{
 		ObjectMeta: metav1.ObjectMeta{Name: workspaceTypeName},
 	}
-	_, err := controllerutil.CreateOrUpdate(ctx, client, &wsType, func() error {
-		wsType.Spec.AuthenticationConfigurations = []kcptenancyv1alphav1.AuthenticationConfigurationReference{{Name: authConfigurationRefName}}
-		return nil
-	})
-	if err != nil {
-		return err
+
+	if err := cl.Get(ctx, client.ObjectKey{Name: workspaceTypeName}, wsType); err != nil {
+		return fmt.Errorf("failed to get WorkspaceType: %w", err)
 	}
 
+	original := wsType.DeepCopy()
+	wsType.Spec.AuthenticationConfigurations = []kcptenancyv1alphav1.AuthenticationConfigurationReference{
+		{Name: authConfigurationRefName},
+	}
+
+	if err := cl.Patch(ctx, wsType, client.MergeFrom(original)); err != nil {
+		return fmt.Errorf("failed to patch WorkspaceType: %w", err)
+	}
 	return nil
 }
