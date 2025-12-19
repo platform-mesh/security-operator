@@ -10,7 +10,9 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -117,10 +119,17 @@ func (r *workspaceAuthSubroutine) patchWorkspaceType(ctx context.Context, cl cli
 		return fmt.Errorf("failed to get WorkspaceType: %w", err)
 	}
 
-	original := wsType.DeepCopy()
-	wsType.Spec.AuthenticationConfigurations = []kcptenancyv1alphav1.AuthenticationConfigurationReference{
+	desiredAuthConfig := []kcptenancyv1alphav1.AuthenticationConfigurationReference{
 		{Name: authConfigurationRefName},
 	}
+
+	if equality.Semantic.DeepEqual(wsType.Spec.AuthenticationConfigurations, desiredAuthConfig) {
+		log.Debug().Msg(fmt.Sprintf("workspaceType %s already has authentication configuration, skip patching", workspaceTypeName))
+		return nil
+	}
+
+	original := wsType.DeepCopy()
+	wsType.Spec.AuthenticationConfigurations = desiredAuthConfig
 
 	if err := cl.Patch(ctx, wsType, client.MergeFrom(original)); err != nil {
 		return fmt.Errorf("failed to patch WorkspaceType: %w", err)
