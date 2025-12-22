@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/oauth2"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -83,11 +84,13 @@ func TestSubroutineProcess(t *testing.T) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 						idp := &v1alpha1.IdentityProviderConfiguration{
-							Spec: v1alpha1.IdentityProviderConfigurationSpec{
-								Clients: []v1alpha1.IdentityProviderClientConfig{
-									{
-										ClientName: "acme",
-										ClientID:   "acme",
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "acme",
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"acme": {
+										ClientID: "acme",
 									},
 								},
 							},
@@ -182,11 +185,13 @@ func TestSubroutineProcess(t *testing.T) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 						idp := &v1alpha1.IdentityProviderConfiguration{
-							Spec: v1alpha1.IdentityProviderConfigurationSpec{
-								Clients: []v1alpha1.IdentityProviderClientConfig{
-									{
-										ClientName: "acme",
-										ClientID:   "acme",
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "acme",
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"acme": {
+										ClientID: "acme",
 									},
 								},
 							},
@@ -255,11 +260,13 @@ func TestSubroutineProcess(t *testing.T) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 						idp := &v1alpha1.IdentityProviderConfiguration{
-							Spec: v1alpha1.IdentityProviderConfigurationSpec{
-								Clients: []v1alpha1.IdentityProviderClientConfig{
-									{
-										ClientName: "acme",
-										ClientID:   "acme",
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "acme",
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"acme": {
+										ClientID: "acme",
 									},
 								},
 							},
@@ -316,11 +323,13 @@ func TestSubroutineProcess(t *testing.T) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 						idp := &v1alpha1.IdentityProviderConfiguration{
-							Spec: v1alpha1.IdentityProviderConfigurationSpec{
-								Clients: []v1alpha1.IdentityProviderClientConfig{
-									{
-										ClientName: "acme",
-										ClientID:   "acme",
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "acme",
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"acme": {
+										ClientID: "acme",
 									},
 								},
 							},
