@@ -8,10 +8,10 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
+	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"google.golang.org/grpc"
@@ -34,7 +34,7 @@ import (
 	"github.com/platform-mesh/golang-commons/sentry"
 	"github.com/spf13/cobra"
 
-	kcptenancyv1alphav1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	kcptenancyv1alphav1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/controller"
@@ -46,6 +46,20 @@ var (
 )
 
 type NewLogicalClusterClientFunc func(clusterKey logicalcluster.Name) (client.Client, error)
+
+func getPlatformMeshSystemConfig(cfg *rest.Config) (*rest.Config, error) {
+	providerConfig := rest.CopyConfig(cfg)
+
+	parsed, err := url.Parse(providerConfig.Host)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse URL: %w", err)
+	}
+
+	parsed.Path = "/clusters/root:platform-mesh-system/"
+	providerConfig.Host = parsed.String()
+
+	return providerConfig, nil
+}
 
 func logicalClusterClientFromKey(mgr ctrl.Manager, log *logger.Logger) NewLogicalClusterClientFunc {
 	return func(clusterKey logicalcluster.Name) (client.Client, error) {
@@ -122,8 +136,12 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(fmt.Errorf("scheme should not be nil")).Msg("scheme should not be nil")
 			return fmt.Errorf("scheme should not be nil")
 		}
-
-		provider, err := apiexport.New(restCfg, apiexport.Options{
+		providerConfig, err := getPlatformMeshSystemConfig(restCfg)
+		if err != nil {
+			setupLog.Error(err, "unable to create provider config")
+			return err
+		}
+		provider, err := apiexport.New(providerConfig, "core.platform-mesh.io", apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
@@ -151,7 +169,7 @@ var operatorCmd = &cobra.Command{
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-		if err = controller.NewStoreReconciler(log, fga, mgr).
+		if err = controller.NewStoreReconciler(log, fga, mgr, operatorCfg.KCP.Kubeconfig).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
 			return err
@@ -180,12 +198,6 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("unable to set up ready check")
 			return err
 		}
-
-		go func() {
-			if err := provider.Run(ctx, mgr); err != nil {
-				log.Fatal().Err(err).Msg("unable to run provider")
-			}
-		}()
 
 		setupLog.Info("starting manager")
 		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {

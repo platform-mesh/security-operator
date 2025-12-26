@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
+	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
