@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/kcp-dev/sdk/apis/cache/initialization"
-	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
@@ -45,9 +45,9 @@ func (r *removeInitializer) GetName() string { return "RemoveInitializer" }
 
 // Process implements subroutine.Subroutine.
 func (r *removeInitializer) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	lc := instance.(*kcpv1alpha1.LogicalCluster)
+	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 
-	initializer := kcpv1alpha1.LogicalClusterInitializer(r.initializerName)
+	initializer := kcpcorev1alpha1.LogicalClusterInitializer(r.initializerName)
 
 	cluster, err := r.mgr.ClusterFromContext(ctx)
 	if err != nil {

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alphav1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
@@ -23,7 +23,7 @@ import (
 func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 	tests := []struct {
 		name           string
-		logicalCluster *kcpv1alpha1.LogicalCluster
+		logicalCluster *kcpcorev1alpha1.LogicalCluster
 		cfg            config.Config
 		setupMocks     func(*mocks.MockClient)
 		expectError    bool
@@ -31,7 +31,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 	}{
 		{
 			name: "success - create new WorkspaceAuthenticationConfiguration",
-			logicalCluster: &kcpv1alpha1.LogicalCluster{
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:test-workspace",
@@ -59,7 +59,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "success - update existing WorkspaceAuthenticationConfiguration",
-			logicalCluster: &kcpv1alpha1.LogicalCluster{
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:existing-workspace",
@@ -97,7 +97,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "error - missing workspace path annotation",
-			logicalCluster: &kcpv1alpha1.LogicalCluster{
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{},
 				},
@@ -109,7 +109,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "error - empty workspace path annotation",
-			logicalCluster: &kcpv1alpha1.LogicalCluster{
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "",
@@ -123,7 +123,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "error - create fails",
-			logicalCluster: &kcpv1alpha1.LogicalCluster{
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:test-workspace",
@@ -143,7 +143,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "error - update fails",
-			logicalCluster: &kcpv1alpha1.LogicalCluster{
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:test-workspace",
@@ -167,7 +167,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "error - get fails with non-not-found error",
-			logicalCluster: &kcpv1alpha1.LogicalCluster{
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:test-workspace",
@@ -184,7 +184,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "success - workspace path with single element",
-			logicalCluster: &kcpv1alpha1.LogicalCluster{
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "single-workspace",
@@ -209,7 +209,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "success - workspace path with single element and domain CA lookup",
-			logicalCluster: &kcpv1alpha1.LogicalCluster{
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "single-workspace",

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
@@ -51,7 +51,7 @@ func (w *inviteSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
 func (w *inviteSubroutine) GetName() string { return "InviteInitilizationSubroutine" }
 
 func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	lc := instance.(*kcpv1alpha1.LogicalCluster)
+	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 
 	wsName := getWorkspaceName(lc)
 	if wsName == "" {
