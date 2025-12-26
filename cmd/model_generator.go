@@ -70,7 +70,12 @@ var modelGeneratorCmd = &cobra.Command{
 			return fmt.Errorf("scheme should not be nil")
 		}
 
-		provider, err := apiexport.New(restCfg, apiexport.Options{
+		providerConfig, err := getPlatformMeshSystemConfig(restCfg)
+		if err != nil {
+			setupLog.Error(err, "unable to create provider config")
+			return err
+		}
+		provider, err := apiexport.New(providerConfig, "core.platform-mesh.io", apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
@@ -99,18 +104,11 @@ var modelGeneratorCmd = &cobra.Command{
 			return err
 		}
 
-		go func() {
-			if err := provider.Run(ctx, mgr); err != nil {
-				log.Fatal().Err(err).Msg("unable to run provider")
-			}
-		}()
-
 		setupLog.Info("starting manager")
 		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 			setupLog.Error(err, "problem running manager")
 			return err
 		}
-
 		return nil
 	},
 }
