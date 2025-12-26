@@ -225,7 +225,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.CommonServiceConfig, testLogger *logger.Logger) {
 	ctx := suite.T().Context()
 
-	providerConfig, err := getPlatformMeshSystemConfig(suite.apiExportEndpointSliceConfig)
+	providerConfig, err := suite.getPlatformMeshSystemConfig(suite.apiExportEndpointSliceConfig)
 	suite.Require().NoError(err)
 
 	provider, err := apiexport.New(providerConfig, "core.platform-mesh.io", apiexport.Options{Scheme: scheme.Scheme})
@@ -301,7 +301,7 @@ func (suite *IntegrationSuite) createAccountInfo(ctx context.Context, accountCli
 	t.Logf("created accountInfo 'account' in %s workspace", accountPath)
 }
 
-func getPlatformMeshSystemConfig(cfg *rest.Config) (*rest.Config, error) {
+func (suite *IntegrationSuite) getPlatformMeshSystemConfig(cfg *rest.Config) (*rest.Config, error) {
 	providerConfig := rest.CopyConfig(cfg)
 
 	parsed, err := url.Parse(providerConfig.Host)
@@ -309,7 +309,10 @@ func getPlatformMeshSystemConfig(cfg *rest.Config) (*rest.Config, error) {
 		return nil, fmt.Errorf("unable to parse URL: %w", err)
 	}
 
-	parsed.Path = "/clusters/root:platform-mesh-system/"
+	parsed.Path, err = url.JoinPath("clusters", suite.platformMeshSysPath.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to join path")
+	}
 	providerConfig.Host = parsed.String()
 
 	return providerConfig, nil

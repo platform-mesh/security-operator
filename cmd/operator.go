@@ -45,6 +45,10 @@ var (
 	scheme = runtime.NewScheme()
 )
 
+const (
+	platformMeshWorkspace = "root:platform-mesh-system"
+)
+
 type NewLogicalClusterClientFunc func(clusterKey logicalcluster.Name) (client.Client, error)
 
 func getPlatformMeshSystemConfig(cfg *rest.Config) (*rest.Config, error) {
@@ -55,7 +59,10 @@ func getPlatformMeshSystemConfig(cfg *rest.Config) (*rest.Config, error) {
 		return nil, fmt.Errorf("unable to parse URL: %w", err)
 	}
 
-	parsed.Path = "/clusters/root:platform-mesh-system/"
+	parsed.Path, err = url.JoinPath("clusters", platformMeshWorkspace)
+	if err != nil {
+		return nil, fmt.Errorf("failed to join path")
+	}
 	providerConfig.Host = parsed.String()
 
 	return providerConfig, nil
