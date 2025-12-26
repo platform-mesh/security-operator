@@ -7,8 +7,8 @@ import (
 	"strings"
 	"text/template"
 
-	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
+	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"

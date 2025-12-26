@@ -169,7 +169,7 @@ var operatorCmd = &cobra.Command{
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-		if err = controller.NewStoreReconciler(log, fga, mgr, operatorCfg.KCP.Kubeconfig).
+		if err = controller.NewStoreReconciler(log, fga, mgr).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
 			return err
