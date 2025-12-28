@@ -75,7 +75,7 @@ var modelGeneratorCmd = &cobra.Command{
 			setupLog.Error(err, "unable to create provider config")
 			return err
 		}
-		provider, err := apiexport.New(providerConfig, "core.platform-mesh.io", apiexport.Options{
+		provider, err := apiexport.New(providerConfig, operatorCfg.APIExportEndpointSliceName, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
