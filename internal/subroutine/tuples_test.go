@@ -200,7 +200,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				Spec: v1alpha1.AuthorizationModelSpec{
 					StoreRef: v1alpha1.WorkspaceStoreRef{
 						Name: "store",
-						Path: "store-cluster",
+						Cluster: "store-cluster",
 					},
 					Tuples: []v1alpha1.Tuple{
 						{
@@ -255,7 +255,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				Spec: v1alpha1.AuthorizationModelSpec{
 					StoreRef: v1alpha1.WorkspaceStoreRef{
 						Name: "store",
-						Path: "store-cluster",
+						Cluster: "store-cluster",
 					},
 					Tuples: []v1alpha1.Tuple{
 						{
@@ -364,7 +364,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 				Spec: v1alpha1.AuthorizationModelSpec{
 					StoreRef: v1alpha1.WorkspaceStoreRef{
 						Name: "store",
-						Path: "store-cluster",
+						Cluster: "store-cluster",
 					},
 				},
 				Status: v1alpha1.AuthorizationModelStatus{

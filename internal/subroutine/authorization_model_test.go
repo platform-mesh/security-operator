@@ -127,7 +127,7 @@ func TestAuthorizationModelProcess(t *testing.T) {
 									Model: extensionModel,
 									StoreRef: v1alpha1.WorkspaceStoreRef{
 										Name: "store",
-										Path: "path",
+										Cluster: "path",
 									},
 								},
 							},
@@ -184,7 +184,7 @@ func TestAuthorizationModelProcess(t *testing.T) {
 									Model: extensionModel,
 									StoreRef: v1alpha1.WorkspaceStoreRef{
 										Name: "store",
-										Path: "path",
+										Cluster: "path",
 									},
 								},
 							},
@@ -265,7 +265,7 @@ type core_namespace
 									Model: extensionModel,
 									StoreRef: v1alpha1.WorkspaceStoreRef{
 										Name: "store",
-										Path: "path",
+										Cluster: "path",
 									},
 								},
 							},
@@ -299,7 +299,7 @@ type core_namespace
 									Model: extensionModel,
 									StoreRef: v1alpha1.WorkspaceStoreRef{
 										Name: "store",
-										Path: "path",
+										Cluster: "path",
 									},
 								},
 							},
@@ -333,7 +333,7 @@ type core_namespace
 									Model: extensionModel,
 									StoreRef: v1alpha1.WorkspaceStoreRef{
 										Name: "store",
-										Path: "path",
+										Cluster: "path",
 									},
 								},
 							},

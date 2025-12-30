@@ -38,7 +38,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, instance runtimeobject.R
 	case *v1alpha1.AuthorizationModel:
 		managedTuples = obj.Status.ManagedTuples
 
-		storeCluster, err := t.mgr.GetCluster(ctx, obj.Spec.StoreRef.Path)
+		storeCluster, err := t.mgr.GetCluster(ctx, obj.Spec.StoreRef.Cluster)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get store cluster: %w", err), true, false)
 		}
@@ -116,7 +116,7 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 		specTuples = obj.Spec.Tuples
 		managedTuples = obj.Status.ManagedTuples
 
-		storeCluster, err := t.mgr.GetCluster(ctx, obj.Spec.StoreRef.Path)
+		storeCluster, err := t.mgr.GetCluster(ctx, obj.Spec.StoreRef.Cluster)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get store cluster: %w", err), true, false)
 		}

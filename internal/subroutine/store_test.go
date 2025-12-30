@@ -210,7 +210,7 @@ func TestFinalize(t *testing.T) {
 								Spec: v1alpha1.AuthorizationModelSpec{
 									StoreRef: v1alpha1.WorkspaceStoreRef{
 										Name: "store",
-										Path: "path",
+										Cluster: "path",
 									},
 								},
 							},

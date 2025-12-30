@@ -80,7 +80,7 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 								Name: model.Spec.StoreRef.Name,
 							},
 						},
-						ClusterName: model.Spec.StoreRef.Path,
+						ClusterName: model.Spec.StoreRef.Cluster,
 					},
 				}
 			}),

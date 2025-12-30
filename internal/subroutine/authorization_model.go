@@ -115,7 +115,7 @@ func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store
 
 	var extendingModules v1alpha1.AuthorizationModelList
 	for _, model := range allAuthorizationModels.Items {
-		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Path != storeClusterKey {
+		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Cluster != storeClusterKey {
 			continue
 		}
 

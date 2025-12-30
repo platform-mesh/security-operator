@@ -268,7 +268,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 				Model: buffer.String(),
 				StoreRef: securityv1alpha1.WorkspaceStoreRef{
 					Name: accountInfo.Spec.Organization.Name,
-					Path: accountInfo.Spec.Organization.OriginClusterId,
+					Cluster: accountInfo.Spec.Organization.OriginClusterId,
 				},
 			}
 			return nil
