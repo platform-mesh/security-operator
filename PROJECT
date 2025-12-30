@@ -39,4 +39,12 @@ resources:
   kind: IdentityProviderConfiguration
   path: github.com/platform-mesh/security-operator/api/v1alpha1
   version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: platform-mesh.io
+  group: core
+  kind: AuthorizationModel
+  path: github.com/platform-mesh/security-operator/api/v1alpha2
+  version: v1alpha2
 version: "3"

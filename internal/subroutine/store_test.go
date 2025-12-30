@@ -7,7 +7,8 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	securityv1alpha2 "github.com/platform-mesh/security-operator/api/v1alpha2"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"	
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
@@ -32,7 +33,7 @@ func TestFinalizers(t *testing.T) {
 func TestProcess(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *v1alpha1.Store
+		store       *securityv1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -40,7 +41,7 @@ func TestProcess(t *testing.T) {
 	}{
 		{
 			name: "should try and create the store if it does not exist",
-			store: &v1alpha1.Store{
+			store: &securityv1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
@@ -52,7 +53,7 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "should skip creation if the store already exists",
-			store: &v1alpha1.Store{
+			store: &securityv1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
@@ -69,11 +70,11 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "should verify the store if .status.storeId is set",
-			store: &v1alpha1.Store{
+			store: &securityv1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: v1alpha1.StoreStatus{
+				Status: securityv1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
@@ -83,11 +84,11 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "should verify and update the store if .status.storeId is set but name differs",
-			store: &v1alpha1.Store{
+			store: &securityv1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: v1alpha1.StoreStatus{
+				Status: securityv1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
@@ -98,7 +99,7 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "should fail if store listing fails",
-			store: &v1alpha1.Store{
+			store: &securityv1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
@@ -110,7 +111,7 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "should fail if store creation fails",
-			store: &v1alpha1.Store{
+			store: &securityv1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
@@ -123,11 +124,11 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "should fail if get store fails when verifying existing store",
-			store: &v1alpha1.Store{
+			store: &securityv1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: v1alpha1.StoreStatus{
+				Status: securityv1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
@@ -138,11 +139,11 @@ func TestProcess(t *testing.T) {
 		},
 		{
 			name: "should fail if update store fails when names differ",
-			store: &v1alpha1.Store{
+			store: &securityv1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: v1alpha1.StoreStatus{
+				Status: securityv1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
@@ -178,7 +179,7 @@ func TestProcess(t *testing.T) {
 func TestFinalize(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *v1alpha1.Store
+		store       *securityv1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -186,7 +187,7 @@ func TestFinalize(t *testing.T) {
 	}{
 		{
 			name: "should skip reconciliation if .status.storeId is not set",
-			store: &v1alpha1.Store{
+			store: &securityv1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
@@ -194,21 +195,21 @@ func TestFinalize(t *testing.T) {
 		},
 		{
 			name: "should deny deletion if at least authorizationModel is referencing the store",
-			store: &v1alpha1.Store{
+			store: &securityv1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: v1alpha1.StoreStatus{
+				Status: securityv1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
 				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					if list, ok := ol.(*v1alpha1.AuthorizationModelList); ok {
-						list.Items = []v1alpha1.AuthorizationModel{
+					if list, ok := ol.(*securityv1alpha2.AuthorizationModelList); ok {
+						list.Items = []securityv1alpha2.AuthorizationModel{
 							{
-								Spec: v1alpha1.AuthorizationModelSpec{
-									StoreRef: v1alpha1.WorkspaceStoreRef{
+								Spec: securityv1alpha2.AuthorizationModelSpec{
+									StoreRef: securityv1alpha2.WorkspaceStoreRef{
 										Name: "store",
 										Cluster: "path",
 									},
@@ -223,11 +224,11 @@ func TestFinalize(t *testing.T) {
 		},
 		{
 			name: "should deny deletion the list call is failing",
-			store: &v1alpha1.Store{
+			store: &securityv1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: v1alpha1.StoreStatus{
+				Status: securityv1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
@@ -238,11 +239,11 @@ func TestFinalize(t *testing.T) {
 		},
 		{
 			name: "should delete the store if no authorizationModel is referencing it",
-			store: &v1alpha1.Store{
+			store: &securityv1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: v1alpha1.StoreStatus{
+				Status: securityv1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
@@ -255,11 +256,11 @@ func TestFinalize(t *testing.T) {
 		},
 		{
 			name: "should reconcile successfully if store is not found with the .status.storeId",
-			store: &v1alpha1.Store{
+			store: &securityv1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: v1alpha1.StoreStatus{
+				Status: securityv1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},
@@ -272,11 +273,11 @@ func TestFinalize(t *testing.T) {
 		},
 		{
 			name: "should not reconcile successfully deletion is errorneous",
-			store: &v1alpha1.Store{
+			store: &securityv1alpha1.Store{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "store",
 				},
-				Status: v1alpha1.StoreStatus{
+				Status: securityv1alpha1.StoreStatus{
 					StoreID: "id",
 				},
 			},

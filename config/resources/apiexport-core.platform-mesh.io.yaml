@@ -5,8 +5,8 @@ metadata:
   name: core.platform-mesh.io
 spec:
   latestResourceSchemas:
-  - v250718-a64f278.authorizationmodels.core.platform-mesh.io
   - v250718-a64f278.stores.core.platform-mesh.io
   - v251007-1d3512f.invites.core.platform-mesh.io
   - v251215-8997bd4.identityproviderconfigurations.core.platform-mesh.io
+  - v251230-004ef42.authorizationmodels.core.platform-mesh.io
 status: {}

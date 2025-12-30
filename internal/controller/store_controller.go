@@ -19,6 +19,8 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	corev1alpha2 "github.com/platform-mesh/security-operator/api/v1alpha2"
+
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -66,9 +68,9 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 	}
 	return builder.
 		Watches(
-			&corev1alpha1.AuthorizationModel{},
+			&corev1alpha2.AuthorizationModel{},
 			handler.TypedEnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
-				model, ok := obj.(*corev1alpha1.AuthorizationModel)
+				model, ok := obj.(*corev1alpha2.AuthorizationModel)
 				if !ok {
 					return nil
 				}

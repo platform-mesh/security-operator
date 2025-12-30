@@ -21,6 +21,8 @@ import (
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	securityv1alpha2 "github.com/platform-mesh/security-operator/api/v1alpha2"
+
 )
 
 func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
@@ -53,7 +55,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 	_ = suite.createTestAPIBinding(ctx, testAccountClient, apiExportName, suite.platformMeshSysPath.String(), apiExportName)
 
 	expectedModelName := fmt.Sprintf("%s-%s", pluralResourceSchemaName, testOrgName)
-	var model securityv1alpha1.AuthorizationModel
+	var model securityv1alpha2.AuthorizationModel
 	suite.Assert().Eventually(func() bool {
 		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &model)
 		return err == nil

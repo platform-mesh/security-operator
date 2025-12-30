@@ -11,7 +11,8 @@ import (
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/fga/helpers"
 	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	securityv1alpha2 "github.com/platform-mesh/security-operator/api/v1alpha2"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"	
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -28,14 +29,14 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, instance runtimeobject.R
 
 	var storeID string
 	var authorizationModelID string
-	var managedTuples []v1alpha1.Tuple
+	var managedTuples []securityv1alpha1.Tuple
 
 	switch obj := instance.(type) {
-	case *v1alpha1.Store:
+	case *securityv1alpha1.Store:
 		storeID = obj.Status.StoreID
 		authorizationModelID = obj.Status.AuthorizationModelID
 		managedTuples = obj.Status.ManagedTuples
-	case *v1alpha1.AuthorizationModel:
+	case *securityv1alpha2.AuthorizationModel:
 		managedTuples = obj.Status.ManagedTuples
 
 		storeCluster, err := t.mgr.GetCluster(ctx, obj.Spec.StoreRef.Cluster)
@@ -43,7 +44,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, instance runtimeobject.R
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get store cluster: %w", err), true, false)
 		}
 
-		var store v1alpha1.Store
+		var store securityv1alpha1.Store
 		err = storeCluster.GetClient().Get(ctx, types.NamespacedName{
 			Name: obj.Spec.StoreRef.Name,
 		}, &store)
@@ -79,9 +80,9 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, instance runtimeobject.R
 	}
 
 	switch obj := instance.(type) {
-	case *v1alpha1.Store:
+	case *securityv1alpha1.Store:
 		obj.Status.ManagedTuples = nil
-	case *v1alpha1.AuthorizationModel:
+	case *securityv1alpha2.AuthorizationModel:
 		obj.Status.ManagedTuples = nil
 	}
 
@@ -102,17 +103,17 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 
 	var storeID string
 	var authorizationModelID string
-	var specTuples []v1alpha1.Tuple
-	var managedTuples []v1alpha1.Tuple
+	var specTuples []securityv1alpha1.Tuple
+	var managedTuples []securityv1alpha1.Tuple
 
 	switch obj := instance.(type) {
-	case *v1alpha1.Store:
+	case *securityv1alpha1.Store:
 		storeID = obj.Status.StoreID
 		authorizationModelID = obj.Status.AuthorizationModelID
 
 		specTuples = obj.Spec.Tuples
 		managedTuples = obj.Status.ManagedTuples
-	case *v1alpha1.AuthorizationModel:
+	case *securityv1alpha2.AuthorizationModel:
 		specTuples = obj.Spec.Tuples
 		managedTuples = obj.Status.ManagedTuples
 
@@ -121,7 +122,7 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get store cluster: %w", err), true, false)
 		}
 
-		var store v1alpha1.Store
+		var store securityv1alpha1.Store
 		err = storeCluster.GetClient().Get(ctx, types.NamespacedName{
 			Name: obj.Spec.StoreRef.Name,
 		}, &store)
@@ -157,7 +158,7 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 	}
 
 	for _, tuple := range managedTuples {
-		if idx := slices.IndexFunc(specTuples, func(t v1alpha1.Tuple) bool {
+		if idx := slices.IndexFunc(specTuples, func(t securityv1alpha1.Tuple) bool {
 			return t.Object == tuple.Object && t.Relation == tuple.Relation && t.User == tuple.User
 		}); idx != -1 {
 			continue
@@ -187,9 +188,9 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 	}
 
 	switch obj := instance.(type) {
-	case *v1alpha1.Store:
+	case *securityv1alpha1.Store:
 		obj.Status.ManagedTuples = specTuples
-	case *v1alpha1.AuthorizationModel:
+	case *securityv1alpha2.AuthorizationModel:
 		obj.Status.ManagedTuples = specTuples
 	}
 

@@ -1,32 +1,32 @@
-package v1alpha1
+package v1alpha2
 
 import (
 	lifecycleapi "github.com/platform-mesh/golang-commons/controller/lifecycle/api"
+	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type WorkspaceStoreRef struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
+	Name    string `json:"name"`
+	Cluster string `json:"path"`
 }
 
 // AuthorizationModelSpec defines the desired state of AuthorizationModel.
 type AuthorizationModelSpec struct {
 	StoreRef WorkspaceStoreRef `json:"storeRef"`
 	Model    string            `json:"model"`
-	Tuples   []Tuple           `json:"tuples,omitempty"`
+	Tuples   []v1alpha1.Tuple  `json:"tuples,omitempty"`
 }
 
 // AuthorizationModelStatus defines the observed state of AuthorizationModel.
 type AuthorizationModelStatus struct {
 	Conditions    []metav1.Condition `json:"conditions,omitempty"`
-	ManagedTuples []Tuple            `json:"managedTuples,omitempty"`
+	ManagedTuples []v1alpha1.Tuple   `json:"managedTuples,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
-// +kubebuilder:storageversion
 
 // AuthorizationModel is the Schema for the authorizationmodels API.
 type AuthorizationModel struct {
