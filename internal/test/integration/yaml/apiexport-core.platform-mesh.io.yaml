@@ -23,7 +23,11 @@ spec:
       all: true
       identityHash: ""
     - resource: logicalclusters
-      group: apis.kcp.io
+      group: core.kcp.io
+      all: true
+      identityHash: ""
+    - resource: secrets
+      group: ""
       all: true
       identityHash: ""
 status: {}
