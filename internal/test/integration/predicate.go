@@ -88,6 +88,7 @@ var OnlyTestLogicalClusterPredicate crpredicate.Predicate = crpredicate.Funcs{
 	},
 }
 
+// to demonstarate the unwilling reconcilation this predicate filter out any logical cluster which has no 'test' in owner name
 func shouldReconcile(obj client.Object) bool {
 	lc, ok := obj.(*kcpcorev1alpha1.LogicalCluster)
 	if !ok {

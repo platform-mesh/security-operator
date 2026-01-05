@@ -133,6 +133,7 @@ func KcpSetup(ctx context.Context, kubeconfig string) error {
 		return err
 	}
 
+	// this workspace is needed to be selected by the predicate and trigger the reconcilation
 	_, err = ensureWorkspace(ctx, orgsPath, "test", &tenancyv1alpha1.WorkspaceTypeReference{
 		Name: "org",
 		Path: rootPath.String(),
@@ -141,6 +142,7 @@ func KcpSetup(ctx context.Context, kubeconfig string) error {
 		return err
 	}
 
+	// this workspace is needed to demostrate the  reconcilation of the workspaces with the same hieracy level
 	_, err = ensureWorkspace(ctx, orgsPath, "no-reconcile-org", &tenancyv1alpha1.WorkspaceTypeReference{
 		Name: "org",
 		Path: rootPath.String(),
