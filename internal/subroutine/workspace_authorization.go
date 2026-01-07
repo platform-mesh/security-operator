@@ -9,28 +9,33 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
+	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/rs/zerolog/log"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 type workspaceAuthSubroutine struct {
 	orgClient     client.Client
 	runtimeClient client.Client
+	mgr           mcmanager.Manager
 	cfg           config.Config
 }
 
-func NewWorkspaceAuthConfigurationSubroutine(orgClient, runtimeClient client.Client, cfg config.Config) *workspaceAuthSubroutine {
+func NewWorkspaceAuthConfigurationSubroutine(orgClient, runtimeClient client.Client, mgr mcmanager.Manager, cfg config.Config) *workspaceAuthSubroutine {
 	return &workspaceAuthSubroutine{
 		orgClient:     orgClient,
 		runtimeClient: runtimeClient,
+		mgr:           mgr,
 		cfg:           cfg,
 	}
 }
@@ -63,11 +68,27 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 		}
 	}
 
+	cluster, err := r.mgr.ClusterFromContext(ctx)
+	if err != nil {
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context %w", err), true, true)
+	}
+
+	var idpConfig v1alpha1.IdentityProviderConfiguration
+	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: workspaceName}, &idpConfig)
+	if err != nil {
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get IdentityProviderConfiguration: %w", err), true, true)
+	}
+
+	clientInfo, ok := idpConfig.Status.ManagedClients[workspaceName]
+	if !ok {
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("managed client not found in IdentityProviderConfiguration status"), true, true)
+	}
+
 	jwtAuthenticationConfiguration := kcptenancyv1alphav1.JWTAuthenticator{
 		Issuer: kcptenancyv1alphav1.Issuer{
 			URL:                 fmt.Sprintf("https://%s/keycloak/realms/%s", r.cfg.BaseDomain, workspaceName),
 			AudienceMatchPolicy: kcptenancyv1alphav1.AudienceMatchPolicyMatchAny,
-			Audiences:           []string{workspaceName, "kubectl"},
+			Audiences:           []string{clientInfo.ClientID, "kubectl"},
 		},
 		ClaimMappings: kcptenancyv1alphav1.ClaimMappings{
 			Groups: kcptenancyv1alphav1.PrefixedClaimOrExpression{
@@ -98,7 +119,7 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 	}
 
 	obj := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
-	_, err := controllerutil.CreateOrUpdate(ctx, r.orgClient, obj, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctx, r.orgClient, obj, func() error {
 		obj.Spec = kcptenancyv1alphav1.WorkspaceAuthenticationConfigurationSpec{
 			JWT: []kcptenancyv1alphav1.JWTAuthenticator{
 				jwtAuthenticationConfiguration,

@@ -7,6 +7,7 @@ import (
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	kcptenancyv1alphav1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
+	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
@@ -510,7 +511,39 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 				tt.setupMocks(mockClient)
 			}
 
-			subroutine := NewWorkspaceAuthConfigurationSubroutine(mockClient, mockClient, tt.cfg)
+			mgr := mocks.NewMockManager(t)
+			cluster := mocks.NewMockCluster(t)
+			mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Maybe()
+
+			mgrClient := mocks.NewMockClient(t)
+			mgrClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+				*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "default-idp-config",
+					},
+					Status: v1alpha1.IdentityProviderConfigurationStatus{
+						ManagedClients: map[string]v1alpha1.ManagedClient{
+							"dev-workspace": {
+								ClientID: "dev-workspace-client",
+							},
+							"test-workspace": {
+								ClientID: "test-workspace-client",
+							},
+							"existing-workspace": {
+								ClientID: "existing-workspace-client",
+							},
+							"single-workspace": {
+								ClientID: "single-workspace-client",
+							},
+						},
+					},
+				}
+				return nil
+			}).Maybe()
+
+			cluster.EXPECT().GetClient().Return(mgrClient).Maybe()
+
+			subroutine := NewWorkspaceAuthConfigurationSubroutine(mockClient, mockClient, mgr, tt.cfg)
 
 			result, opErr := subroutine.Process(context.Background(), tt.logicalCluster)
 
@@ -526,17 +559,17 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 }
 
 func TestWorkspaceAuthConfigurationSubroutine_GetName(t *testing.T) {
-	sub := NewWorkspaceAuthConfigurationSubroutine(nil, nil, config.Config{})
+	sub := NewWorkspaceAuthConfigurationSubroutine(nil, nil, nil, config.Config{})
 	assert.Equal(t, "workspaceAuthConfiguration", sub.GetName())
 }
 
 func TestWorkspaceAuthConfigurationSubroutine_Finalizers(t *testing.T) {
-	sub := NewWorkspaceAuthConfigurationSubroutine(nil, nil, config.Config{})
+	sub := NewWorkspaceAuthConfigurationSubroutine(nil, nil, nil, config.Config{})
 	assert.Equal(t, []string{}, sub.Finalizers(nil))
 }
 
 func TestWorkspaceAuthConfigurationSubroutine_Finalize(t *testing.T) {
-	sub := NewWorkspaceAuthConfigurationSubroutine(nil, nil, config.Config{})
+	sub := NewWorkspaceAuthConfigurationSubroutine(nil, nil, nil, config.Config{})
 	result, err := sub.Finalize(context.Background(), nil)
 	assert.Nil(t, err)
 	assert.Equal(t, reconcile.Result{}, result)
