@@ -513,11 +513,11 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 
 			mgr := mocks.NewMockManager(t)
 			cluster := mocks.NewMockCluster(t)
-			mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+			mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Maybe()
 
 			mgrClient := mocks.NewMockClient(t)
 			mgrClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-				obj = &v1alpha1.IdentityProviderConfiguration{
+				*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "default-idp-config",
 					},
@@ -526,13 +526,22 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 							"dev-workspace": {
 								ClientID: "dev-workspace-client",
 							},
+							"test-workspace": {
+								ClientID: "test-workspace-client",
+							},
+							"existing-workspace": {
+								ClientID: "existing-workspace-client",
+							},
+							"single-workspace": {
+								ClientID: "single-workspace-client",
+							},
 						},
 					},
 				}
 				return nil
-			})
+			}).Maybe()
 
-			cluster.EXPECT().GetClient().Return(mgrClient)
+			cluster.EXPECT().GetClient().Return(mgrClient).Maybe()
 
 			subroutine := NewWorkspaceAuthConfigurationSubroutine(mockClient, mockClient, mgr, tt.cfg)
 
