@@ -151,6 +151,14 @@ var operatorCmd = &cobra.Command{
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
+		k8sCfg := ctrl.GetConfigOrDie()
+
+		runtimeClient, err := client.New(k8sCfg, client.Options{Scheme: scheme})
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create in cluster client")
+			return err
+		}
+
 		if err = controller.NewStoreReconciler(log, fga, mgr).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
@@ -168,6 +176,11 @@ var operatorCmd = &cobra.Command{
 		}
 		if err = controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
+			return err
+		}
+
+		if err = controller.NewWorkspaceReconciler(log, orgClient, operatorCfg, runtimeClient, mgr).SetupWithManager(mgr, defaultCfg, "root:security"); err != nil {
+			log.Error().Err(err).Str("controller", "workspace").Msg("unable to create controller")
 			return err
 		}
 		// +kubebuilder:scaffold:builder
