@@ -19,7 +19,6 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
-	corev1alpha2 "github.com/platform-mesh/security-operator/api/v1alpha2"
 
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -36,7 +35,7 @@ type StoreReconciler struct {
 }
 
 func NewStoreReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *StoreReconciler {
-	allClient, err := getAllClient(mcMgr)
+	allClient, err := GetAllClient(mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme())
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create new client")
 	}
@@ -68,9 +67,9 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 	}
 	return builder.
 		Watches(
-			&corev1alpha2.AuthorizationModel{},
+			&corev1alpha1.AuthorizationModel{},
 			handler.TypedEnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
-				model, ok := obj.(*corev1alpha2.AuthorizationModel)
+				model, ok := obj.(*corev1alpha1.AuthorizationModel)
 				if !ok {
 					return nil
 				}

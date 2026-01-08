@@ -11,8 +11,7 @@ import (
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/fga/helpers"
 	"github.com/platform-mesh/golang-commons/logger"
-	securityv1alpha2 "github.com/platform-mesh/security-operator/api/v1alpha2"
-	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"	
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -36,7 +35,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, instance runtimeobject.R
 		storeID = obj.Status.StoreID
 		authorizationModelID = obj.Status.AuthorizationModelID
 		managedTuples = obj.Status.ManagedTuples
-	case *securityv1alpha2.AuthorizationModel:
+	case *securityv1alpha1.AuthorizationModel:
 		managedTuples = obj.Status.ManagedTuples
 
 		storeCluster, err := t.mgr.GetCluster(ctx, obj.Spec.StoreRef.Cluster)
@@ -82,7 +81,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, instance runtimeobject.R
 	switch obj := instance.(type) {
 	case *securityv1alpha1.Store:
 		obj.Status.ManagedTuples = nil
-	case *securityv1alpha2.AuthorizationModel:
+	case *securityv1alpha1.AuthorizationModel:
 		obj.Status.ManagedTuples = nil
 	}
 
@@ -113,7 +112,7 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 
 		specTuples = obj.Spec.Tuples
 		managedTuples = obj.Status.ManagedTuples
-	case *securityv1alpha2.AuthorizationModel:
+	case *securityv1alpha1.AuthorizationModel:
 		specTuples = obj.Spec.Tuples
 		managedTuples = obj.Status.ManagedTuples
 
@@ -190,7 +189,7 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 	switch obj := instance.(type) {
 	case *securityv1alpha1.Store:
 		obj.Status.ManagedTuples = specTuples
-	case *securityv1alpha2.AuthorizationModel:
+	case *securityv1alpha1.AuthorizationModel:
 		obj.Status.ManagedTuples = specTuples
 	}
 

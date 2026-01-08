@@ -80,7 +80,7 @@ var initializerCmd = &cobra.Command{
 		utilruntime.Must(sourcev1.AddToScheme(runtimeScheme))
 		utilruntime.Must(helmv2.AddToScheme(runtimeScheme))
 
-		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager(), log)(logicalcluster.Name("root:orgs"))
+		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
 		if err != nil {
 			setupLog.Error(err, "Failed to create org client")
 			os.Exit(1)

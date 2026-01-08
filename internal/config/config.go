@@ -23,6 +23,7 @@ type Config struct {
 	InitializerName               string `mapstructure:"initializer-name" default:"root:security"`
 	DomainCALookup                bool   `mapstructure:"domain-ca-lookup" default:"false"`
 	SecretWaitingTimeoutInSeconds int    `mapstructure:"secret-waiting-timeout-seconds" default:"60"`
+	MigrateAuthorizationModels    bool   `mapstructure:"migrate-authorization-models" default:"false"`
 	IDP                           struct {
 		// SMTP settings
 		SMTPServer  string `mapstructure:"idp-smtp-server"`

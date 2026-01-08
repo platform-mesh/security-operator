@@ -5,8 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	securityv1alpha2 "github.com/platform-mesh/security-operator/api/v1alpha2"
-	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"	
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
@@ -184,7 +183,7 @@ func TestTupleProcessWithStore(t *testing.T) {
 func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *securityv1alpha2.AuthorizationModel
+		store       *securityv1alpha1.AuthorizationModel
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -192,15 +191,15 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 	}{
 		{
 			name: "should process and add tuples to the authorization model",
-			store: &securityv1alpha2.AuthorizationModel{
+			store: &securityv1alpha1.AuthorizationModel{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						securityv1alpha1.StoreRefLabelKey: "store",
 					},
 				},
-				Spec: securityv1alpha2.AuthorizationModelSpec{
-					StoreRef: securityv1alpha2.WorkspaceStoreRef{
-						Name: "store",
+				Spec: securityv1alpha1.AuthorizationModelSpec{
+					StoreRef: securityv1alpha1.WorkspaceStoreRef{
+						Name:    "store",
 						Cluster: "store-cluster",
 					},
 					Tuples: []securityv1alpha1.Tuple{
@@ -247,15 +246,15 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 		},
 		{
 			name: "should process and add/remove tuples to the authorization model",
-			store: &securityv1alpha2.AuthorizationModel{
+			store: &securityv1alpha1.AuthorizationModel{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						securityv1alpha1.StoreRefLabelKey: "store",
 					},
 				},
-				Spec: securityv1alpha2.AuthorizationModelSpec{
-					StoreRef: securityv1alpha2.WorkspaceStoreRef{
-						Name: "store",
+				Spec: securityv1alpha1.AuthorizationModelSpec{
+					StoreRef: securityv1alpha1.WorkspaceStoreRef{
+						Name:    "store",
 						Cluster: "store-cluster",
 					},
 					Tuples: []securityv1alpha1.Tuple{
@@ -276,7 +275,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 						},
 					},
 				},
-				Status: securityv1alpha2.AuthorizationModelStatus{
+				Status: securityv1alpha1.AuthorizationModelStatus{
 					ManagedTuples: []securityv1alpha1.Tuple{
 						{
 							Object:   "foo",
@@ -348,7 +347,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *securityv1alpha2.AuthorizationModel
+		store       *securityv1alpha1.AuthorizationModel
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -356,19 +355,19 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 	}{
 		{
 			name: "should finalize the authorization model",
-			store: &securityv1alpha2.AuthorizationModel{
+			store: &securityv1alpha1.AuthorizationModel{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						securityv1alpha1.StoreRefLabelKey: "store",
 					},
 				},
-				Spec: securityv1alpha2.AuthorizationModelSpec{
-					StoreRef: securityv1alpha2.WorkspaceStoreRef{
-						Name: "store",
+				Spec: securityv1alpha1.AuthorizationModelSpec{
+					StoreRef: securityv1alpha1.WorkspaceStoreRef{
+						Name:    "store",
 						Cluster: "store-cluster",
 					},
 				},
-				Status: securityv1alpha2.AuthorizationModelStatus{
+				Status: securityv1alpha1.AuthorizationModelStatus{
 					ManagedTuples: []securityv1alpha1.Tuple{
 						{
 							Object:   "foo",

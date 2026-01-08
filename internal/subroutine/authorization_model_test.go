@@ -9,7 +9,6 @@ import (
 	language "github.com/openfga/language/pkg/go/transformer"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
-	securityv1alpha2 "github.com/platform-mesh/security-operator/api/v1alpha2"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
@@ -121,13 +120,13 @@ func TestAuthorizationModelProcess(t *testing.T) {
 			k8sMocks: func(k8s *mocks.MockClient) {
 				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-						am := ol.(*securityv1alpha2.AuthorizationModelList)
-						am.Items = []securityv1alpha2.AuthorizationModel{
+						am := ol.(*securityv1alpha1.AuthorizationModelList)
+						am.Items = []securityv1alpha1.AuthorizationModel{
 							{
-								Spec: securityv1alpha2.AuthorizationModelSpec{
+								Spec: securityv1alpha1.AuthorizationModelSpec{
 									Model: extensionModel,
-									StoreRef: securityv1alpha2.WorkspaceStoreRef{
-										Name: "store",
+									StoreRef: securityv1alpha1.WorkspaceStoreRef{
+										Name:    "store",
 										Cluster: "path",
 									},
 								},
@@ -178,13 +177,13 @@ func TestAuthorizationModelProcess(t *testing.T) {
 			k8sMocks: func(k8s *mocks.MockClient) {
 				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-						am := ol.(*securityv1alpha2.AuthorizationModelList)
-						am.Items = []securityv1alpha2.AuthorizationModel{
+						am := ol.(*securityv1alpha1.AuthorizationModelList)
+						am.Items = []securityv1alpha1.AuthorizationModel{
 							{
-								Spec: securityv1alpha2.AuthorizationModelSpec{
+								Spec: securityv1alpha1.AuthorizationModelSpec{
 									Model: extensionModel,
-									StoreRef: securityv1alpha2.WorkspaceStoreRef{
-										Name: "store",
+									StoreRef: securityv1alpha1.WorkspaceStoreRef{
+										Name:    "store",
 										Cluster: "path",
 									},
 								},
@@ -259,13 +258,13 @@ type core_namespace
 			k8sMocks: func(k8s *mocks.MockClient) {
 				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-						am := ol.(*securityv1alpha2.AuthorizationModelList)
-						am.Items = []securityv1alpha2.AuthorizationModel{
+						am := ol.(*securityv1alpha1.AuthorizationModelList)
+						am.Items = []securityv1alpha1.AuthorizationModel{
 							{
-								Spec: securityv1alpha2.AuthorizationModelSpec{
+								Spec: securityv1alpha1.AuthorizationModelSpec{
 									Model: extensionModel,
-									StoreRef: securityv1alpha2.WorkspaceStoreRef{
-										Name: "store",
+									StoreRef: securityv1alpha1.WorkspaceStoreRef{
+										Name:    "store",
 										Cluster: "path",
 									},
 								},
@@ -293,13 +292,13 @@ type core_namespace
 			k8sMocks: func(k8s *mocks.MockClient) {
 				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-						am := ol.(*securityv1alpha2.AuthorizationModelList)
-						am.Items = []securityv1alpha2.AuthorizationModel{
+						am := ol.(*securityv1alpha1.AuthorizationModelList)
+						am.Items = []securityv1alpha1.AuthorizationModel{
 							{
-								Spec: securityv1alpha2.AuthorizationModelSpec{
+								Spec: securityv1alpha1.AuthorizationModelSpec{
 									Model: extensionModel,
-									StoreRef: securityv1alpha2.WorkspaceStoreRef{
-										Name: "store",
+									StoreRef: securityv1alpha1.WorkspaceStoreRef{
+										Name:    "store",
 										Cluster: "path",
 									},
 								},
@@ -327,13 +326,13 @@ type core_namespace
 			k8sMocks: func(k8s *mocks.MockClient) {
 				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-						am := ol.(*securityv1alpha2.AuthorizationModelList)
-						am.Items = []securityv1alpha2.AuthorizationModel{
+						am := ol.(*securityv1alpha1.AuthorizationModelList)
+						am.Items = []securityv1alpha1.AuthorizationModel{
 							{
-								Spec: securityv1alpha2.AuthorizationModelSpec{
+								Spec: securityv1alpha1.AuthorizationModelSpec{
 									Model: extensionModel,
-									StoreRef: securityv1alpha2.WorkspaceStoreRef{
-										Name: "store",
+									StoreRef: securityv1alpha1.WorkspaceStoreRef{
+										Name:    "store",
 										Cluster: "path",
 									},
 								},

@@ -12,6 +12,7 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/rs/zerolog/log"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,8 +25,8 @@ import (
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
-func getAllClient(mcMgr mcmanager.Manager) (client.Client, error) {
-	allCfg := rest.CopyConfig(mcMgr.GetLocalManager().GetConfig())
+func GetAllClient(config *rest.Config, schema *runtime.Scheme) (client.Client, error) {
+	allCfg := rest.CopyConfig(config)
 
 	parsed, err := url.Parse(allCfg.Host)
 	if err != nil {
@@ -46,7 +47,7 @@ func getAllClient(mcMgr mcmanager.Manager) (client.Client, error) {
 	log.Info().Str("host", allCfg.Host).Msg("using host")
 
 	allClient, err := client.New(allCfg, client.Options{
-		Scheme: mcMgr.GetLocalManager().GetScheme(),
+		Scheme: schema,
 	})
 	if err != nil {
 		return nil, err
@@ -55,7 +56,7 @@ func getAllClient(mcMgr mcmanager.Manager) (client.Client, error) {
 }
 
 func NewAPIBindingReconciler(logger *logger.Logger, mcMgr mcmanager.Manager) *APIBindingReconciler {
-	allclient, err := getAllClient(mcMgr)
+	allclient, err := GetAllClient(mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme())
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create new client")
 	}

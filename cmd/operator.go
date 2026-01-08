@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -47,9 +48,9 @@ var (
 
 type NewLogicalClusterClientFunc func(clusterKey logicalcluster.Name) (client.Client, error)
 
-func logicalClusterClientFromKey(mgr ctrl.Manager, log *logger.Logger) NewLogicalClusterClientFunc {
+func logicalClusterClientFromKey(config *rest.Config, log *logger.Logger) NewLogicalClusterClientFunc {
 	return func(clusterKey logicalcluster.Name) (client.Client, error) {
-		cfg := rest.CopyConfig(mgr.GetConfig())
+		cfg := rest.CopyConfig(config)
 
 		parsed, err := url.Parse(cfg.Host)
 		if err != nil {
@@ -123,6 +124,13 @@ var operatorCmd = &cobra.Command{
 			return fmt.Errorf("scheme should not be nil")
 		}
 
+		if operatorCfg.MigrateAuthorizationModels {
+			if err := migrateAuthorizationModels(ctx, restCfg, scheme, log); err != nil {
+				log.Error().Err(err).Msg("migration failed")
+				return err
+			}
+		}
+
 		provider, err := apiexport.New(restCfg, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
@@ -143,7 +151,7 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager(), log)(logicalcluster.Name("root:orgs"))
+		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create org client")
 			return err
@@ -196,9 +204,67 @@ var operatorCmd = &cobra.Command{
 	},
 }
 
+// this function can be removed after the operator migrates the authz models in all envs
+func migrateAuthorizationModels(ctx context.Context, config *rest.Config, schema *runtime.Scheme, log *logger.Logger) error {
+	log.Info().Msg("starting AuthorizationModel migration (path -> cluster)")
+
+	allClient, err := controller.GetAllClient(config, schema)
+	if err != nil {
+		log.Fatal().Err(err).Msg("unable to create new client")
+	}
+
+	var models corev1alpha1.AuthorizationModelList
+	if err := allClient.List(ctx, &models); err != nil {
+		return fmt.Errorf("failed to list AuthorizationModels: %w", err)
+	}
+
+	for i := range models.Items {
+		item := &models.Items[i]
+
+		if item.Spec.StoreRef.Cluster != "" {
+			continue
+		}
+
+		// KCP removes fields that don't match the resource schema, but data is stored in annotation
+		lastAppliedConfig, hasAnnotation := item.GetAnnotations()["kubectl.kubernetes.io/last-applied-configuration"]
+		if !hasAnnotation {
+			continue
+		}
+
+		var lastApplied struct {
+			Spec struct {
+				StoreRef struct {
+					Path string `json:"path"`
+				} `json:"storeRef"`
+			} `json:"spec"`
+		}
+		if err := json.Unmarshal([]byte(lastAppliedConfig), &lastApplied); err != nil {
+			return fmt.Errorf("failed to parse annotation for AuthorizationModel %s: %w", item.GetName(), err)
+		}
+		pathVal := lastApplied.Spec.StoreRef.Path
+		if pathVal == "" {
+			return fmt.Errorf("AuthorizationModel %s has annotation but path is empty", item.GetName())
+		}
+
+		item.Spec.StoreRef.Cluster = pathVal
+
+		clusterName := logicalcluster.From(item)
+		clusterClient, err := logicalClusterClientFromKey(config, log)(clusterName)
+		if err != nil {
+			return fmt.Errorf("failed to create cluster client for AuthorizationModel %s (cluster %s): %w", item.GetName(), clusterName, err)
+		}
+
+		if err := clusterClient.Update(ctx, item); err != nil {
+			return fmt.Errorf("failed to update AuthorizationModel %s: %w", item.GetName(), err)
+		}
+	}
+
+	log.Info().Msg("AuthorizationModel migration completed")
+	return nil
+}
+
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-
 	utilruntime.Must(kcptenancyv1alphav1.AddToScheme(scheme))
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(apisv1alpha1.AddToScheme(scheme))

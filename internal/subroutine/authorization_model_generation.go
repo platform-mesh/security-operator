@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	securityv1alpha2 "github.com/platform-mesh/security-operator/api/v1alpha2"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
 func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, allClient client.Client) *AuthorizationModelGenerationSubroutine {
@@ -165,7 +165,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 		}
 
 		authModelName := fmt.Sprintf("%s-%s", resourceSchema.Spec.Names.Plural, toDeleteAccountInfo.Spec.Organization.Name)
-		err = apiExportClient.Delete(ctx, &securityv1alpha2.AuthorizationModel{
+		err = apiExportClient.Delete(ctx, &securityv1alpha1.AuthorizationModel{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: authModelName,
 			},
@@ -257,17 +257,17 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}
 
-		model := securityv1alpha2.AuthorizationModel{
+		model := securityv1alpha1.AuthorizationModel{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: fmt.Sprintf("%s-%s", resourceSchema.Spec.Names.Plural, accountInfo.Spec.Organization.Name),
 			},
 		}
 
 		_, err = controllerutil.CreateOrUpdate(ctx, apiExportCluster.GetClient(), &model, func() error {
-			model.Spec = securityv1alpha2.AuthorizationModelSpec{
+			model.Spec = securityv1alpha1.AuthorizationModelSpec{
 				Model: buffer.String(),
-				StoreRef: securityv1alpha2.WorkspaceStoreRef{
-					Name: accountInfo.Spec.Organization.Name,
+				StoreRef: securityv1alpha1.WorkspaceStoreRef{
+					Name:    accountInfo.Spec.Organization.Name,
 					Cluster: accountInfo.Spec.Organization.OriginClusterId,
 				},
 			}

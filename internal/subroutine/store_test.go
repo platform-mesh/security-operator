@@ -7,8 +7,7 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	securityv1alpha2 "github.com/platform-mesh/security-operator/api/v1alpha2"
-	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"	
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
@@ -205,12 +204,12 @@ func TestFinalize(t *testing.T) {
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
 				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					if list, ok := ol.(*securityv1alpha2.AuthorizationModelList); ok {
-						list.Items = []securityv1alpha2.AuthorizationModel{
+					if list, ok := ol.(*securityv1alpha1.AuthorizationModelList); ok {
+						list.Items = []securityv1alpha1.AuthorizationModel{
 							{
-								Spec: securityv1alpha2.AuthorizationModelSpec{
-									StoreRef: securityv1alpha2.WorkspaceStoreRef{
-										Name: "store",
+								Spec: securityv1alpha1.AuthorizationModelSpec{
+									StoreRef: securityv1alpha1.WorkspaceStoreRef{
+										Name:    "store",
 										Cluster: "path",
 									},
 								},
