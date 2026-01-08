@@ -206,8 +206,6 @@ var operatorCmd = &cobra.Command{
 
 // this function can be removed after the operator migrates the authz models in all envs
 func migrateAuthorizationModels(ctx context.Context, config *rest.Config, schema *runtime.Scheme, log *logger.Logger) error {
-	log.Info().Msg("starting AuthorizationModel migration (path -> cluster)")
-
 	allClient, err := controller.GetAllClient(config, schema)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create new client")
@@ -246,16 +244,16 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, schema
 			return fmt.Errorf("AuthorizationModel %s has annotation but path is empty", item.GetName())
 		}
 
-		item.Spec.StoreRef.Cluster = pathVal
-
 		clusterName := logicalcluster.From(item)
 		clusterClient, err := logicalClusterClientFromKey(config, log)(clusterName)
 		if err != nil {
 			return fmt.Errorf("failed to create cluster client for AuthorizationModel %s (cluster %s): %w", item.GetName(), clusterName, err)
 		}
 
-		if err := clusterClient.Update(ctx, item); err != nil {
-			return fmt.Errorf("failed to update AuthorizationModel %s: %w", item.GetName(), err)
+		patch := client.MergeFrom(item.DeepCopy())
+		item.Spec.StoreRef.Cluster = pathVal
+		if err := clusterClient.Patch(ctx, item, patch); err != nil {
+			return fmt.Errorf("failed to patch AuthorizationModel %s: %w", item.GetName(), err)
 		}
 	}
 

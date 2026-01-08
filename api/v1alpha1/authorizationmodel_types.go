@@ -26,7 +26,6 @@ type AuthorizationModelStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
-// +kubebuilder:storageversion
 
 // AuthorizationModel is the Schema for the authorizationmodels API.
 type AuthorizationModel struct {
