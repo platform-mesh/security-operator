@@ -26,9 +26,17 @@ spec:
       - '*'
     state: Accepted
   - resource: logicalclusters
-    group: apis.kcp.io
+    group: core.kcp.io
     selector:
       matchAll: true
+    verbs:
+      - '*'
+    state: Accepted
+  - resource: secrets
+    group: ""
+    selector:
+      matchLabels:
+       managed: security-operator
     verbs:
       - '*'
     state: Accepted
