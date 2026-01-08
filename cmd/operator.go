@@ -204,7 +204,7 @@ var operatorCmd = &cobra.Command{
 	},
 }
 
-// this function can be removed after the operator migrates the authz models in all envs
+// this function can be removed after the operator  has migrated  the authz models in all environments
 func migrateAuthorizationModels(ctx context.Context, config *rest.Config, schema *runtime.Scheme, log *logger.Logger) error {
 	allClient, err := controller.GetAllClient(config, schema)
 	if err != nil {
@@ -223,7 +223,7 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, schema
 			continue
 		}
 
-		// KCP removes fields that don't match the resource schema, but data is stored in annotation
+		// KCP removes fields that don't match the resource schema, but the data is stored in annotations
 		lastAppliedConfig, hasAnnotation := item.GetAnnotations()["kubectl.kubernetes.io/last-applied-configuration"]
 		if !hasAnnotation {
 			continue
