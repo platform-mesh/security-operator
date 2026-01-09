@@ -14,7 +14,7 @@ type Config struct {
 	KCP struct {
 		Kubeconfig string `mapstructure:"kcp-kubeconfig" default:"/api-kubeconfig/kubeconfig"`
 	} `mapstructure:",squash"`
-	APIExportEndpointSliceName       string `mapstructure:"api-export-endpoint-slice-name"`
+	APIExportEndpointSliceName       string `mapstructure:"api-export-endpoint-slice-name" default:"core.platform-mesh.io"`
 	CoreModulePath                   string `mapstructure:"core-module-path"`
 	BaseDomain                       string `mapstructure:"base-domain" default:"portal.dev.local:8443"`
 	GroupClaim                       string `mapstructure:"group-claim" default:"groups"`
