@@ -6,7 +6,7 @@ import (
 	"slices"
 	"strings"
 
-	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
@@ -56,7 +56,7 @@ func (w *IDPSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
 func (w *IDPSubroutine) GetName() string { return "IDPSubroutine" }
 
 func (w *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	lc := instance.(*kcpv1alpha1.LogicalCluster)
+	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)
 	if workspaceName == "" {
@@ -123,7 +123,7 @@ func (w *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 	return ctrl.Result{}, nil
 }
 
-func getWorkspaceName(lc *kcpv1alpha1.LogicalCluster) string {
+func getWorkspaceName(lc *kcpcorev1alpha1.LogicalCluster) string {
 	if path, ok := lc.Annotations["kcp.io/path"]; ok {
 		pathElements := strings.Split(path, ":")
 		return pathElements[len(pathElements)-1]

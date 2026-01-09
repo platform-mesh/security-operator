@@ -355,7 +355,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "error - patchWorkspaceType fails for -org",
-			logicalCluster: &kcpv1alpha1.LogicalCluster{
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:test-workspace",
@@ -382,7 +382,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "error - patchWorkspaceType fails for -acc",
-			logicalCluster: &kcpv1alpha1.LogicalCluster{
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:test-workspace",
@@ -417,7 +417,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "error - domain CA secret Get fails",
-			logicalCluster: &kcpv1alpha1.LogicalCluster{
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:test-workspace",
@@ -439,7 +439,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 		},
 		{
 			name: "success - allow unverified emails in development mode",
-			logicalCluster: &kcpv1alpha1.LogicalCluster{
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:dev-workspace",
