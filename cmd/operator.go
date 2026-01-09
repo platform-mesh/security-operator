@@ -205,8 +205,8 @@ var operatorCmd = &cobra.Command{
 }
 
 // this function can be removed after the operator  has migrated  the authz models in all environments
-func migrateAuthorizationModels(ctx context.Context, config *rest.Config, schema *runtime.Scheme, log *logger.Logger) error {
-	allClient, err := controller.GetAllClient(config, schema)
+func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme *runtime.Scheme, log *logger.Logger) error {
+	allClient, err := controller.GetAllClient(config, scheme)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create new client")
 	}
@@ -239,8 +239,8 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, schema
 		if err := json.Unmarshal([]byte(lastAppliedConfig), &lastAppliedSchema); err != nil {
 			return fmt.Errorf("failed to parse annotation for AuthorizationModel %s: %w", item.GetName(), err)
 		}
-		pathVal := lastAppliedSchema.Spec.StoreRef.Path
-		if pathVal == "" {
+
+		if lastAppliedSchema.Spec.StoreRef.Path == "" {
 			return fmt.Errorf("AuthorizationModel %s has annotation but path is empty", item.GetName())
 		}
 
@@ -251,7 +251,7 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, schema
 		}
 
 		patch := client.MergeFrom(item.DeepCopy())
-		item.Spec.StoreRef.Cluster = pathVal
+		item.Spec.StoreRef.Cluster = lastAppliedSchema.Spec.StoreRef.Path
 		if err := clusterClient.Patch(ctx, item, patch); err != nil {
 			return fmt.Errorf("failed to patch AuthorizationModel %s: %w", item.GetName(), err)
 		}
