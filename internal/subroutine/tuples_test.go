@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
@@ -28,7 +28,7 @@ func TestTupleFinalizers(t *testing.T) {
 func TestTupleProcessWithStore(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *v1alpha1.Store
+		store       *securityv1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -36,9 +36,9 @@ func TestTupleProcessWithStore(t *testing.T) {
 	}{
 		{
 			name: "should process and add tuples to the store",
-			store: &v1alpha1.Store{
-				Spec: v1alpha1.StoreSpec{
-					Tuples: []v1alpha1.Tuple{
+			store: &securityv1alpha1.Store{
+				Spec: securityv1alpha1.StoreSpec{
+					Tuples: []securityv1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -56,10 +56,10 @@ func TestTupleProcessWithStore(t *testing.T) {
 						},
 					},
 				},
-				Status: v1alpha1.StoreStatus{
+				Status: securityv1alpha1.StoreStatus{
 					StoreID:              "store-id",
 					AuthorizationModelID: "auth-model-id",
-					ManagedTuples: []v1alpha1.Tuple{
+					ManagedTuples: []securityv1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -74,9 +74,9 @@ func TestTupleProcessWithStore(t *testing.T) {
 		},
 		{
 			name: "should process and add/remove tuples to the store",
-			store: &v1alpha1.Store{
-				Spec: v1alpha1.StoreSpec{
-					Tuples: []v1alpha1.Tuple{
+			store: &securityv1alpha1.Store{
+				Spec: securityv1alpha1.StoreSpec{
+					Tuples: []securityv1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -94,10 +94,10 @@ func TestTupleProcessWithStore(t *testing.T) {
 						},
 					},
 				},
-				Status: v1alpha1.StoreStatus{
+				Status: securityv1alpha1.StoreStatus{
 					StoreID:              "store-id",
 					AuthorizationModelID: "auth-model-id",
-					ManagedTuples: []v1alpha1.Tuple{
+					ManagedTuples: []securityv1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -116,9 +116,9 @@ func TestTupleProcessWithStore(t *testing.T) {
 		},
 		{
 			name: "should stop processing if an error occurs",
-			store: &v1alpha1.Store{
-				Spec: v1alpha1.StoreSpec{
-					Tuples: []v1alpha1.Tuple{
+			store: &securityv1alpha1.Store{
+				Spec: securityv1alpha1.StoreSpec{
+					Tuples: []securityv1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -136,10 +136,10 @@ func TestTupleProcessWithStore(t *testing.T) {
 						},
 					},
 				},
-				Status: v1alpha1.StoreStatus{
+				Status: securityv1alpha1.StoreStatus{
 					StoreID:              "store-id",
 					AuthorizationModelID: "auth-model-id",
-					ManagedTuples: []v1alpha1.Tuple{
+					ManagedTuples: []securityv1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -183,7 +183,7 @@ func TestTupleProcessWithStore(t *testing.T) {
 func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *v1alpha1.AuthorizationModel
+		store       *securityv1alpha1.AuthorizationModel
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -191,18 +191,18 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 	}{
 		{
 			name: "should process and add tuples to the authorization model",
-			store: &v1alpha1.AuthorizationModel{
+			store: &securityv1alpha1.AuthorizationModel{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						v1alpha1.StoreRefLabelKey: "store",
+						securityv1alpha1.StoreRefLabelKey: "store",
 					},
 				},
-				Spec: v1alpha1.AuthorizationModelSpec{
-					StoreRef: v1alpha1.WorkspaceStoreRef{
-						Name: "store",
-						Path: "store-cluster",
+				Spec: securityv1alpha1.AuthorizationModelSpec{
+					StoreRef: securityv1alpha1.WorkspaceStoreRef{
+						Name:    "store",
+						Cluster: "store-cluster",
 					},
-					Tuples: []v1alpha1.Tuple{
+					Tuples: []securityv1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -233,9 +233,9 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				mgr.EXPECT().GetCluster(mock.Anything, "store-cluster").Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-					store := o.(*v1alpha1.Store)
-					*store = v1alpha1.Store{
-						Status: v1alpha1.StoreStatus{
+					store := o.(*securityv1alpha1.Store)
+					*store = securityv1alpha1.Store{
+						Status: securityv1alpha1.StoreStatus{
 							StoreID:              "store-id",
 							AuthorizationModelID: "auth-model-id",
 						},
@@ -246,18 +246,18 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 		},
 		{
 			name: "should process and add/remove tuples to the authorization model",
-			store: &v1alpha1.AuthorizationModel{
+			store: &securityv1alpha1.AuthorizationModel{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						v1alpha1.StoreRefLabelKey: "store",
+						securityv1alpha1.StoreRefLabelKey: "store",
 					},
 				},
-				Spec: v1alpha1.AuthorizationModelSpec{
-					StoreRef: v1alpha1.WorkspaceStoreRef{
-						Name: "store",
-						Path: "store-cluster",
+				Spec: securityv1alpha1.AuthorizationModelSpec{
+					StoreRef: securityv1alpha1.WorkspaceStoreRef{
+						Name:    "store",
+						Cluster: "store-cluster",
 					},
-					Tuples: []v1alpha1.Tuple{
+					Tuples: []securityv1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -275,8 +275,8 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 						},
 					},
 				},
-				Status: v1alpha1.AuthorizationModelStatus{
-					ManagedTuples: []v1alpha1.Tuple{
+				Status: securityv1alpha1.AuthorizationModelStatus{
+					ManagedTuples: []securityv1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -301,9 +301,9 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				mgr.EXPECT().GetCluster(mock.Anything, "store-cluster").Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-					store := o.(*v1alpha1.Store)
-					*store = v1alpha1.Store{
-						Status: v1alpha1.StoreStatus{
+					store := o.(*securityv1alpha1.Store)
+					*store = securityv1alpha1.Store{
+						Status: securityv1alpha1.StoreStatus{
 							StoreID:              "store-id",
 							AuthorizationModelID: "auth-model-id",
 						},
@@ -347,7 +347,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *v1alpha1.AuthorizationModel
+		store       *securityv1alpha1.AuthorizationModel
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -355,20 +355,20 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 	}{
 		{
 			name: "should finalize the authorization model",
-			store: &v1alpha1.AuthorizationModel{
+			store: &securityv1alpha1.AuthorizationModel{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
-						v1alpha1.StoreRefLabelKey: "store",
+						securityv1alpha1.StoreRefLabelKey: "store",
 					},
 				},
-				Spec: v1alpha1.AuthorizationModelSpec{
-					StoreRef: v1alpha1.WorkspaceStoreRef{
-						Name: "store",
-						Path: "store-cluster",
+				Spec: securityv1alpha1.AuthorizationModelSpec{
+					StoreRef: securityv1alpha1.WorkspaceStoreRef{
+						Name:    "store",
+						Cluster: "store-cluster",
 					},
 				},
-				Status: v1alpha1.AuthorizationModelStatus{
-					ManagedTuples: []v1alpha1.Tuple{
+				Status: securityv1alpha1.AuthorizationModelStatus{
+					ManagedTuples: []securityv1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -390,9 +390,9 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 				mgr.EXPECT().GetCluster(mock.Anything, "store-cluster").Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-					store := o.(*v1alpha1.Store)
-					*store = v1alpha1.Store{
-						Status: v1alpha1.StoreStatus{
+					store := o.(*securityv1alpha1.Store)
+					*store = securityv1alpha1.Store{
+						Status: securityv1alpha1.StoreStatus{
 							StoreID:              "store-id",
 							AuthorizationModelID: "auth-model-id",
 						},
@@ -436,7 +436,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 func TestTupleFinalizationWithStore(t *testing.T) {
 	tests := []struct {
 		name        string
-		store       *v1alpha1.Store
+		store       *securityv1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
 		k8sMocks    func(*mocks.MockClient)
 		mgrMocks    func(*mocks.MockManager)
@@ -444,9 +444,9 @@ func TestTupleFinalizationWithStore(t *testing.T) {
 	}{
 		{
 			name: "should finalize the authorization model",
-			store: &v1alpha1.Store{
-				Status: v1alpha1.StoreStatus{
-					ManagedTuples: []v1alpha1.Tuple{
+			store: &securityv1alpha1.Store{
+				Status: securityv1alpha1.StoreStatus{
+					ManagedTuples: []securityv1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",
@@ -462,9 +462,9 @@ func TestTupleFinalizationWithStore(t *testing.T) {
 		},
 		{
 			name: "should stop finalizing the authorization model if an error occurs",
-			store: &v1alpha1.Store{
-				Status: v1alpha1.StoreStatus{
-					ManagedTuples: []v1alpha1.Tuple{
+			store: &securityv1alpha1.Store{
+				Status: securityv1alpha1.StoreStatus{
+					ManagedTuples: []securityv1alpha1.Tuple{
 						{
 							Object:   "foo",
 							Relation: "bar",

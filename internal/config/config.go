@@ -22,6 +22,7 @@ type Config struct {
 	DevelopmentAllowUnverifiedEmails bool   `mapstructure:"development-allow-unverified-emails" default:"false"`
 	InitializerName                  string `mapstructure:"initializer-name" default:"root:security"`
 	DomainCALookup                   bool   `mapstructure:"domain-ca-lookup" default:"false"`
+	MigrateAuthorizationModels       bool   `mapstructure:"migrate-authorization-models" default:"false"`
 	HttpClientTimeoutSeconds         int    `mapstructure:"http-client-timeout-seconds" default:"30"`
 	IDP                              struct {
 		// SMTP settings

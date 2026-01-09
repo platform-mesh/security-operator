@@ -6,8 +6,8 @@ import (
 )
 
 type WorkspaceStoreRef struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
+	Name    string `json:"name"`
+	Cluster string `json:"cluster"`
 }
 
 // AuthorizationModelSpec defines the desired state of AuthorizationModel.
