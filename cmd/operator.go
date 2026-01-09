@@ -226,20 +226,20 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, schema
 		// KCP removes fields that don't match the resource schema, but the data is stored in annotations
 		lastAppliedConfig, hasAnnotation := item.GetAnnotations()["kubectl.kubernetes.io/last-applied-configuration"]
 		if !hasAnnotation {
-			continue
+			return fmt.Errorf("AuthorizationModel %s is invalid, last-applied-configuration annotation is missed", item.GetName())
 		}
 
-		var lastApplied struct {
+		var lastAppliedSchema struct {
 			Spec struct {
 				StoreRef struct {
 					Path string `json:"path"`
 				} `json:"storeRef"`
 			} `json:"spec"`
 		}
-		if err := json.Unmarshal([]byte(lastAppliedConfig), &lastApplied); err != nil {
+		if err := json.Unmarshal([]byte(lastAppliedConfig), &lastAppliedSchema); err != nil {
 			return fmt.Errorf("failed to parse annotation for AuthorizationModel %s: %w", item.GetName(), err)
 		}
-		pathVal := lastApplied.Spec.StoreRef.Path
+		pathVal := lastAppliedSchema.Spec.StoreRef.Path
 		if pathVal == "" {
 			return fmt.Errorf("AuthorizationModel %s has annotation but path is empty", item.GetName())
 		}
