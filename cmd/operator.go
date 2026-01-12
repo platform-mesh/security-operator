@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	"net/url"
 
@@ -20,6 +19,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -204,14 +204,15 @@ var operatorCmd = &cobra.Command{
 	},
 }
 
-// this function can be removed after the operator  has migrated  the authz models in all environments
+// this function can be removed after the operator has migrated the authz models in all environments
 func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme *runtime.Scheme, log *logger.Logger) error {
 	allClient, err := controller.GetAllClient(config, scheme)
 	if err != nil {
-		log.Fatal().Err(err).Msg("unable to create new client")
+		return fmt.Errorf("failed to create all-cluster client: %w", err)
 	}
 
-	var models corev1alpha1.AuthorizationModelList
+	var models unstructured.UnstructuredList
+	models.SetGroupVersionKind(corev1alpha1.GroupVersion.WithKind("AuthorizationModelList"))
 	if err := allClient.List(ctx, &models); err != nil {
 		return fmt.Errorf("failed to list AuthorizationModels: %w", err)
 	}
@@ -219,29 +220,22 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme
 	for i := range models.Items {
 		item := &models.Items[i]
 
-		if item.Spec.StoreRef.Cluster != "" {
+		cluster, hasCluster, err := unstructured.NestedString(item.Object, "spec", "storeRef", "cluster")
+		if err != nil {
+			return fmt.Errorf("failed to get cluster field for AuthorizationModel %s: %w", item.GetName(), err)
+		}
+
+		if hasCluster && cluster != "" {
 			continue
 		}
 
-		// KCP removes fields that don't match the resource schema, but the data is stored in annotations
-		lastAppliedConfig, hasAnnotation := item.GetAnnotations()["kubectl.kubernetes.io/last-applied-configuration"]
-		if !hasAnnotation {
-			return fmt.Errorf("AuthorizationModel %s is invalid, last-applied-configuration annotation is missed", item.GetName())
+		path, hasPath, err := unstructured.NestedString(item.Object, "spec", "storeRef", "path")
+		if err != nil || !hasPath {
+			return fmt.Errorf("failed to get path field for AuthorizationModel %s: %w", item.GetName(), err)
 		}
 
-		var lastAppliedSchema struct {
-			Spec struct {
-				StoreRef struct {
-					Path string `json:"path"`
-				} `json:"storeRef"`
-			} `json:"spec"`
-		}
-		if err := json.Unmarshal([]byte(lastAppliedConfig), &lastAppliedSchema); err != nil {
-			return fmt.Errorf("failed to parse annotation for AuthorizationModel %s: %w", item.GetName(), err)
-		}
-
-		if lastAppliedSchema.Spec.StoreRef.Path == "" {
-			return fmt.Errorf("AuthorizationModel %s has annotation but path is empty", item.GetName())
+		if path == "" {
+			return fmt.Errorf("AuthorizationModel %s has empty path field to migrate from", item.GetName())
 		}
 
 		clusterName := logicalcluster.From(item)
@@ -250,8 +244,12 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme
 			return fmt.Errorf("failed to create cluster client for AuthorizationModel %s (cluster %s): %w", item.GetName(), clusterName, err)
 		}
 
-		patch := client.MergeFrom(item.DeepCopy())
-		item.Spec.StoreRef.Cluster = lastAppliedSchema.Spec.StoreRef.Path
+		original := item.DeepCopy()
+		if err := unstructured.SetNestedField(item.Object, path, "spec", "storeRef", "cluster"); err != nil {
+			return fmt.Errorf("failed to set cluster field for AuthorizationModel %s: %w", item.GetName(), err)
+		}
+
+		patch := client.MergeFrom(original)
 		if err := clusterClient.Patch(ctx, item, patch); err != nil {
 			return fmt.Errorf("failed to patch AuthorizationModel %s: %w", item.GetName(), err)
 		}

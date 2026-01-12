@@ -48,6 +48,9 @@ spec:
                     type: string
                   name:
                     type: string
+                  path:
+                    description: Path is deprecated. Use Cluster instead.
+                    type: string
                 required:
                 - cluster
                 - name
