@@ -125,6 +125,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 		Enabled:                     true,
 		LoginWithEmailAllowed:       true,
 		RegistrationEmailAsUsername: true,
+		RegistrationAllowed:         true,
 	}
 
 	if s.cfg.IDP.SMTPServer != "" {
