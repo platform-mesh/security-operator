@@ -82,6 +82,13 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
+		if operatorCfg.MigrateAuthorizationModels {
+			if err := migrateAuthorizationModels(ctx, restCfg, scheme, log); err != nil {
+				log.Error().Err(err).Msg("migration failed")
+				return err
+			}
+		}
+
 		if defaultCfg.Sentry.Dsn != "" {
 			err := sentry.Start(ctx,
 				defaultCfg.Sentry.Dsn, defaultCfg.Environment, defaultCfg.Region,
@@ -122,13 +129,6 @@ var operatorCmd = &cobra.Command{
 		if mgrOpts.Scheme == nil {
 			log.Error().Err(fmt.Errorf("scheme should not be nil")).Msg("scheme should not be nil")
 			return fmt.Errorf("scheme should not be nil")
-		}
-
-		if operatorCfg.MigrateAuthorizationModels {
-			if err := migrateAuthorizationModels(ctx, restCfg, scheme, log); err != nil {
-				log.Error().Err(err).Msg("migration failed")
-				return err
-			}
 		}
 
 		provider, err := apiexport.New(restCfg, apiexport.Options{
@@ -241,7 +241,7 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme
 		clusterName := logicalcluster.From(item)
 		clusterClient, err := logicalClusterClientFromKey(config, log)(clusterName)
 		if err != nil {
-			return fmt.Errorf("failed to create cluster client for AuthorizationModel %s (cluster %s): %w", item.GetName(), clusterName, err)
+			return fmt.Errorf("failed to create cluster client for AuthorizationModel %s: %w", item.GetName(), err)
 		}
 
 		original := item.DeepCopy()
