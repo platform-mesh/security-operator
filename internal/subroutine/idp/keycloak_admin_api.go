@@ -18,6 +18,7 @@ type realm struct {
 	Enabled                     bool        `json:"enabled"`
 	LoginWithEmailAllowed       bool        `json:"loginWithEmailAllowed,omitempty"`
 	RegistrationEmailAsUsername bool        `json:"registrationEmailAsUsername,omitempty"`
+	RegistrationAllowed         bool        `json:"registrationAllowed,omitempty"`
 	SMTPServer                  *smtpServer `json:"smtpServer,omitempty"`
 }
 
