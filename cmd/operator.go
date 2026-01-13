@@ -19,7 +19,6 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -211,8 +210,7 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme
 		return fmt.Errorf("failed to create all-cluster client: %w", err)
 	}
 
-	var models unstructured.UnstructuredList
-	models.SetGroupVersionKind(corev1alpha1.GroupVersion.WithKind("AuthorizationModelList"))
+	var models corev1alpha1.AuthorizationModelList
 	if err := allClient.List(ctx, &models); err != nil {
 		return fmt.Errorf("failed to list AuthorizationModels: %w", err)
 	}
@@ -220,34 +218,22 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme
 	for i := range models.Items {
 		item := &models.Items[i]
 
-		cluster, hasCluster, err := unstructured.NestedString(item.Object, "spec", "storeRef", "cluster")
-		if err != nil {
-			return fmt.Errorf("failed to get cluster field for AuthorizationModel %s: %w", item.GetName(), err)
-		}
-
-		if hasCluster && cluster != "" {
+		if item.Spec.StoreRef.Cluster != "" {
 			continue
 		}
 
-		path, hasPath, err := unstructured.NestedString(item.Object, "spec", "storeRef", "path")
-		if err != nil || !hasPath {
-			return fmt.Errorf("failed to get path field for AuthorizationModel %s: %w", item.GetName(), err)
-		}
-
-		if path == "" {
-			return fmt.Errorf("AuthorizationModel %s has empty path field to migrate from", item.GetName())
+		if item.Spec.StoreRef.Path == "" {
+			return fmt.Errorf("AuthorizationModel %s has empty cluster field and no path field to migrate from", item.GetName())
 		}
 
 		clusterName := logicalcluster.From(item)
 		clusterClient, err := logicalClusterClientFromKey(config, log)(clusterName)
 		if err != nil {
-			return fmt.Errorf("failed to create cluster client for AuthorizationModel %s: %w", item.GetName(), err)
+			return fmt.Errorf("failed to create cluster client for AuthorizationModel %s (cluster %s): %w", item.GetName(), clusterName, err)
 		}
 
 		original := item.DeepCopy()
-		if err := unstructured.SetNestedField(item.Object, path, "spec", "storeRef", "cluster"); err != nil {
-			return fmt.Errorf("failed to set cluster field for AuthorizationModel %s: %w", item.GetName(), err)
-		}
+		item.Spec.StoreRef.Cluster = item.Spec.StoreRef.Path
 
 		patch := client.MergeFrom(original)
 		if err := clusterClient.Patch(ctx, item, patch); err != nil {
