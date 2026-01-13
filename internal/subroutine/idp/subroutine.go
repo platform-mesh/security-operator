@@ -188,6 +188,7 @@ func (s *subroutine) ensureRealm(ctx context.Context, adminClient *keycloak.Admi
 		Enabled:                     true,
 		LoginWithEmailAllowed:       true,
 		RegistrationEmailAsUsername: true,
+		RegistrationAllowed:         true,
 	}
 
 	if s.cfg.IDP.SMTPServer != "" {
