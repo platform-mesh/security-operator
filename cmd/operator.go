@@ -82,7 +82,7 @@ var operatorCmd = &cobra.Command{
 		}
 
 		if operatorCfg.MigrateAuthorizationModels {
-			if err := migrateAuthorizationModels(ctx, restCfg, scheme, log); err != nil {
+			if err := migrateAuthorizationModels(ctx, restCfg, scheme, logicalClusterClientFromKey(restCfg, log)); err != nil {
 				log.Error().Err(err).Msg("migration failed")
 				return err
 			}
@@ -204,7 +204,7 @@ var operatorCmd = &cobra.Command{
 }
 
 // this function can be removed after the operator has migrated the authz models in all environments
-func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme *runtime.Scheme, log *logger.Logger) error {
+func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme *runtime.Scheme, getClusterClient NewLogicalClusterClientFunc) error {
 	allClient, err := controller.GetAllClient(config, scheme)
 	if err != nil {
 		return fmt.Errorf("failed to create all-cluster client: %w", err)
@@ -227,7 +227,7 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme
 		}
 
 		clusterName := logicalcluster.From(item)
-		clusterClient, err := logicalClusterClientFromKey(config, log)(clusterName)
+		clusterClient, err := getClusterClient(clusterName)
 		if err != nil {
 			return fmt.Errorf("failed to create cluster client for AuthorizationModel %s (cluster %s): %w", item.GetName(), clusterName, err)
 		}
