@@ -64,7 +64,7 @@ func (c *client) doRegister(ctx context.Context, registrationEndpoint, token str
 	if err != nil {
 		return ClientInformation{}, fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusCreated {
 		return ClientInformation{}, newHTTPErrorFromResponse(resp, OperationRegister)
@@ -100,7 +100,7 @@ func (c *client) doRead(ctx context.Context, registrationClientURI, token string
 	if err != nil {
 		return ClientInformation{}, fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return ClientInformation{}, newHTTPErrorFromResponse(resp, OperationRead)
@@ -142,7 +142,7 @@ func (c *client) doUpdate(ctx context.Context, registrationClientURI, token stri
 	if err != nil {
 		return ClientInformation{}, fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return ClientInformation{}, newHTTPErrorFromResponse(resp, OperationUpdate)
@@ -177,7 +177,7 @@ func (c *client) doDelete(ctx context.Context, registrationClientURI, token stri
 	if err != nil {
 		return fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusNoContent {
 		return newHTTPErrorFromResponse(resp, OperationDelete)

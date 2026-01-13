@@ -52,7 +52,7 @@ func TestClient_Register(t *testing.T) {
 					assert.Equal(t, "test-client", req.ClientName)
 
 					w.WriteHeader(http.StatusCreated)
-					json.NewEncoder(w).Encode(ClientInformation{
+					json.NewEncoder(w).Encode(ClientInformation{ //nolint:errcheck
 						ClientID:                "client-123",
 						ClientSecret:            "secret-456",
 						RegistrationAccessToken: "rat-789",
@@ -74,7 +74,7 @@ func TestClient_Register(t *testing.T) {
 			setupServer: func(t *testing.T) *httptest.Server {
 				return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusBadRequest)
-					w.Write([]byte(`{"error":"invalid_client_metadata"}`))
+					w.Write([]byte(`{"error":"invalid_client_metadata"}`)) //nolint:errcheck
 				}))
 			},
 			setupMocks: func(tp *mockTokenProvider) {
@@ -147,7 +147,7 @@ func TestClient_Read(t *testing.T) {
 					assert.Equal(t, "Bearer rat-789", r.Header.Get("Authorization"))
 
 					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(ClientInformation{
+					json.NewEncoder(w).Encode(ClientInformation{ //nolint:errcheck
 						ClientID:     "client-123",
 						ClientSecret: "secret-456",
 					})
@@ -244,7 +244,7 @@ func TestClient_Update(t *testing.T) {
 					assert.Equal(t, "updated-client", req.ClientName)
 
 					w.WriteHeader(http.StatusOK)
-					json.NewEncoder(w).Encode(ClientInformation{
+					json.NewEncoder(w).Encode(ClientInformation{ //nolint:errcheck
 						ClientID:                "client-123",
 						RegistrationAccessToken: "new-rat-999",
 					})

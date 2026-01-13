@@ -61,7 +61,7 @@ func (t *RetryTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 		return resp, nil
 	}
 
-	resp.Body.Close()
+	resp.Body.Close() //nolint:errcheck
 
 	retryReq := req.Clone(req.Context())
 	retryReq.Header.Set("Authorization", "Bearer "+newToken)

@@ -49,7 +49,7 @@ func (c *AdminClient) TokenForRegistration(ctx context.Context) (string, error) 
 	if err != nil {
 		return "", fmt.Errorf("failed to request initial access token: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return "", readErrorResponse(resp, "create initial access token")
@@ -84,7 +84,7 @@ func (c *AdminClient) RefreshToken(ctx context.Context, clientID string) (string
 	if err != nil {
 		return "", fmt.Errorf("failed to request token regeneration: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return "", readErrorResponse(resp, "regenerate registration access token")
@@ -124,7 +124,7 @@ func (c *AdminClient) CreateOrUpdateRealm(ctx context.Context, config RealmConfi
 	if err != nil {
 		return false, fmt.Errorf("failed to create realm: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode == http.StatusCreated {
 		return true, nil
@@ -149,7 +149,7 @@ func (c *AdminClient) updateRealm(ctx context.Context, realmName string, body []
 	if err != nil {
 		return fmt.Errorf("failed to update realm: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
 		return readErrorResponse(resp, "update realm")
@@ -171,7 +171,7 @@ func (c *AdminClient) DeleteRealm(ctx context.Context, realmName string) error {
 	if err != nil {
 		return fmt.Errorf("failed to delete realm: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNotFound {
 		return readErrorResponse(resp, "delete realm")
@@ -224,7 +224,7 @@ func (c *AdminClient) listClients(ctx context.Context) ([]ClientInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get clients: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, readErrorResponse(resp, "get clients")
