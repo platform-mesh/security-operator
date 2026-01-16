@@ -33,33 +33,35 @@ const (
 
 func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg config.Config) *IDPSubroutine {
 	return &IDPSubroutine{
-		orgsClient:             orgsClient,
-		mgr:                    mgr,
-		additionalRedirectURLs: cfg.IDP.AdditionalRedirectURLs,
-		baseDomain:             cfg.BaseDomain,
+		orgsClient:                          orgsClient,
+		mgr:                                 mgr,
+		additionalRedirectURLs:              cfg.IDP.AdditionalRedirectURLs,
+		kubectlClientAdditionalRedirectURLs: cfg.IDP.KubectlClientAdditionalRedirectURLs,
+		baseDomain:                          cfg.BaseDomain,
 	}
 }
 
 var _ lifecyclesubroutine.Subroutine = &IDPSubroutine{}
 
 type IDPSubroutine struct {
-	orgsClient             client.Client
-	mgr                    mcmanager.Manager
-	additionalRedirectURLs []string
-	baseDomain             string
+	orgsClient                          client.Client
+	mgr                                 mcmanager.Manager
+	additionalRedirectURLs              []string
+	kubectlClientAdditionalRedirectURLs []string
+	baseDomain                          string
 }
 
-func (w *IDPSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (i *IDPSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	return ctrl.Result{}, nil
 }
 
-func (w *IDPSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
+func (i *IDPSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
 	return nil
 }
 
-func (w *IDPSubroutine) GetName() string { return "IDPSubroutine" }
+func (i *IDPSubroutine) GetName() string { return "IDPSubroutine" }
 
-func (w *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (i *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpv1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)
@@ -67,13 +69,13 @@ func (w *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace name"), true, false)
 	}
 
-	cl, err := w.mgr.ClusterFromContext(ctx)
+	cl, err := i.mgr.ClusterFromContext(ctx)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context %w", err), true, true)
 	}
 
 	var account accountv1alpha1.Account
-	err = w.orgsClient.Get(ctx, types.NamespacedName{Name: workspaceName}, &account)
+	err = i.orgsClient.Get(ctx, types.NamespacedName{Name: workspaceName}, &account)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get account resource %w", err), true, true)
 	}
@@ -87,8 +89,8 @@ func (w *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 		{
 			ClientName:             workspaceName,
 			ClientType:             v1alpha1.IdentityProviderClientTypeConfidential,
-			RedirectURIs:           append(w.additionalRedirectURLs, fmt.Sprintf("https://%s.%s/*", workspaceName, w.baseDomain)),
-			PostLogoutRedirectURIs: []string{fmt.Sprintf("https://%s.%s/logout*", workspaceName, w.baseDomain)},
+			RedirectURIs:           append(i.additionalRedirectURLs, fmt.Sprintf("https://%s.%s/*", workspaceName, i.baseDomain)),
+			PostLogoutRedirectURIs: []string{fmt.Sprintf("https://%s.%s/logout*", workspaceName, i.baseDomain)},
 			SecretRef: corev1.SecretReference{
 				Name:      fmt.Sprintf("portal-client-secret-%s-%s", workspaceName, workspaceName),
 				Namespace: secretNamespace,
@@ -97,7 +99,7 @@ func (w *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 		{
 			ClientName:   kubectlClientName,
 			ClientType:   v1alpha1.IdentityProviderClientTypePublic,
-			RedirectURIs: []string{"http://localhost:8000", "http://localhost:18000"},
+			RedirectURIs: i.kubectlClientAdditionalRedirectURLs,
 			SecretRef: corev1.SecretReference{
 				Name:      fmt.Sprintf("portal-client-secret-%s-%s", workspaceName, kubectlClientName),
 				Namespace: secretNamespace,
