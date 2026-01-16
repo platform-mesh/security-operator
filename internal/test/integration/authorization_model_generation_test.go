@@ -6,11 +6,14 @@ import (
 	"strings"
 	"time"
 
+	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kcpapiv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/kcp/sdk/apis/core"
@@ -18,9 +21,6 @@ import (
 	"github.com/kcp-dev/logicalcluster/v3"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/envtest"
-
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
 func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
@@ -60,7 +60,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should be created by controller")
 
 	suite.Assert().Equal(testOrgName, model.Spec.StoreRef.Name)
-	suite.Assert().Equal(testOrgPath.String(), model.Spec.StoreRef.Path)
+	suite.Assert().Equal(testOrgPath.String(), model.Spec.StoreRef.Cluster)
 }
 
 func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
