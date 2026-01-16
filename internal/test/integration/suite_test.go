@@ -2,24 +2,31 @@ package test
 
 import (
 	"context"
-	_ "embed"
 	"errors"
 	"io"
 	"testing"
 	"time"
 
+	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	platformeshconfig "github.com/platform-mesh/golang-commons/config"
+	"github.com/platform-mesh/golang-commons/logger"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"golang.org/x/sync/errgroup"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/yaml"
+
 	eventsv1 "k8s.io/api/events/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	"sigs.k8s.io/yaml"
 
 	kcpapiv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	apisv1alpha2 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha2"
@@ -31,14 +38,8 @@ import (
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/envtest"
-	"golang.org/x/sync/errgroup"
 
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/logger"
-	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
-	"github.com/platform-mesh/security-operator/internal/controller"
-	ctrl "sigs.k8s.io/controller-runtime"
+	_ "embed"
 )
 
 var (

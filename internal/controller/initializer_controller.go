@@ -3,12 +3,13 @@ package controller
 import (
 	"context"
 
-	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
+	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/security-operator/internal/subroutine"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -16,8 +17,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
-	"github.com/platform-mesh/security-operator/internal/config"
-	"github.com/platform-mesh/security-operator/internal/subroutine"
+	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 )
 
 type LogicalClusterReconciler struct {

@@ -4,13 +4,14 @@ import (
 	"context"
 	"testing"
 
-	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 )
 
 // fakeStatusWriter implements client.SubResourceWriter to intercept Status().Patch calls

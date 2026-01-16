@@ -5,7 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
@@ -14,9 +13,12 @@ import (
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 func TestGetName(t *testing.T) {

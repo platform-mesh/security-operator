@@ -15,6 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+
+	"k8s.io/apimachinery/pkg/types"
 )
 
 type tupleSubroutine struct {
