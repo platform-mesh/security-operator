@@ -2,17 +2,15 @@ module github.com/platform-mesh/security-operator
 
 go 1.25.0
 
-replace github.com/kcp-dev/multicluster-provider v0.2.0 => github.com/kcp-dev/multicluster-provider v0.0.0-20250827085327-2b5ca378b7b4
-
 require (
 	github.com/coreos/go-oidc v2.5.0+incompatible
 	github.com/fluxcd/helm-controller/api v1.4.5
 	github.com/fluxcd/source-controller/api v1.7.4
 	github.com/go-logr/logr v1.4.3
 	github.com/google/gnostic-models v0.7.1
-	github.com/kcp-dev/kcp/sdk v0.28.1-0.20250926104223-cec2e15f24c6
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
-	github.com/kcp-dev/multicluster-provider v0.2.0
+	github.com/kcp-dev/multicluster-provider v0.3.3
+	github.com/kcp-dev/sdk v0.28.1-0.20251209130449-436a0347809b
 	github.com/openfga/api/proto v0.0.0-20251105142303-feed3db3d69d
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251027165255-0f8f255e5f6c
 	github.com/platform-mesh/account-operator v0.6.2
@@ -22,7 +20,6 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/oauth2 v0.34.0
-	golang.org/x/sync v0.19.0
 	google.golang.org/grpc v1.78.0
 	google.golang.org/protobuf v1.36.11
 	k8s.io/api v0.35.0
@@ -31,7 +28,7 @@ require (
 	k8s.io/client-go v0.35.0
 	k8s.io/utils v0.0.0-20260108192941-914a6e750570
 	sigs.k8s.io/controller-runtime v0.22.4
-	sigs.k8s.io/multicluster-runtime v0.21.0-alpha.9
+	sigs.k8s.io/multicluster-runtime v0.22.4-beta.1
 	sigs.k8s.io/yaml v1.6.0
 )
 
@@ -68,7 +65,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/josharian/intern v1.0.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kcp-dev/apimachinery/v2 v2.0.1-0.20250728122101-adbf20db3e51 // indirect
+	github.com/kcp-dev/apimachinery/v2 v2.29.1-0.20251209121225-cf3c0b624983 // indirect
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/martinlindhe/base36 v1.1.1 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
@@ -109,6 +106,7 @@ require (
 	golang.org/x/crypto v0.46.0 // indirect
 	golang.org/x/exp v0.0.0-20260112195511-716be5621a96 // indirect
 	golang.org/x/net v0.48.0 // indirect
+	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/term v0.38.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
