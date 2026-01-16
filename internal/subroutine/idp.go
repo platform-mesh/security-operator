@@ -26,6 +26,11 @@ import (
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 )
 
+const (
+	kubectlClientName = "kubectl"
+	secretNamespace   = "default"
+)
+
 func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg config.Config) *IDPSubroutine {
 	return &IDPSubroutine{
 		orgsClient:             orgsClient,
@@ -78,31 +83,33 @@ func (w *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 		return ctrl.Result{}, nil
 	}
 
-	clientConfig := v1alpha1.IdentityProviderClientConfig{
-		ClientName:             workspaceName,
-		ClientType:             v1alpha1.IdentityProviderClientTypeConfidential,
-		RedirectURIs:           append(w.additionalRedirectURLs, fmt.Sprintf("https://%s.%s/*", workspaceName, w.baseDomain)),
-		PostLogoutRedirectURIs: []string{fmt.Sprintf("https://%s.%s/logout*", workspaceName, w.baseDomain)},
-		SecretRef: corev1.SecretReference{
-			Name:      fmt.Sprintf("portal-client-secret-%s-%s", workspaceName, workspaceName),
-			Namespace: "default",
+	clients := []v1alpha1.IdentityProviderClientConfig{
+		{
+			ClientName:             workspaceName,
+			ClientType:             v1alpha1.IdentityProviderClientTypeConfidential,
+			RedirectURIs:           append(w.additionalRedirectURLs, fmt.Sprintf("https://%s.%s/*", workspaceName, w.baseDomain)),
+			PostLogoutRedirectURIs: []string{fmt.Sprintf("https://%s.%s/logout*", workspaceName, w.baseDomain)},
+			SecretRef: corev1.SecretReference{
+				Name:      fmt.Sprintf("portal-client-secret-%s-%s", workspaceName, workspaceName),
+				Namespace: secretNamespace,
+			},
+		},
+		{
+			ClientName:   kubectlClientName,
+			ClientType:   v1alpha1.IdentityProviderClientTypePublic,
+			RedirectURIs: []string{"http://localhost:8000", "http://localhost:18000"},
+			SecretRef: corev1.SecretReference{
+				Name:      fmt.Sprintf("portal-client-secret-%s-%s", workspaceName, kubectlClientName),
+				Namespace: secretNamespace,
+			},
 		},
 	}
 
 	idp := &v1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
 	_, err = controllerutil.CreateOrUpdate(ctx, cl.GetClient(), idp, func() error {
-		clientIdx := slices.IndexFunc(idp.Spec.Clients, func(c v1alpha1.IdentityProviderClientConfig) bool {
-			return c.ClientName == clientConfig.ClientName
-		})
-		if clientIdx != -1 {
-			idp.Spec.Clients[clientIdx].RedirectURIs = clientConfig.RedirectURIs
-			idp.Spec.Clients[clientIdx].ClientType = clientConfig.ClientType
-			idp.Spec.Clients[clientIdx].SecretRef = clientConfig.SecretRef
-			idp.Spec.Clients[clientIdx].PostLogoutRedirectURIs = clientConfig.PostLogoutRedirectURIs
-			return nil
+		for _, desired := range clients {
+			idp.Spec.Clients = ensureClient(idp.Spec.Clients, desired)
 		}
-
-		idp.Spec.Clients = append(idp.Spec.Clients, clientConfig)
 		return nil
 	})
 	if err != nil {
@@ -120,6 +127,24 @@ func (w *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 
 	log.Info().Str("workspace", workspaceName).Msg("idp resource is ready")
 	return ctrl.Result{}, nil
+}
+
+// ensureClient updates only fields managed by this subroutine, preserving ClientID and RegistrationClientURI
+// that are set reconciling an idp resource
+func ensureClient(existing []v1alpha1.IdentityProviderClientConfig, desired v1alpha1.IdentityProviderClientConfig) []v1alpha1.IdentityProviderClientConfig {
+	idx := slices.IndexFunc(existing, func(c v1alpha1.IdentityProviderClientConfig) bool {
+		return c.ClientName == desired.ClientName
+	})
+
+	if idx != -1 {
+		existing[idx].ClientType = desired.ClientType
+		existing[idx].RedirectURIs = desired.RedirectURIs
+		existing[idx].PostLogoutRedirectURIs = desired.PostLogoutRedirectURIs
+		existing[idx].SecretRef = desired.SecretRef
+		return existing
+	}
+
+	return append(existing, desired)
 }
 
 func getWorkspaceName(lc *kcpv1alpha1.LogicalCluster) string {
