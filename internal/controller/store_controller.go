@@ -34,7 +34,7 @@ type StoreReconciler struct {
 }
 
 func NewStoreReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *StoreReconciler {
-	allClient, err := getAllClient(mcMgr)
+	allClient, err := GetAllClient(mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme())
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create new client")
 	}
@@ -80,7 +80,7 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 								Name: model.Spec.StoreRef.Name,
 							},
 						},
-						ClusterName: model.Spec.StoreRef.Path,
+						ClusterName: model.Spec.StoreRef.Cluster,
 					},
 				}
 			}),

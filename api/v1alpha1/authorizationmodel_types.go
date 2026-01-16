@@ -7,8 +7,12 @@ import (
 )
 
 type WorkspaceStoreRef struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
+	Name    string `json:"name"`
+	Cluster string `json:"cluster"`
+	// Path is deprecated. Use Cluster instead.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:deprecatedversion:warning="v1alpha1"
+	Path string `json:"path,omitempty"`
 }
 
 // AuthorizationModelSpec defines the desired state of AuthorizationModel.
