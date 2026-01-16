@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
 	"github.com/platform-mesh/golang-commons/errors"
@@ -16,11 +15,14 @@ import (
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protojson"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+
+	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 var coreModule = `
