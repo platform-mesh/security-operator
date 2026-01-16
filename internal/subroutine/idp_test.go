@@ -27,6 +27,7 @@ func TestNewIDPSubroutine(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
 	cfg := config.Config{}
 	cfg.IDP.AdditionalRedirectURLs = []string{"https://example.com/callback"}
+	cfg.IDP.KubectlClientAdditionalRedirectURLs = []string{"http://localhost:9000"}
 	cfg.BaseDomain = "example.com"
 
 	subroutine := NewIDPSubroutine(orgsClient, mgr, cfg)
@@ -35,6 +36,7 @@ func TestNewIDPSubroutine(t *testing.T) {
 	assert.Equal(t, orgsClient, subroutine.orgsClient)
 	assert.Equal(t, mgr, subroutine.mgr)
 	assert.Equal(t, []string{"https://example.com/callback"}, subroutine.additionalRedirectURLs)
+	assert.Equal(t, []string{"http://localhost:9000"}, subroutine.kubectlClientAdditionalRedirectURLs)
 	assert.Equal(t, "example.com", subroutine.baseDomain)
 }
 
@@ -165,10 +167,13 @@ func TestIDPSubroutine_Process(t *testing.T) {
 				orgsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
 					RunAndReturn(func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
 						idp := obj.(*secopv1alpha1.IdentityProviderConfiguration)
-						assert.Len(t, idp.Spec.Clients, 1)
+						assert.Len(t, idp.Spec.Clients, 2)
 						assert.Equal(t, "acme", idp.Spec.Clients[0].ClientName)
 						assert.Equal(t, "portal-client-secret-acme-acme", idp.Spec.Clients[0].SecretRef.Name)
 						assert.Equal(t, "default", idp.Spec.Clients[0].SecretRef.Namespace)
+						assert.Equal(t, "kubectl", idp.Spec.Clients[1].ClientName)
+						assert.Equal(t, secopv1alpha1.IdentityProviderClientTypePublic, idp.Spec.Clients[1].ClientType)
+						assert.Equal(t, []string{"http://localhost:8000", "http://localhost:18000"}, idp.Spec.Clients[1].RedirectURIs)
 						idp.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
 						return nil
 					}).Once()
@@ -205,10 +210,13 @@ func TestIDPSubroutine_Process(t *testing.T) {
 				orgsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
 					RunAndReturn(func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
 						idp := obj.(*secopv1alpha1.IdentityProviderConfiguration)
-						assert.Len(t, idp.Spec.Clients, 1)
+						assert.Len(t, idp.Spec.Clients, 2)
 						assert.Equal(t, "beta", idp.Spec.Clients[0].ClientName)
 						assert.Equal(t, "portal-client-secret-beta-beta", idp.Spec.Clients[0].SecretRef.Name)
 						assert.Equal(t, "default", idp.Spec.Clients[0].SecretRef.Namespace)
+						assert.Equal(t, "kubectl", idp.Spec.Clients[1].ClientName)
+						assert.Equal(t, secopv1alpha1.IdentityProviderClientTypePublic, idp.Spec.Clients[1].ClientType)
+						assert.Equal(t, []string{"http://localhost:8000", "http://localhost:18000"}, idp.Spec.Clients[1].RedirectURIs)
 						idp.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse}}
 						return nil
 					}).Once()
@@ -266,6 +274,7 @@ func TestIDPSubroutine_Process(t *testing.T) {
 			cluster := mocks.NewMockCluster(t)
 			cfg := config.Config{}
 			cfg.IDP.AdditionalRedirectURLs = []string{}
+			cfg.IDP.KubectlClientAdditionalRedirectURLs = []string{"http://localhost:8000", "http://localhost:18000"}
 			cfg.BaseDomain = "example.com"
 			subroutine := NewIDPSubroutine(orgsClient, mgr, cfg)
 

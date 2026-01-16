@@ -38,7 +38,8 @@ type Config struct {
 		SMTPUser     string `mapstructure:"idp-smtp-user"`
 		SMTPPassword string `mapstructure:"idp-smtp-password"`
 
-		AdditionalRedirectURLs []string `mapstructure:"idp-additional-redirect-urls"`
+		AdditionalRedirectURLs              []string `mapstructure:"idp-additional-redirect-urls"`
+		KubectlClientAdditionalRedirectURLs []string `mapstructure:"idp-kubectl-client-additional-redirect-urls"`
 	} `mapstructure:",squash"`
 	Invite InviteConfig `mapstructure:",squash"`
 }
