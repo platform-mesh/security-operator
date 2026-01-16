@@ -132,7 +132,7 @@ func (i *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 }
 
 // ensureClient updates only fields managed by this subroutine, preserving ClientID and RegistrationClientURI
-// that are set reconciling an idp resource
+// that are set by reconciling an idp resource
 func ensureClient(existing []v1alpha1.IdentityProviderClientConfig, desired v1alpha1.IdentityProviderClientConfig) []v1alpha1.IdentityProviderClientConfig {
 	idx := slices.IndexFunc(existing, func(c v1alpha1.IdentityProviderClientConfig) bool {
 		return c.ClientName == desired.ClientName

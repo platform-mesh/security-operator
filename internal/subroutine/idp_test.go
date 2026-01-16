@@ -27,6 +27,7 @@ func TestNewIDPSubroutine(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
 	cfg := config.Config{}
 	cfg.IDP.AdditionalRedirectURLs = []string{"https://example.com/callback"}
+	cfg.IDP.KubectlClientAdditionalRedirectURLs = []string{"http://localhost:9000"}
 	cfg.BaseDomain = "example.com"
 
 	subroutine := NewIDPSubroutine(orgsClient, mgr, cfg)
@@ -35,6 +36,7 @@ func TestNewIDPSubroutine(t *testing.T) {
 	assert.Equal(t, orgsClient, subroutine.orgsClient)
 	assert.Equal(t, mgr, subroutine.mgr)
 	assert.Equal(t, []string{"https://example.com/callback"}, subroutine.additionalRedirectURLs)
+	assert.Equal(t, []string{"http://localhost:9000"}, subroutine.kubectlClientAdditionalRedirectURLs)
 	assert.Equal(t, "example.com", subroutine.baseDomain)
 }
 
@@ -272,6 +274,7 @@ func TestIDPSubroutine_Process(t *testing.T) {
 			cluster := mocks.NewMockCluster(t)
 			cfg := config.Config{}
 			cfg.IDP.AdditionalRedirectURLs = []string{}
+			cfg.IDP.KubectlClientAdditionalRedirectURLs = []string{"http://localhost:8000", "http://localhost:18000"}
 			cfg.BaseDomain = "example.com"
 			subroutine := NewIDPSubroutine(orgsClient, mgr, cfg)
 
