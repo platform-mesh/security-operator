@@ -3,6 +3,7 @@ package subroutine
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
@@ -138,14 +139,19 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err), true, true)
 	}
 
-	err = r.patchWorkspaceType(ctx, r.orgClient, fmt.Sprintf("%s-org", workspaceName), workspaceName)
+	var wstypes kcptenancyv1alphav1.WorkspaceTypeList
+	err = r.orgClient.List(ctx, &wstypes)
 	if err != nil {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch workspace type: %w", err), true, true)
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to list WorkspaceTypes: %w", err), true, true)
 	}
 
-	err = r.patchWorkspaceType(ctx, r.orgClient, fmt.Sprintf("%s-acc", workspaceName), workspaceName)
-	if err != nil {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch workspace type: %w", err), true, true)
+	for _, wstype := range wstypes.Items {
+		if strings.HasPrefix(wstype.Name, fmt.Sprintf("%s-", workspaceName)) {
+			err = r.patchWorkspaceType(ctx, r.orgClient, wstype.Name, workspaceName)
+			if err != nil {
+				return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch workspace type: %w", err), true, true)
+			}
+		}
 	}
 
 	return ctrl.Result{}, nil
