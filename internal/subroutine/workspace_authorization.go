@@ -81,11 +81,20 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get IdentityProviderConfiguration: %w", err), true, true)
 	}
 
-	audiences := make([]string, 0, len(idpConfig.Status.ManagedClients))
-	for _, managedClient := range idpConfig.Status.ManagedClients {
-		if managedClient.ClientID != "" {
-			audiences = append(audiences, managedClient.ClientID)
+	if len(idpConfig.Spec.Clients) == 0 || len(idpConfig.Status.ManagedClients) == 0 {
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("idp resource has no clients in spec or status"), true, false)
+	}
+
+	audiences := make([]string, 0, len(idpConfig.Spec.Clients))
+	for _, specClient := range idpConfig.Spec.Clients {
+		managedClient, ok := idpConfig.Status.ManagedClients[specClient.ClientName]
+		if !ok {
+			return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("client %s is not found in idp %s status", specClient.ClientName, workspaceName), true, false)
 		}
+		if managedClient.ClientID == "" {
+			return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("client %s has empty clientID in idp %s", specClient.ClientName, workspaceName), true, false)
+		}
+		audiences = append(audiences, managedClient.ClientID)
 	}
 
 	jwtAuthenticationConfiguration := kcptenancyv1alphav1.JWTAuthenticator{
