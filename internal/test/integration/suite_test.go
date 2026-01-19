@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	_ "embed"
 	"fmt"
 	"io"
 	"net/url"
@@ -17,19 +16,24 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/yaml"
+
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
-	"github.com/kcp-dev/sdk/apis/core"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/envtest"
 	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	apisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
+	"github.com/kcp-dev/sdk/apis/core"
 	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 

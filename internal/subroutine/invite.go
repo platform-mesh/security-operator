@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
@@ -21,6 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
+
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 func NewInviteSubroutine(orgsClient client.Client, mgr mcmanager.Manager) *inviteSubroutine {

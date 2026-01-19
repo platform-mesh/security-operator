@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
@@ -23,6 +22,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 const (
@@ -60,7 +61,7 @@ func (i *IDPSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
 
 func (i *IDPSubroutine) GetName() string { return "IDPSubroutine" }
 
-func (w *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (i *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)
@@ -148,7 +149,7 @@ func ensureClient(existing []v1alpha1.IdentityProviderClientConfig, desired v1al
 	return append(existing, desired)
 }
 
-func getWorkspaceName(lc *kcpv1alpha1.LogicalCluster) string {
+func getWorkspaceName(lc *kcpcorev1alpha1.LogicalCluster) string {
 	if path, ok := lc.Annotations["kcp.io/path"]; ok {
 		pathElements := strings.Split(path, ":")
 		return pathElements[len(pathElements)-1]

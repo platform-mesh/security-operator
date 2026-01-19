@@ -7,8 +7,6 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/kcp-dev/logicalcluster/v3"
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
@@ -24,6 +22,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/kcp-dev/logicalcluster/v3"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
 func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, allClient client.Client) *AuthorizationModelGenerationSubroutine {

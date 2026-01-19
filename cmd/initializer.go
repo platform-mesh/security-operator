@@ -6,7 +6,6 @@ import (
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	pmcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/spf13/cobra"
 	ctrl "sigs.k8s.io/controller-runtime"

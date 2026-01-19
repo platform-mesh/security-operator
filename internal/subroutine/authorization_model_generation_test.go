@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
@@ -16,6 +15,8 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
 func newApiBinding(name, path string) *kcpapisv1alpha1.APIBinding {

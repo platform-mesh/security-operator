@@ -6,6 +6,8 @@ import (
 	"strings"
 	"time"
 
+	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -18,9 +20,6 @@ import (
 	"github.com/kcp-dev/multicluster-provider/envtest"
 	kcpapiv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/sdk/apis/core"
-
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
 func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {

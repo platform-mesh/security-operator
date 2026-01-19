@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
@@ -19,6 +18,8 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mcmanager.Manager) *workspaceInitializer {

@@ -5,8 +5,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/kcp-dev/logicalcluster/v3"
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
@@ -23,6 +21,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
+
+	"github.com/kcp-dev/logicalcluster/v3"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
 func GetAllClient(config *rest.Config, schema *runtime.Scheme) (client.Client, error) {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"testing"
 
-	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	secopv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
@@ -19,6 +18,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+
+	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 func TestNewIDPSubroutine(t *testing.T) {
