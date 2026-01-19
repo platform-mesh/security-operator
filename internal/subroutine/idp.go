@@ -33,22 +33,22 @@ const (
 
 func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg config.Config) *IDPSubroutine {
 	return &IDPSubroutine{
-		orgsClient:                          orgsClient,
-		mgr:                                 mgr,
-		additionalRedirectURLs:              cfg.IDP.AdditionalRedirectURLs,
-		kubectlClientAdditionalRedirectURLs: cfg.IDP.KubectlClientAdditionalRedirectURLs,
-		baseDomain:                          cfg.BaseDomain,
+		orgsClient:                orgsClient,
+		mgr:                       mgr,
+		additionalRedirectURLs:    cfg.IDP.AdditionalRedirectURLs,
+		kubectlClientRedirectURLs: cfg.IDP.KubectlClientRedirectURLs,
+		baseDomain:                cfg.BaseDomain,
 	}
 }
 
 var _ lifecyclesubroutine.Subroutine = &IDPSubroutine{}
 
 type IDPSubroutine struct {
-	orgsClient                          client.Client
-	mgr                                 mcmanager.Manager
-	additionalRedirectURLs              []string
-	kubectlClientAdditionalRedirectURLs []string
-	baseDomain                          string
+	orgsClient                client.Client
+	mgr                       mcmanager.Manager
+	additionalRedirectURLs    []string
+	kubectlClientRedirectURLs []string
+	baseDomain                string
 }
 
 func (i *IDPSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
@@ -99,7 +99,7 @@ func (i *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 		{
 			ClientName:   kubectlClientName,
 			ClientType:   v1alpha1.IdentityProviderClientTypePublic,
-			RedirectURIs: i.kubectlClientAdditionalRedirectURLs,
+			RedirectURIs: i.kubectlClientRedirectURLs,
 			SecretRef: corev1.SecretReference{
 				Name:      fmt.Sprintf("portal-client-secret-%s-%s", workspaceName, kubectlClientName),
 				Namespace: secretNamespace,
