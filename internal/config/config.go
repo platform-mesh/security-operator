@@ -22,6 +22,7 @@ type Config struct {
 	DevelopmentAllowUnverifiedEmails bool   `mapstructure:"development-allow-unverified-emails" default:"false"`
 	InitializerName                  string `mapstructure:"initializer-name" default:"root:security"`
 	DomainCALookup                   bool   `mapstructure:"domain-ca-lookup" default:"false"`
+	MigrateAuthorizationModels       bool   `mapstructure:"migrate-authorization-models" default:"false"`
 	HttpClientTimeoutSeconds         int    `mapstructure:"http-client-timeout-seconds" default:"30"`
 	IDP                              struct {
 		// SMTP settings
@@ -37,7 +38,8 @@ type Config struct {
 		SMTPUser     string `mapstructure:"idp-smtp-user"`
 		SMTPPassword string `mapstructure:"idp-smtp-password"`
 
-		AdditionalRedirectURLs []string `mapstructure:"idp-additional-redirect-urls"`
+		AdditionalRedirectURLs    []string `mapstructure:"idp-additional-redirect-urls"`
+		KubectlClientRedirectURLs []string `mapstructure:"idp-kubectl-client-redirect-urls" default:"http://localhost:8000,http://localhost:18000"`
 	} `mapstructure:",squash"`
 	Invite InviteConfig `mapstructure:",squash"`
 }

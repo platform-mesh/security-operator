@@ -6,11 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
@@ -59,7 +60,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should be created by controller")
 
 	suite.Assert().Equal(testOrgName, model.Spec.StoreRef.Name)
-	suite.Assert().Equal(testOrgPath.String(), model.Spec.StoreRef.Path)
+	suite.Assert().Equal(testOrgPath.String(), model.Spec.StoreRef.Cluster)
 }
 
 func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {

@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	lifecycleapi "github.com/platform-mesh/golang-commons/controller/lifecycle/api"
+
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -20,9 +21,8 @@ type IdentityProviderClientConfig struct {
 	ClientName             string                     `json:"clientName"`
 	RedirectURIs           []string                   `json:"redirectUris"`
 	PostLogoutRedirectURIs []string                   `json:"postLogoutRedirectUris,omitempty"`
-	// +optional
-	SecretRef             corev1.SecretReference `json:"secretRef"`
-	RegistrationClientURI string                 `json:"registrationClientUri,omitempty"`
+	SecretRef              corev1.SecretReference     `json:"secretRef,omitempty"`
+	RegistrationClientURI  string                     `json:"registrationClientUri,omitempty"`
 }
 
 // IdentityProviderConfigurationSpec defines the desired state of IdentityProviderConfiguration

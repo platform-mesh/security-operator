@@ -14,16 +14,16 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 )
 
 func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, allClient client.Client) *AuthorizationModelGenerationSubroutine {
@@ -267,8 +267,8 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 			model.Spec = securityv1alpha1.AuthorizationModelSpec{
 				Model: buffer.String(),
 				StoreRef: securityv1alpha1.WorkspaceStoreRef{
-					Name: accountInfo.Spec.Organization.Name,
-					Path: accountInfo.Spec.Organization.OriginClusterId,
+					Name:    accountInfo.Spec.Organization.Name,
+					Cluster: accountInfo.Spec.Organization.OriginClusterId,
 				},
 			}
 			return nil

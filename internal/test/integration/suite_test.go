@@ -9,6 +9,11 @@ import (
 	"testing"
 	"time"
 
+	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	platformeshconfig "github.com/platform-mesh/golang-commons/config"
+	"github.com/platform-mesh/golang-commons/logger"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -17,9 +22,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	"sigs.k8s.io/yaml"
 
 	"github.com/kcp-dev/sdk/apis/core"
 	"github.com/kcp-dev/logicalcluster/v3"
@@ -31,12 +33,7 @@ import (
 	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/logger"
-	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
-	"github.com/platform-mesh/security-operator/internal/controller"
-	ctrl "sigs.k8s.io/controller-runtime"
+	_ "embed"
 )
 
 var (
