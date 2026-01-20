@@ -48,22 +48,6 @@ const (
 
 type NewLogicalClusterClientFunc func(clusterKey logicalcluster.Name) (client.Client, error)
 
-func getPlatformMeshSystemConfig(cfg *rest.Config) (*rest.Config, error) {
-	providerConfig := rest.CopyConfig(cfg)
-
-	parsed, err := url.Parse(providerConfig.Host)
-	if err != nil {
-		return nil, fmt.Errorf("unable to parse URL: %w", err)
-	}
-
-	parsed.Path, err = url.JoinPath("clusters", platformMeshWorkspace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to join path")
-	}
-	providerConfig.Host = parsed.String()
-
-	return providerConfig, nil
-}
 
 func logicalClusterClientFromKey(config *rest.Config, log *logger.Logger) NewLogicalClusterClientFunc {
 	return func(clusterKey logicalcluster.Name) (client.Client, error) {
@@ -147,12 +131,8 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(fmt.Errorf("scheme should not be nil")).Msg("scheme should not be nil")
 			return fmt.Errorf("scheme should not be nil")
 		}
-		providerConfig, err := getPlatformMeshSystemConfig(restCfg)
-		if err != nil {
-			setupLog.Error(err, "unable to create provider config")
-			return err
-		}
-		provider, err := apiexport.New(providerConfig, operatorCfg.APIExportEndpointSliceName, apiexport.Options{
+
+		provider, err := apiexport.New(restCfg, operatorCfg.APIExportEndpointSliceName, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {

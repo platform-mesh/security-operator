@@ -70,12 +70,7 @@ var modelGeneratorCmd = &cobra.Command{
 			return fmt.Errorf("scheme should not be nil")
 		}
 
-		providerConfig, err := getPlatformMeshSystemConfig(restCfg)
-		if err != nil {
-			setupLog.Error(err, "unable to create provider config")
-			return err
-		}
-		provider, err := apiexport.New(providerConfig, operatorCfg.APIExportEndpointSliceName, apiexport.Options{
+		provider, err := apiexport.New(restCfg, operatorCfg.APIExportEndpointSliceName, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
