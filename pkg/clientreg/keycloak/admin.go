@@ -252,6 +252,7 @@ type RealmConfig struct {
 	LoginWithEmailAllowed       bool        `json:"loginWithEmailAllowed,omitempty"`
 	RegistrationEmailAsUsername bool        `json:"registrationEmailAsUsername,omitempty"`
 	RegistrationAllowed         bool        `json:"registrationAllowed,omitempty"`
+	SSOSessionIdleTimeout       int         `json:"ssoSessionIdleTimeout,omitempty"`
 	SMTPServer                  *SMTPConfig `json:"smtpServer,omitempty"`
 }
 
