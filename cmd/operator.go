@@ -42,10 +42,6 @@ var (
 	scheme = runtime.NewScheme()
 )
 
-const (
-	platformMeshWorkspace = "root:platform-mesh-system"
-)
-
 type NewLogicalClusterClientFunc func(clusterKey logicalcluster.Name) (client.Client, error)
 
 

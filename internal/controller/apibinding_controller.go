@@ -46,7 +46,7 @@ func GetAllClient(config *rest.Config, schema *runtime.Scheme) (client.Client, e
 
 	virtualWorkspaceUrl, err := url.Parse(apiExportEndpointSlice.Status.APIExportEndpoints[0].URL)
 	if err != nil {
-		log.Error().Err(err).Msg("unable to parse endpoint URL")
+		log.Error().Err(err).Msg("unable to parse virtual workspace URL")
 		return nil, err
 	}
 
