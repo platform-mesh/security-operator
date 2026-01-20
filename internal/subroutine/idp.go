@@ -134,6 +134,8 @@ func (i *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 		return ctrl.Result{RequeueAfter: i.limiter.When(idp)}, nil
 	}
 
+	i.limiter.Forget(idp)
+
 	log.Info().Str("workspace", workspaceName).Msg("idp resource is ready")
 	return ctrl.Result{}, nil
 }
