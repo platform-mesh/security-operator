@@ -3,6 +3,7 @@ package subroutine
 import (
 	"context"
 	"testing"
+	"time"
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
@@ -232,8 +233,8 @@ func TestIDPSubroutine_Process(t *testing.T) {
 					},
 				},
 			},
-			expectedErr:    true,
-			expectedResult: ctrl.Result{},
+			expectedErr:    false,
+			expectedResult: ctrl.Result{RequeueAfter: 2 * time.Second},
 		},
 		{
 			name: "Get IDP resource error",
