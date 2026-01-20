@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
@@ -22,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/workqueue"
 
 	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 )
@@ -32,12 +34,14 @@ const (
 )
 
 func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg config.Config) *IDPSubroutine {
+	limiter, _ := ratelimiter.NewStaticThenExponentialRateLimiter[*v1alpha1.IdentityProviderConfiguration](ratelimiter.NewConfig()) //nolint:errcheck
 	return &IDPSubroutine{
 		orgsClient:                orgsClient,
 		mgr:                       mgr,
 		additionalRedirectURLs:    cfg.IDP.AdditionalRedirectURLs,
 		kubectlClientRedirectURLs: cfg.IDP.KubectlClientRedirectURLs,
 		baseDomain:                cfg.BaseDomain,
+		limiter:                   limiter,
 	}
 }
 
@@ -49,6 +53,7 @@ type IDPSubroutine struct {
 	additionalRedirectURLs    []string
 	kubectlClientRedirectURLs []string
 	baseDomain                string
+	limiter                   workqueue.TypedRateLimiter[*v1alpha1.IdentityProviderConfiguration]
 }
 
 func (i *IDPSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
@@ -123,8 +128,10 @@ func (i *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 	if err := cl.GetClient().Get(ctx, types.NamespacedName{Name: workspaceName}, idp); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get idp resource %w", err), true, true)
 	}
+
 	if !meta.IsStatusConditionTrue(idp.GetConditions(), "Ready") {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("idp resource is not ready yet"), true, false)
+		log.Debug().Str("workspace", workspaceName).Msg("idp resource is not ready yet, requeuing")
+		return ctrl.Result{RequeueAfter: i.limiter.When(idp)}, nil
 	}
 
 	log.Info().Str("workspace", workspaceName).Msg("idp resource is ready")
