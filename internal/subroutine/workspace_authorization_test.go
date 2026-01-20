@@ -28,7 +28,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 		name           string
 		logicalCluster *kcpcorev1alpha1.LogicalCluster
 		cfg            config.Config
-		setupMocks     func(*mocks.MockClient)
+		setupMocks     func(*mocks.MockClient, *mocks.MockClient)
 		expectError    bool
 		expectedResult ctrl.Result
 	}{
@@ -42,7 +42,26 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 				},
 			},
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
-			setupMocks: func(m *mocks.MockClient) {
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{Name: "test-workspace"},
+							Spec: v1alpha1.IdentityProviderConfigurationSpec{
+								Clients: []v1alpha1.IdentityProviderClientConfig{
+									{ClientName: "test-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
+									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
+								},
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"test-workspace": {ClientID: "test-workspace-client"},
+									"kubectl":        {ClientID: "kubectl-client"},
+								},
+							},
+						}
+						return nil
+					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
 					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
@@ -97,7 +116,26 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 				},
 			},
 			cfg: config.Config{BaseDomain: "example.com", GroupClaim: "groups", UserClaim: "email"},
-			setupMocks: func(m *mocks.MockClient) {
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "existing-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{Name: "existing-workspace"},
+							Spec: v1alpha1.IdentityProviderConfigurationSpec{
+								Clients: []v1alpha1.IdentityProviderClientConfig{
+									{ClientName: "existing-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
+									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
+								},
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"existing-workspace": {ClientID: "existing-workspace-client"},
+									"kubectl":            {ClientID: "kubectl-client"},
+								},
+							},
+						}
+						return nil
+					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "existing-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
 						wac := obj.(*kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration)
@@ -159,8 +197,8 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 					Annotations: map[string]string{},
 				},
 			},
-			cfg:            config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
-			setupMocks:     func(m *mocks.MockClient) {},
+			cfg:        config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {},
 			expectError:    true,
 			expectedResult: ctrl.Result{},
 		},
@@ -173,8 +211,8 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 					},
 				},
 			},
-			cfg:            config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
-			setupMocks:     func(m *mocks.MockClient) {},
+			cfg:        config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {},
 			expectError:    true,
 			expectedResult: ctrl.Result{},
 		},
@@ -188,7 +226,26 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 				},
 			},
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
-			setupMocks: func(m *mocks.MockClient) {
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{Name: "test-workspace"},
+							Spec: v1alpha1.IdentityProviderConfigurationSpec{
+								Clients: []v1alpha1.IdentityProviderClientConfig{
+									{ClientName: "test-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
+									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
+								},
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"test-workspace": {ClientID: "test-workspace-client"},
+									"kubectl":        {ClientID: "kubectl-client"},
+								},
+							},
+						}
+						return nil
+					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
 					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
@@ -207,7 +264,26 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 				},
 			},
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
-			setupMocks: func(m *mocks.MockClient) {
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{Name: "test-workspace"},
+							Spec: v1alpha1.IdentityProviderConfigurationSpec{
+								Clients: []v1alpha1.IdentityProviderClientConfig{
+									{ClientName: "test-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
+									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
+								},
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"test-workspace": {ClientID: "test-workspace-client"},
+									"kubectl":        {ClientID: "kubectl-client"},
+								},
+							},
+						}
+						return nil
+					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
 						wac := obj.(*kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration)
@@ -230,7 +306,26 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 				},
 			},
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
-			setupMocks: func(m *mocks.MockClient) {
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{Name: "test-workspace"},
+							Spec: v1alpha1.IdentityProviderConfigurationSpec{
+								Clients: []v1alpha1.IdentityProviderClientConfig{
+									{ClientName: "test-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
+									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
+								},
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"test-workspace": {ClientID: "test-workspace-client"},
+									"kubectl":        {ClientID: "kubectl-client"},
+								},
+							},
+						}
+						return nil
+					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
 					Return(errors.New("get failed")).Once()
 			},
@@ -247,7 +342,26 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 				},
 			},
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
-			setupMocks: func(m *mocks.MockClient) {
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{Name: "single-workspace"},
+							Spec: v1alpha1.IdentityProviderConfigurationSpec{
+								Clients: []v1alpha1.IdentityProviderClientConfig{
+									{ClientName: "single-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
+									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
+								},
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"single-workspace": {ClientID: "single-workspace-client"},
+									"kubectl":          {ClientID: "kubectl-client"},
+								},
+							},
+						}
+						return nil
+					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
 					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "single-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
@@ -304,7 +418,26 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 				UserClaim:      "email",
 				DomainCALookup: true,
 			},
-			setupMocks: func(m *mocks.MockClient) {
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{Name: "single-workspace"},
+							Spec: v1alpha1.IdentityProviderConfigurationSpec{
+								Clients: []v1alpha1.IdentityProviderClientConfig{
+									{ClientName: "single-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
+									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
+								},
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"single-workspace": {ClientID: "single-workspace-client"},
+									"kubectl":          {ClientID: "kubectl-client"},
+								},
+							},
+						}
+						return nil
+					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "domain-certificate-ca", Namespace: "platform-mesh-system"}, mock.Anything, mock.Anything).
 					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
 						secret := obj.(*corev1.Secret)
@@ -365,7 +498,26 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 				},
 			},
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
-			setupMocks: func(m *mocks.MockClient) {
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{Name: "test-workspace"},
+							Spec: v1alpha1.IdentityProviderConfigurationSpec{
+								Clients: []v1alpha1.IdentityProviderClientConfig{
+									{ClientName: "test-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
+									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
+								},
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"test-workspace": {ClientID: "test-workspace-client"},
+									"kubectl":        {ClientID: "kubectl-client"},
+								},
+							},
+						}
+						return nil
+					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
 					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).Return(nil).Once()
@@ -392,7 +544,26 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 				},
 			},
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
-			setupMocks: func(m *mocks.MockClient) {
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{Name: "test-workspace"},
+							Spec: v1alpha1.IdentityProviderConfigurationSpec{
+								Clients: []v1alpha1.IdentityProviderClientConfig{
+									{ClientName: "test-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
+									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
+								},
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"test-workspace": {ClientID: "test-workspace-client"},
+									"kubectl":        {ClientID: "kubectl-client"},
+								},
+							},
+						}
+						return nil
+					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
 					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).Return(nil).Once()
@@ -432,7 +603,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 				UserClaim:      "email",
 				DomainCALookup: true,
 			},
-			setupMocks: func(m *mocks.MockClient) {
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "domain-certificate-ca", Namespace: "platform-mesh-system"}, mock.Anything, mock.Anything).
 					Return(errors.New("failed to get domain CA secret")).Once()
 			},
@@ -454,7 +625,26 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 				UserClaim:                        "email",
 				DevelopmentAllowUnverifiedEmails: true,
 			},
-			setupMocks: func(m *mocks.MockClient) {
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "dev-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{Name: "dev-workspace"},
+							Spec: v1alpha1.IdentityProviderConfigurationSpec{
+								Clients: []v1alpha1.IdentityProviderClientConfig{
+									{ClientName: "dev-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
+									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
+								},
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"dev-workspace": {ClientID: "dev-workspace-client"},
+									"kubectl":       {ClientID: "kubectl-client"},
+								},
+							},
+						}
+						return nil
+					}).Once()
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "dev-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
 					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "dev-workspace")).Once()
 
@@ -509,39 +699,14 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockClient := mocks.NewMockClient(t)
-			if tt.setupMocks != nil {
-				tt.setupMocks(mockClient)
-			}
-
 			mgr := mocks.NewMockManager(t)
 			cluster := mocks.NewMockCluster(t)
 			mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Maybe()
 
 			mgrClient := mocks.NewMockClient(t)
-			mgrClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-				*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "default-idp-config",
-					},
-					Status: v1alpha1.IdentityProviderConfigurationStatus{
-						ManagedClients: map[string]v1alpha1.ManagedClient{
-							"dev-workspace": {
-								ClientID: "dev-workspace-client",
-							},
-							"test-workspace": {
-								ClientID: "test-workspace-client",
-							},
-							"existing-workspace": {
-								ClientID: "existing-workspace-client",
-							},
-							"single-workspace": {
-								ClientID: "single-workspace-client",
-							},
-						},
-					},
-				}
-				return nil
-			}).Maybe()
+			if tt.setupMocks != nil {
+				tt.setupMocks(mockClient, mgrClient)
+			}
 
 			cluster.EXPECT().GetClient().Return(mgrClient).Maybe()
 

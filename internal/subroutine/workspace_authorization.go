@@ -81,16 +81,27 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get IdentityProviderConfiguration: %w", err), true, true)
 	}
 
-	clientInfo, ok := idpConfig.Status.ManagedClients[workspaceName]
-	if !ok {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("managed client not found in IdentityProviderConfiguration status"), true, true)
+	if len(idpConfig.Spec.Clients) == 0 || len(idpConfig.Status.ManagedClients) == 0 {
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("IdentityProviderConfiguration %s has no clients in spec or status", workspaceName), true, false)
+	}
+
+	audiences := make([]string, 0, len(idpConfig.Spec.Clients))
+	for _, specClient := range idpConfig.Spec.Clients {
+		managedClient, ok := idpConfig.Status.ManagedClients[specClient.ClientName]
+		if !ok {
+			return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("managed client %s not found in IdentityProviderConfiguration status", specClient.ClientName), true, false)
+		}
+		if managedClient.ClientID == "" {
+			return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("managed client %s has empty ClientID in IdentityProviderConfiguration status", specClient.ClientName), true, false)
+		}
+		audiences = append(audiences, managedClient.ClientID)
 	}
 
 	jwtAuthenticationConfiguration := kcptenancyv1alphav1.JWTAuthenticator{
 		Issuer: kcptenancyv1alphav1.Issuer{
 			URL:                 fmt.Sprintf("https://%s/keycloak/realms/%s", r.cfg.BaseDomain, workspaceName),
 			AudienceMatchPolicy: kcptenancyv1alphav1.AudienceMatchPolicyMatchAny,
-			Audiences:           []string{clientInfo.ClientID, "kubectl"},
+			Audiences:           audiences,
 		},
 		ClaimMappings: kcptenancyv1alphav1.ClaimMappings{
 			Groups: kcptenancyv1alphav1.PrefixedClaimOrExpression{
