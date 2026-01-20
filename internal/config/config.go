@@ -41,8 +41,7 @@ type Config struct {
 		AdditionalRedirectURLs    []string `mapstructure:"idp-additional-redirect-urls"`
 		KubectlClientRedirectURLs []string `mapstructure:"idp-kubectl-client-redirect-urls" default:"http://localhost:8000,http://localhost:18000"`
 
-		SSOSessionIdleTimeout int `mapstructure:"idp-sso-session-idle-timeout" default:"28800"`
-		AccessTokenLifespan   int `mapstructure:"idp-access-token-lifespan" default:"28800"`
+		AccessTokenLifespan int `mapstructure:"idp-access-token-lifespan" default:"28800"`
 	} `mapstructure:",squash"`
 	Invite InviteConfig `mapstructure:",squash"`
 }
