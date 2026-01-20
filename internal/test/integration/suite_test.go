@@ -232,7 +232,7 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 	provider, err := apiexport.New(providerConfig, "core.platform-mesh.io", apiexport.Options{Scheme: scheme.Scheme})
 	suite.Require().NoError(err)
 
-	mgr, err := mcmanager.New(suite.apiExportEndpointSliceConfig, provider, mcmanager.Options{
+	mgr, err := mcmanager.New(providerConfig, provider, mcmanager.Options{
 		Scheme: scheme.Scheme,
 	})
 	suite.Require().NoError(err)
