@@ -25,7 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 
-	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 const (
@@ -67,7 +67,7 @@ func (i *IDPSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
 func (i *IDPSubroutine) GetName() string { return "IDPSubroutine" }
 
 func (i *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	lc := instance.(*kcpv1alpha1.LogicalCluster)
+	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)
 	if workspaceName == "" {
@@ -158,7 +158,7 @@ func ensureClient(existing []v1alpha1.IdentityProviderClientConfig, desired v1al
 	return append(existing, desired)
 }
 
-func getWorkspaceName(lc *kcpv1alpha1.LogicalCluster) string {
+func getWorkspaceName(lc *kcpcorev1alpha1.LogicalCluster) string {
 	if path, ok := lc.Annotations["kcp.io/path"]; ok {
 		pathElements := strings.Split(path, ":")
 		return pathElements[len(pathElements)-1]

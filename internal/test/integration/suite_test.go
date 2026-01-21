@@ -2,8 +2,9 @@ package test
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"io"
+	"net/url"
 	"testing"
 	"time"
 
@@ -15,29 +16,26 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/sync/errgroup"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/yaml"
 
-	eventsv1 "k8s.io/api/events/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
-	kcpapiv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	apisv1alpha2 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha2"
-	"github.com/kcp-dev/kcp/sdk/apis/core"
-	corev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	tenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
-	topologyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/topology/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/envtest"
+	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	apisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
+	"github.com/kcp-dev/sdk/apis/core"
+	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 
 	_ "embed"
 )
@@ -72,13 +70,12 @@ var (
 )
 
 func init() {
-	utilruntime.Must(kcpapiv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(apisv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(tenancyv1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(topologyv1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(eventsv1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(accountv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(securityv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(apisv1alpha2.AddToScheme(scheme.Scheme))
 }
 
 type IntegrationSuite struct {
@@ -141,7 +138,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	// register api-resource schemas
 	schemas := [][]byte{AccountInfoSchemaYAML, AccountSchemaYAML, AuthorizationModelSchemaYAML, StoreSchemaYAML}
 	for _, schemaYAML := range schemas {
-		var schema kcpapiv1alpha1.APIResourceSchema
+		var schema apisv1alpha1.APIResourceSchema
 		suite.Require().NoError(yaml.Unmarshal(schemaYAML, &schema))
 		err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &schema)
 		if err != nil && !kerrors.IsAlreadyExists(err) {
@@ -151,7 +148,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	}
 	suite.Require().NoError(err)
 
-	var apiExport kcpapiv1alpha1.APIExport
+	var apiExport apisv1alpha1.APIExport
 	suite.Require().NoError(yaml.Unmarshal(ApiExportPlatformMeshSystemYAML, &apiExport))
 
 	err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &apiExport)
@@ -204,10 +201,10 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	t.Log("created WorkspaceType 'account' in root workspace")
 
 	// create :root:orgs ws
-	orgsWs, orgsClusterPath := envtest.NewWorkspaceFixture(suite.T(), cli, core.RootCluster.Path(), envtest.WithName("orgs"), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("orgs")))
+	orgsWs, orgsClusterPath := envtest.NewWorkspaceFixture(suite.T(), cli, core.RootCluster.Path(), envtest.WithName("orgs"), envtest.WithType(core.RootCluster.Path(), "orgs"))
 	t.Logf("orgs workspace path (%s), cluster id (%s)", orgsClusterPath, orgsWs.Spec.Cluster)
 
-	var endpointSlice kcpapiv1alpha1.APIExportEndpointSlice
+	var endpointSlice apisv1alpha1.APIExportEndpointSlice
 	suite.Assert().Eventually(func() bool {
 		err := cli.Cluster(platformMeshSystemClusterPath).Get(ctx, client.ObjectKey{Name: "core.platform-mesh.io"}, &endpointSlice)
 		if err != nil {
@@ -229,32 +226,30 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.CommonServiceConfig, testLogger *logger.Logger) {
 	ctx := suite.T().Context()
 
-	provider, err := apiexport.New(suite.apiExportEndpointSliceConfig, apiexport.Options{Scheme: scheme.Scheme})
+	providerConfig, err := suite.getPlatformMeshSystemConfig(suite.apiExportEndpointSliceConfig)
 	suite.Require().NoError(err)
 
-	mgr, err := mcmanager.New(suite.apiExportEndpointSliceConfig, provider, mcmanager.Options{
+	provider, err := apiexport.New(providerConfig, "core.platform-mesh.io", apiexport.Options{Scheme: scheme.Scheme})
+	suite.Require().NoError(err)
+
+	mgr, err := mcmanager.New(providerConfig, provider, mcmanager.Options{
 		Scheme: scheme.Scheme,
 	})
 	suite.Require().NoError(err)
 
+	err = controller.NewAPIBindingReconciler(testLogger, mgr).SetupWithManager(mgr, defaultCfg)
+	suite.Require().NoError(err)
+
 	managerCtx, cancel := context.WithCancel(ctx)
-	eg, egCtx := errgroup.WithContext(managerCtx)
-	eg.Go(func() error {
-		return mgr.Start(egCtx)
-	})
-	eg.Go(func() error {
-		return provider.Run(egCtx, mgr)
-	})
+	go func() {
+		if err := mgr.Start(managerCtx); err != nil {
+			suite.T().Logf("controller manager exited with error: %v", err)
+		}
+	}()
 
 	suite.T().Cleanup(func() {
 		cancel()
-		if err := eg.Wait(); err != nil && !errors.Is(err, context.Canceled) {
-			suite.T().Logf("controller manager exited with error: %v", err)
-		}
 	})
-
-	err = controller.NewAPIBindingReconciler(testLogger, mgr).SetupWithManager(mgr, defaultCfg)
-	suite.Require().NoError(err)
 }
 
 func (suite *IntegrationSuite) createAccount(ctx context.Context, client client.Client, accountName string, accountType accountv1alpha1.AccountType, t *testing.T) {
@@ -305,4 +300,21 @@ func (suite *IntegrationSuite) createAccountInfo(ctx context.Context, accountCli
 		suite.Require().NoError(err)
 	}
 	t.Logf("created accountInfo 'account' in %s workspace", accountPath)
+}
+
+func (suite *IntegrationSuite) getPlatformMeshSystemConfig(cfg *rest.Config) (*rest.Config, error) {
+	providerConfig := rest.CopyConfig(cfg)
+
+	parsed, err := url.Parse(providerConfig.Host)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse URL: %w", err)
+	}
+
+	parsed.Path, err = url.JoinPath("clusters", suite.platformMeshSysPath.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to join path")
+	}
+	providerConfig.Host = parsed.String()
+
+	return providerConfig, nil
 }

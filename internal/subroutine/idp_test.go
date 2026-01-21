@@ -20,7 +20,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
-	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	kcpv1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 func TestNewIDPSubroutine(t *testing.T) {

@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"net/url"
-	"strings"
 
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
@@ -20,14 +19,36 @@ import (
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
 
-	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
 func GetAllClient(config *rest.Config, schema *runtime.Scheme) (client.Client, error) {
 	allCfg := rest.CopyConfig(config)
+
+	platformMeshClient, err := client.New(allCfg, client.Options{
+		Scheme: schema,
+	})
+	if err != nil {
+		log.Error().Err(err).Msg("unable to create client from config")
+		return nil, err
+	}
+
+	var apiExportEndpointSlice kcpapisv1alpha1.APIExportEndpointSlice
+	err = platformMeshClient.Get(context.Background(), types.NamespacedName{Name: "core.platform-mesh.io"}, &apiExportEndpointSlice)
+	if err != nil {
+		log.Error().Err(err).Msg("unable to get APIExportEndpointSlice")
+		return nil, err
+	}
+
+	virtualWorkspaceUrl, err := url.Parse(apiExportEndpointSlice.Status.APIExportEndpoints[0].URL)
+	if err != nil {
+		log.Error().Err(err).Msg("unable to parse virtual workspace URL")
+		return nil, err
+	}
 
 	parsed, err := url.Parse(allCfg.Host)
 	if err != nil {
@@ -35,9 +56,7 @@ func GetAllClient(config *rest.Config, schema *runtime.Scheme) (client.Client, e
 		return nil, err
 	}
 
-	parts := strings.Split(parsed.Path, "clusters")
-
-	parsed.Path, err = url.JoinPath(parts[0], "clusters", logicalcluster.Wildcard.String())
+	parsed.Path, err = url.JoinPath(virtualWorkspaceUrl.Path, "clusters", logicalcluster.Wildcard.String())
 	if err != nil {
 		log.Error().Err(err).Msg("unable to join path")
 		return nil, err
@@ -78,9 +97,9 @@ type APIBindingReconciler struct {
 
 func (r *APIBindingReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpv1alpha1.APIBinding{})
+	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpapisv1alpha1.APIBinding{})
 }
 
 func (r *APIBindingReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
-	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "apibinding-controller", &kcpv1alpha1.APIBinding{}, cfg.DebugLabelValue, r, r.log, evp...)
+	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "apibinding-controller", &kcpapisv1alpha1.APIBinding{}, cfg.DebugLabelValue, r, r.log, evp...)
 }
