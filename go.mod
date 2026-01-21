@@ -10,7 +10,7 @@ require (
 	github.com/google/gnostic-models v0.7.1
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.3.3
-	github.com/kcp-dev/sdk v0.28.1-0.20251209130449-436a0347809b
+	github.com/kcp-dev/sdk v0.29.0
 	github.com/openfga/api/proto v0.0.0-20251105142303-feed3db3d69d
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251027165255-0f8f255e5f6c
 	github.com/platform-mesh/account-operator v0.8.0
