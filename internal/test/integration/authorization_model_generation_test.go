@@ -6,21 +6,20 @@ import (
 	"strings"
 	"time"
 
+	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	kcpapiv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	"github.com/kcp-dev/kcp/sdk/apis/core"
-	tenancyv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/envtest"
-
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	kcpapiv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	"github.com/kcp-dev/sdk/apis/core"
 )
 
 func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
@@ -42,9 +41,9 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 		testAccount = "test-account"
 	)
 
-	_, testOrgPath := envtest.NewWorkspaceFixture(suite.T(), cli, orgsPath, envtest.WithName(testOrgName), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("org")))
+	_, testOrgPath := envtest.NewWorkspaceFixture(suite.T(), cli, orgsPath, envtest.WithName(testOrgName), envtest.WithType(core.RootCluster.Path(), "org"))
 
-	_, testAccountPath := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("account")))
+	_, testAccountPath := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount), envtest.WithType(core.RootCluster.Path(), "account"))
 
 	testAccountClient := cli.Cluster(testAccountPath)
 
@@ -60,7 +59,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 	}, 10*time.Second, 200*time.Millisecond, "authorizationModel should be created by controller")
 
 	suite.Assert().Equal(testOrgName, model.Spec.StoreRef.Name)
-	suite.Assert().Equal(testOrgPath.String(), model.Spec.StoreRef.Path)
+	suite.Assert().Equal(testOrgPath.String(), model.Spec.StoreRef.Cluster)
 }
 
 func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
@@ -83,14 +82,14 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 		testOrgName      = "generator-test-finalize"
 	)
 
-	_, testOrgPath := envtest.NewWorkspaceFixture(suite.T(), cli, orgsPath, envtest.WithName(testOrgName), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("org")))
+	_, testOrgPath := envtest.NewWorkspaceFixture(suite.T(), cli, orgsPath, envtest.WithName(testOrgName), envtest.WithType(core.RootCluster.Path(), "org"))
 	testClient := cli.Cluster(testOrgPath)
 
 	suite.createAccount(ctx, testClient, testAccount1Name, accountv1alpha1.AccountTypeAccount, suite.T())
 	suite.createAccount(ctx, testClient, testAccount2Name, accountv1alpha1.AccountTypeAccount, suite.T())
 
-	_, testAccount1Path := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount1Name), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("account")))
-	_, testAccount2Path := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount2Name), envtest.WithType(core.RootCluster.Path(), tenancyv1alpha1.WorkspaceTypeName("account")))
+	_, testAccount1Path := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount1Name), envtest.WithType(core.RootCluster.Path(), "account"))
+	_, testAccount2Path := envtest.NewWorkspaceFixture(suite.T(), cli, testOrgPath, envtest.WithName(testAccount2Name), envtest.WithType(core.RootCluster.Path(), "account"))
 
 	testAccount1Client := cli.Cluster(testAccount1Path)
 	testAccount2Client := cli.Cluster(testAccount2Path)
@@ -111,9 +110,20 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	var testApiBinding1, testApiBinding2 kcpapiv1alpha1.APIBinding
 	suite.Require().NoError(testAccount1Client.Get(ctx, client.ObjectKey{Name: apiBinding1.Name}, &testApiBinding1))
 	suite.Require().NoError(testAccount2Client.Get(ctx, client.ObjectKey{Name: apiBinding2.Name}, &testApiBinding2))
+
 	expectedFinalizers := []string{"apis.kcp.io/apibinding-finalizer", "core.platform-mesh.io/apibinding-finalizer"}
-	suite.Require().Equal(expectedFinalizers, testApiBinding1.Finalizers, "APIBinding %s should have the expected finalizers", testApiBinding1.Name)
-	suite.Require().Equal(expectedFinalizers, testApiBinding2.Finalizers, "APIBinding %s should have the expected finalizers", testApiBinding2.Name)
+
+	suite.Assert().Eventually(func() bool {
+		var testApiBinding1, testApiBinding2 kcpapiv1alpha1.APIBinding
+		if err := testAccount1Client.Get(ctx, client.ObjectKey{Name: apiBinding1.Name}, &testApiBinding1); err != nil {
+			return false
+		}
+		if err := testAccount2Client.Get(ctx, client.ObjectKey{Name: apiBinding2.Name}, &testApiBinding2); err != nil {
+			return false
+		}
+		return suite.Equal(expectedFinalizers, testApiBinding1.Finalizers) &&
+			suite.Equal(expectedFinalizers, testApiBinding2.Finalizers)
+	}, 5*time.Second, 200*time.Millisecond, "APIBindings should have the expected finalizers")
 
 	err = testAccount1Client.Delete(ctx, apiBinding1)
 	suite.Require().NoError(err)

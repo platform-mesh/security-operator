@@ -2,12 +2,17 @@ package v1alpha1
 
 import (
 	lifecycleapi "github.com/platform-mesh/golang-commons/controller/lifecycle/api"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type WorkspaceStoreRef struct {
-	Name string `json:"name"`
-	Path string `json:"path"`
+	Name    string `json:"name"`
+	Cluster string `json:"cluster"`
+	// Path is deprecated. Use Cluster instead.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:deprecatedversion:warning="v1alpha1"
+	Path string `json:"path,omitempty"`
 }
 
 // AuthorizationModelSpec defines the desired state of AuthorizationModel.

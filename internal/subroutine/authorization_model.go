@@ -14,17 +14,18 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
-	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"google.golang.org/protobuf/encoding/protojson"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/discovery"
-	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/rest"
 )
 
 const (
@@ -33,7 +34,7 @@ const (
 
 var (
 	privilegedGroupVersions = []string{"rbac.authorization.k8s.io/v1"}
-	groupVersions           = []string{"authentication.k8s.io/v1", "authorization.k8s.io/v1", "v1"}
+	groupVersions           = []string{"authentication.k8s.io/v1", "authorization.k8s.io/v1", "v1", "apis.kcp.io/v1alpha1"}
 
 	privilegedTemplate = template.Must(template.New("model").Parse(`module internal_core_types_{{ .Name }}
 
@@ -99,23 +100,23 @@ func (a *authorizationModelSubroutine) Finalize(ctx context.Context, instance ru
 	return ctrl.Result{}, nil
 }
 
-func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store *v1alpha1.Store) (v1alpha1.AuthorizationModelList, error) {
+func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store *securityv1alpha1.Store) (securityv1alpha1.AuthorizationModelList, error) {
 
 	storeClusterKey, ok := mccontext.ClusterFrom(ctx)
 	if !ok {
-		return v1alpha1.AuthorizationModelList{}, fmt.Errorf("unable to get cluster key from context")
+		return securityv1alpha1.AuthorizationModelList{}, fmt.Errorf("unable to get cluster key from context")
 	}
 
 	allCtx := mccontext.WithCluster(ctx, "")
-	allAuthorizationModels := v1alpha1.AuthorizationModelList{}
+	allAuthorizationModels := securityv1alpha1.AuthorizationModelList{}
 
 	if err := k8s.List(allCtx, &allAuthorizationModels); err != nil {
-		return v1alpha1.AuthorizationModelList{}, err
+		return securityv1alpha1.AuthorizationModelList{}, err
 	}
 
-	var extendingModules v1alpha1.AuthorizationModelList
+	var extendingModules securityv1alpha1.AuthorizationModelList
 	for _, model := range allAuthorizationModels.Items {
-		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Path != storeClusterKey {
+		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Cluster != storeClusterKey {
 			continue
 		}
 
@@ -127,7 +128,7 @@ func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store
 
 func (a *authorizationModelSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
-	store := instance.(*v1alpha1.Store)
+	store := instance.(*securityv1alpha1.Store)
 
 	extendingModules, err := getRelatedAuthorizationModels(ctx, a.allClient, store)
 	if err != nil {

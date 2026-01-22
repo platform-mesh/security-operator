@@ -4,19 +4,21 @@ import (
 	"context"
 	"testing"
 
-	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	secopv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 func TestNewInviteSubroutine(t *testing.T) {
@@ -54,7 +56,7 @@ func TestInviteSubroutine_Finalize(t *testing.T) {
 	subroutine := NewInviteSubroutine(orgsClient, mgr)
 
 	ctx := context.Background()
-	instance := &kcpv1alpha1.LogicalCluster{}
+	instance := &kcpcorev1alpha1.LogicalCluster{}
 
 	result, opErr := subroutine.Finalize(ctx, instance)
 
@@ -66,14 +68,14 @@ func TestInviteSubroutine_Process(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupMocks     func(*mocks.MockClient, *mocks.MockManager, *mocks.MockCluster)
-		lc             *kcpv1alpha1.LogicalCluster
+		lc             *kcpcorev1alpha1.LogicalCluster
 		expectedErr    bool
 		expectedResult ctrl.Result
 	}{
 		{
 			name:       "Empty workspace name - early return",
 			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster) {},
-			lc: &kcpv1alpha1.LogicalCluster{
+			lc: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{},
 				},
@@ -86,7 +88,7 @@ func TestInviteSubroutine_Process(t *testing.T) {
 			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError).Once()
 			},
-			lc: &kcpv1alpha1.LogicalCluster{
+			lc: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:test",
@@ -103,7 +105,7 @@ func TestInviteSubroutine_Process(t *testing.T) {
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test"}, mock.AnythingOfType("*v1alpha1.Account")).
 					Return(assert.AnError).Once()
 			},
-			lc: &kcpv1alpha1.LogicalCluster{
+			lc: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:test",
@@ -126,7 +128,7 @@ func TestInviteSubroutine_Process(t *testing.T) {
 						return nil
 					}).Once()
 			},
-			lc: &kcpv1alpha1.LogicalCluster{
+			lc: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:test",
@@ -166,7 +168,7 @@ func TestInviteSubroutine_Process(t *testing.T) {
 						return nil
 					}).Maybe()
 			},
-			lc: &kcpv1alpha1.LogicalCluster{
+			lc: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:acme",
@@ -206,7 +208,7 @@ func TestInviteSubroutine_Process(t *testing.T) {
 						return nil
 					}).Maybe()
 			},
-			lc: &kcpv1alpha1.LogicalCluster{
+			lc: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:beta",
@@ -245,12 +247,12 @@ func TestInviteSubroutine_Process(t *testing.T) {
 func TestGetWorkspaceName(t *testing.T) {
 	tests := []struct {
 		name     string
-		lc       *kcpv1alpha1.LogicalCluster
+		lc       *kcpcorev1alpha1.LogicalCluster
 		expected string
 	}{
 		{
 			name: "valid workspace path",
-			lc: &kcpv1alpha1.LogicalCluster{
+			lc: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:test",
@@ -261,7 +263,7 @@ func TestGetWorkspaceName(t *testing.T) {
 		},
 		{
 			name: "workspace path with multiple segments",
-			lc: &kcpv1alpha1.LogicalCluster{
+			lc: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "root:orgs:test:sub",
@@ -272,7 +274,7 @@ func TestGetWorkspaceName(t *testing.T) {
 		},
 		{
 			name: "missing annotation",
-			lc: &kcpv1alpha1.LogicalCluster{
+			lc: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{},
 				},
@@ -281,7 +283,7 @@ func TestGetWorkspaceName(t *testing.T) {
 		},
 		{
 			name: "empty annotation",
-			lc: &kcpv1alpha1.LogicalCluster{
+			lc: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"kcp.io/path": "",
