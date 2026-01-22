@@ -57,10 +57,95 @@ func TestSubroutineProcess(t *testing.T) {
 	testCases := []struct {
 		desc               string
 		obj                runtimeobject.RuntimeObject
+		config             *config.Config
 		setupK8sMocks      func(m *mocks.MockClient)
 		setupKeycloakMocks func(mux *http.ServeMux)
 		expectErr          bool
 	}{
+		{
+			desc: "user created with default password",
+			obj: &v1alpha1.Invite{
+				Spec: v1alpha1.InviteSpec{
+					Email: "password@acme.corp",
+				},
+			},
+			config: &config.Config{
+				SetDefaultPassword: true,
+			},
+			setupK8sMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						accountInfo := &accountsv1alpha1.AccountInfo{
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								Organization: accountsv1alpha1.AccountLocation{
+									Name: "acme",
+								},
+							},
+						}
+						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						return nil
+					}).Once()
+
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						idp := &v1alpha1.IdentityProviderConfiguration{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "acme",
+							},
+							Status: v1alpha1.IdentityProviderConfigurationStatus{
+								ManagedClients: map[string]v1alpha1.ManagedClient{
+									"acme": {
+										ClientID: "acme",
+									},
+								},
+							},
+						}
+						*o.(*v1alpha1.IdentityProviderConfiguration) = *idp
+						return nil
+					}).Once()
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				users := []map[string]any{}
+				mux.HandleFunc("GET /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					err := json.NewEncoder(w).Encode(&users)
+					assert.NoError(t, err)
+				})
+				mux.HandleFunc("POST /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+
+					var body map[string]any
+					err := json.NewDecoder(r.Body).Decode(&body)
+					assert.NoError(t, err)
+
+					credentials, ok := body["credentials"].([]any)
+					assert.True(t, ok)
+					assert.Len(t, credentials, 1)
+					cred := credentials[0].(map[string]any)
+					assert.Equal(t, "password", cred["type"])
+					assert.Equal(t, "password", cred["value"])
+					assert.Equal(t, true, cred["temporary"])
+
+					w.WriteHeader(http.StatusCreated)
+					body["id"] = "1234"
+					users = append(users, body)
+				})
+				mux.HandleFunc("GET /admin/realms/acme/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					clients := []map[string]any{
+						{"id": "client-uuid", "clientId": "acme"},
+					}
+					err := json.NewEncoder(w).Encode(&clients)
+					assert.NoError(t, err)
+				})
+				mux.HandleFunc("PUT /admin/realms/acme/users/{id}/execute-actions-email", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusNoContent)
+				})
+			},
+		},
 		{
 			desc: "user created and invitation email sent",
 			obj: &v1alpha1.Invite{
@@ -416,13 +501,18 @@ func TestSubroutineProcess(t *testing.T) {
 				test.setupKeycloakMocks(mux)
 			}
 
-			s, err := invite.New(ctx, &config.Config{
+			cfg := &config.Config{
 				Invite: config.InviteConfig{
 					KeycloakBaseURL:  srv.URL,
 					KeycloakClientID: "security-operator",
 				},
 				BaseDomain: "portal.dev.local:8443",
-			}, mgr)
+			}
+			if test.config != nil {
+				cfg.SetDefaultPassword = test.config.SetDefaultPassword
+			}
+
+			s, err := invite.New(ctx, cfg, mgr)
 			assert.NoError(t, err)
 
 			l := testlogger.New()

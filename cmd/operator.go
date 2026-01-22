@@ -243,6 +243,8 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme
 }
 
 func init() {
+	operatorCmd.Flags().Bool("set-default-password", false, "Set a default password for the invited user")
+
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(kcptenancyv1alphav1.AddToScheme(scheme))
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme))

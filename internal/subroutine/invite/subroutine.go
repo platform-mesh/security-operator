@@ -29,17 +29,25 @@ const (
 )
 
 type subroutine struct {
-	keycloakBaseURL string
-	baseDomain      string
-	keycloak        *http.Client
-	mgr             mcmanager.Manager
+	keycloakBaseURL    string
+	baseDomain         string
+	keycloak           *http.Client
+	mgr                mcmanager.Manager
+	setDefaultPassword bool
 }
 
 type keycloakUser struct {
-	ID              string   `json:"id,omitempty"`
-	Email           string   `json:"email,omitempty"`
-	RequiredActions []string `json:"requiredActions,omitempty"`
-	Enabled         bool     `json:"enabled,omitempty"`
+	ID              string               `json:"id,omitempty"`
+	Email           string               `json:"email,omitempty"`
+	RequiredActions []string             `json:"requiredActions,omitempty"`
+	Enabled         bool                 `json:"enabled,omitempty"`
+	Credentials     []keycloakCredential `json:"credentials,omitempty"`
+}
+
+type keycloakCredential struct {
+	Type      string `json:"type"`
+	Value     string `json:"value"`
+	Temporary bool   `json:"temporary"`
 }
 
 type keycloakClient struct {
@@ -64,10 +72,11 @@ func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager) (*subro
 	httpClient := cCfg.Client(ctx)
 
 	return &subroutine{
-		keycloakBaseURL: cfg.Invite.KeycloakBaseURL,
-		baseDomain:      cfg.BaseDomain,
-		mgr:             mgr,
-		keycloak:        httpClient,
+		keycloakBaseURL:    cfg.Invite.KeycloakBaseURL,
+		baseDomain:         cfg.BaseDomain,
+		mgr:                mgr,
+		keycloak:           httpClient,
+		setDefaultPassword: cfg.SetDefaultPassword,
 	}, nil
 }
 
@@ -179,6 +188,16 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 		Email:           invite.Spec.Email,
 		RequiredActions: []string{RequiredActionUpdatePassword, RequiredActionVerifyEmail},
 		Enabled:         true,
+	}
+
+	if s.setDefaultPassword {
+		newUser.Credentials = []keycloakCredential{
+			{
+				Type:      "password",
+				Value:     "password",
+				Temporary: true,
+			},
+		}
 	}
 
 	var buffer bytes.Buffer
