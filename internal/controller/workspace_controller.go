@@ -3,9 +3,8 @@ package controller
 import (
 	"context"
 	"slices"
-	"sync"
 
-	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
@@ -23,10 +22,6 @@ import (
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 )
 
-var (
-	shouldReconcileMutex sync.Mutex
-)
-
 type WorkspaceReconciler struct {
 	log         *logger.Logger
 	mgr         mcmanager.Manager
@@ -40,7 +35,7 @@ func NewWorkspaceReconciler(log *logger.Logger, orgClient client.Client, cfg con
 		mgr: mgr,
 		mclifecycle: builder.NewBuilder("logicalcluster", "LogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
 			subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr),
-			subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, cfg),
+			subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, mgr, cfg),
 		}, log).WithReadOnly().WithStaticThenExponentialRateLimiter().BuildMultiCluster(mgr),
 	}
 }
