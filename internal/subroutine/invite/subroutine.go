@@ -26,6 +26,8 @@ import (
 const (
 	RequiredActionVerifyEmail    string = "VERIFY_EMAIL"
 	RequiredActionUpdatePassword string = "UPDATE_PASSWORD"
+	UserDefaultPasswordType      string = "password"
+	UserDefaultPasswordValue     string = "password"
 )
 
 type subroutine struct {
@@ -193,8 +195,8 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	if s.setDefaultPassword {
 		newUser.Credentials = []keycloakCredential{
 			{
-				Type:      "password",
-				Value:     "password",
+				Type:      UserDefaultPasswordType,
+				Value:     UserDefaultPasswordValue,
 				Temporary: true,
 			},
 		}
