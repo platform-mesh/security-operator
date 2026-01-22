@@ -29,11 +29,11 @@ import (
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
-	apisv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/apis/v1alpha1"
-	kcpcorev1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
-	kcptenancyv1alphav1 "github.com/kcp-dev/kcp/sdk/apis/tenancy/v1alpha1"
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	kcptenancyv1alphav1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
@@ -43,6 +43,7 @@ var (
 )
 
 type NewLogicalClusterClientFunc func(clusterKey logicalcluster.Name) (client.Client, error)
+
 
 func logicalClusterClientFromKey(config *rest.Config, log *logger.Logger) NewLogicalClusterClientFunc {
 	return func(clusterKey logicalcluster.Name) (client.Client, error) {
@@ -127,7 +128,7 @@ var operatorCmd = &cobra.Command{
 			return fmt.Errorf("scheme should not be nil")
 		}
 
-		provider, err := apiexport.New(restCfg, apiexport.Options{
+		provider, err := apiexport.New(restCfg, operatorCfg.APIExportEndpointSliceName, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
@@ -184,12 +185,6 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("unable to set up ready check")
 			return err
 		}
-
-		go func() {
-			if err := provider.Run(ctx, mgr); err != nil {
-				log.Fatal().Err(err).Msg("unable to run provider")
-			}
-		}()
 
 		setupLog.Info("starting manager")
 		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
@@ -248,7 +243,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(kcptenancyv1alphav1.AddToScheme(scheme))
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
-	utilruntime.Must(apisv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(accountsv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme

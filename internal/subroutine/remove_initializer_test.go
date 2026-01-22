@@ -11,13 +11,13 @@ import (
 	"github.com/stretchr/testify/mock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 // fakeStatusWriter implements client.SubResourceWriter to intercept Status().Patch calls
 type fakeStatusWriter struct {
 	t           *testing.T
-	expectClear kcpv1alpha1.LogicalClusterInitializer
+	expectClear kcpcorev1alpha1.LogicalClusterInitializer
 	err         error
 }
 
@@ -30,7 +30,7 @@ func (f *fakeStatusWriter) Update(ctx context.Context, obj client.Object, opts .
 }
 
 func (f *fakeStatusWriter) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.SubResourcePatchOption) error {
-	lc := obj.(*kcpv1alpha1.LogicalCluster)
+	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 	// Ensure initializer was removed before patch
 	for _, init := range lc.Status.Initializers {
 		if init == f.expectClear {
@@ -48,8 +48,8 @@ func TestRemoveInitializer_Process(t *testing.T) {
 		cluster := mocks.NewMockCluster(t)
 		mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 
-		lc := &kcpv1alpha1.LogicalCluster{}
-		lc.Status.Initializers = []kcpv1alpha1.LogicalClusterInitializer{"other.initializer"}
+		lc := &kcpcorev1alpha1.LogicalCluster{}
+		lc.Status.Initializers = []kcpcorev1alpha1.LogicalClusterInitializer{"other.initializer"}
 
 		r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: initializerName})
 		_, err := r.Process(context.Background(), lc)
@@ -63,11 +63,11 @@ func TestRemoveInitializer_Process(t *testing.T) {
 
 		mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 		cluster.EXPECT().GetClient().Return(k8s)
-		k8s.EXPECT().Status().Return(&fakeStatusWriter{t: t, expectClear: kcpv1alpha1.LogicalClusterInitializer(initializerName), err: nil})
+		k8s.EXPECT().Status().Return(&fakeStatusWriter{t: t, expectClear: kcpcorev1alpha1.LogicalClusterInitializer(initializerName), err: nil})
 
-		lc := &kcpv1alpha1.LogicalCluster{}
-		lc.Status.Initializers = []kcpv1alpha1.LogicalClusterInitializer{
-			kcpv1alpha1.LogicalClusterInitializer(initializerName),
+		lc := &kcpcorev1alpha1.LogicalCluster{}
+		lc.Status.Initializers = []kcpcorev1alpha1.LogicalClusterInitializer{
+			kcpcorev1alpha1.LogicalClusterInitializer(initializerName),
 			"another.initializer",
 		}
 
@@ -86,11 +86,11 @@ func TestRemoveInitializer_Process(t *testing.T) {
 
 		mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 		cluster.EXPECT().GetClient().Return(k8s)
-		k8s.EXPECT().Status().Return(&fakeStatusWriter{t: t, expectClear: kcpv1alpha1.LogicalClusterInitializer(initializerName), err: assert.AnError})
+		k8s.EXPECT().Status().Return(&fakeStatusWriter{t: t, expectClear: kcpcorev1alpha1.LogicalClusterInitializer(initializerName), err: assert.AnError})
 
-		lc := &kcpv1alpha1.LogicalCluster{}
-		lc.Status.Initializers = []kcpv1alpha1.LogicalClusterInitializer{
-			kcpv1alpha1.LogicalClusterInitializer(initializerName),
+		lc := &kcpcorev1alpha1.LogicalCluster{}
+		lc.Status.Initializers = []kcpcorev1alpha1.LogicalClusterInitializer{
+			kcpcorev1alpha1.LogicalClusterInitializer(initializerName),
 		}
 
 		r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: initializerName})
@@ -106,7 +106,7 @@ func TestRemoveInitializer_Misc(t *testing.T) {
 	assert.Equal(t, "RemoveInitializer", r.GetName())
 	assert.Equal(t, []string{}, r.Finalizers(nil))
 
-	_, err := r.Finalize(context.Background(), &kcpv1alpha1.LogicalCluster{})
+	_, err := r.Finalize(context.Background(), &kcpcorev1alpha1.LogicalCluster{})
 	assert.Nil(t, err)
 }
 
@@ -115,6 +115,6 @@ func TestRemoveInitializer_ManagerError(t *testing.T) {
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError)
 
 	r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: "foo.initializer.kcp.dev"})
-	_, err := r.Process(context.Background(), &kcpv1alpha1.LogicalCluster{})
+	_, err := r.Process(context.Background(), &kcpcorev1alpha1.LogicalCluster{})
 	assert.NotNil(t, err)
 }

@@ -6,7 +6,6 @@ import (
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
-	pmcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/spf13/cobra"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -27,9 +26,6 @@ var initializerCmd = &cobra.Command{
 	Use:   "initializer",
 	Short: "FGA initializer for the organization workspacetype",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, _, shutdown := pmcontext.StartContext(log, initializerCfg, defaultCfg.ShutdownTimeout)
-		defer shutdown()
-
 		restCfg, err := getKubeconfigFromPath(initializerCfg.KCP.Kubeconfig)
 		if err != nil {
 			log.Error().Err(err).Msg("unable to get KCP kubeconfig")
@@ -111,12 +107,6 @@ var initializerCmd = &cobra.Command{
 			setupLog.Error(err, "unable to set up ready check")
 			os.Exit(1)
 		}
-
-		go func() {
-			if err := provider.Run(ctx, mgr); err != nil {
-				log.Fatal().Err(err).Msg("unable to run provider")
-			}
-		}()
 
 		setupLog.Info("starting manager")
 

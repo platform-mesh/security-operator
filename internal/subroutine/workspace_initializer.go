@@ -19,7 +19,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	kcpv1alpha1 "github.com/kcp-dev/kcp/sdk/apis/core/v1alpha1"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mcmanager.Manager) *workspaceInitializer {
@@ -58,7 +58,7 @@ func (w *workspaceInitializer) Finalizers(_ runtimeobject.RuntimeObject) []strin
 func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" }
 
 func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	lc := instance.(*kcpv1alpha1.LogicalCluster)
+	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 
 	store := v1alpha1.Store{
 		ObjectMeta: metav1.ObjectMeta{Name: generateStoreName(lc)},
@@ -111,7 +111,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 	return ctrl.Result{}, nil
 }
 
-func generateStoreName(lc *kcpv1alpha1.LogicalCluster) string {
+func generateStoreName(lc *kcpcorev1alpha1.LogicalCluster) string {
 	if path, ok := lc.Annotations["kcp.io/path"]; ok {
 		pathElements := strings.Split(path, ":")
 		return pathElements[len(pathElements)-1]
