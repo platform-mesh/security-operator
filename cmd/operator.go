@@ -44,7 +44,6 @@ var (
 
 type NewLogicalClusterClientFunc func(clusterKey logicalcluster.Name) (client.Client, error)
 
-
 func logicalClusterClientFromKey(config *rest.Config, log *logger.Logger) NewLogicalClusterClientFunc {
 	return func(clusterKey logicalcluster.Name) (client.Client, error) {
 		cfg := rest.CopyConfig(config)
