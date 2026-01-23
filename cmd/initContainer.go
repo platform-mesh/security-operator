@@ -27,40 +27,41 @@ var initContainerCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := cmd.Context()
 
-		if err := loadInitContainerConfig(&initContainerCfg); err != nil {
+		initContainerConfig, err := loadInitContainerConfig(&initContainerCfg)
+		if err != nil {
 			log.Warn().Err(err).Msg("Failed to load config file, using flags/env only")
 		}
 
-		if initContainerCfg.KeycloakBaseURL == "" {
+		if initContainerConfig.KeycloakBaseURL == "" {
 			return fmt.Errorf("keycloak-base-url is required")
 		}
-		if len(initContainerCfg.Clients) == 0 {
+		if len(initContainerConfig.Clients) == 0 {
 			return fmt.Errorf("at least one client must be configured")
 		}
 
-		password, err := readPasswordFromFile(initContainerCfg.PasswordFile)
+		password, err := readPasswordFromFile(initContainerConfig.PasswordFile)
 		if err != nil {
 			return fmt.Errorf("failed to read password: %w", err)
 		}
 
-		issuer := fmt.Sprintf("%s/realms/master", initContainerCfg.KeycloakBaseURL)
+		issuer := fmt.Sprintf("%s/realms/master", initContainerConfig.KeycloakBaseURL)
 		provider, err := oidc.NewProvider(ctx, issuer)
 		if err != nil {
 			return fmt.Errorf("failed to initialize OIDC provider: %w", err)
 		}
 
 		oauthCfg := oauth2.Config{
-			ClientID: initContainerCfg.KeycloakClientID,
+			ClientID: initContainerConfig.KeycloakClientID,
 			Endpoint: provider.Endpoint(),
 		}
 
-		token, err := oauthCfg.PasswordCredentialsToken(ctx, initContainerCfg.KeycloakUser, password)
+		token, err := oauthCfg.PasswordCredentialsToken(ctx, initContainerConfig.KeycloakUser, password)
 		if err != nil {
 			return fmt.Errorf("failed to get token: %w", err)
 		}
 
 		httpClient := oauthCfg.Client(ctx, token)
-		adminClient := keycloak.NewAdminClient(httpClient, initContainerCfg.KeycloakBaseURL, "master")
+		adminClient := keycloak.NewAdminClient(httpClient, initContainerConfig.KeycloakBaseURL, "master")
 
 		k8sCfg := ctrl.GetConfigOrDie()
 
@@ -86,7 +87,7 @@ var initContainerCmd = &cobra.Command{
 			existingClientMap[existingClients[i].ClientID] = &existingClients[i]
 		}
 
-		for _, clientCfg := range initContainerCfg.Clients {
+		for _, clientCfg := range initContainerConfig.Clients {
 			if clientCfg.SecretRef.Name == "" || clientCfg.SecretRef.Namespace == "" {
 				return fmt.Errorf("client %q: secretRef name and namespace are required", clientCfg.Name)
 			}
@@ -154,20 +155,20 @@ var initContainerCmd = &cobra.Command{
 	},
 }
 
-func loadInitContainerConfig(cfg *config.InitContainerConfig) error {
-	configPath := cfg.ConfigFile
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		return nil
-	}
-
+func loadInitContainerConfig(cfg *config.InitContainerConfig) (*config.InitContainerConfiguration, error) {
 	v := viper.New()
-	v.SetConfigFile(configPath)
+	v.SetConfigFile(cfg.ConfigFile)
 
 	if err := v.ReadInConfig(); err != nil {
-		return fmt.Errorf("failed to read config file: %w", err)
+		return nil, fmt.Errorf("failed to read config file: %w", err)
 	}
 
-	return v.Unmarshal(cfg)
+	var config config.InitContainerConfiguration
+	if err := v.Unmarshal(&config); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+	}
+
+	return &config, nil
 }
 
 func readPasswordFromFile(path string) (string, error) {

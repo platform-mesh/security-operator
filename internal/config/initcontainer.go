@@ -7,11 +7,14 @@ type InitContainerClientConfig struct {
 	SecretRef corev1.SecretReference `mapstructure:"secretRef" yaml:"secretRef"`
 }
 
-type InitContainerConfig struct {
-	ConfigFile       string                      `mapstructure:"config-file" default:"/config/config.yaml"`
+type InitContainerConfiguration struct {
 	KeycloakBaseURL  string                      `mapstructure:"keycloak-base-url" yaml:"keycloakBaseURL"`
 	KeycloakClientID string                      `mapstructure:"keycloak-client-id" default:"admin-cli" yaml:"keycloakClientID"`
 	KeycloakUser     string                      `mapstructure:"keycloak-user" default:"admin" yaml:"keycloakUser"`
 	PasswordFile     string                      `mapstructure:"password-file" default:"/secrets/keycloak-password" yaml:"passwordFile"`
 	Clients          []InitContainerClientConfig `mapstructure:"clients" yaml:"clients"`
+}
+
+type InitContainerConfig struct {
+	ConfigFile string `mapstructure:"config-file" default:"/config/config.yaml"`
 }
