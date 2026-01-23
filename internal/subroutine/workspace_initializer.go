@@ -32,7 +32,7 @@ func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mc
 	return &workspaceInitializer{
 		orgsClient:      orgsClient,
 		coreModule:      string(res),
-		initializerName: cfg.InitializerName,
+		initializerName: cfg.InitializerName(),
 		mgr:             mgr,
 	}
 }
