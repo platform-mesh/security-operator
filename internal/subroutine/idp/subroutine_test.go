@@ -79,17 +79,6 @@ func setupManagerAndCluster(t *testing.T, initialObjects ...client.Object) (*moc
 	return mgr, cluster, kcpClient
 }
 
-func setRegistrationClientURI(obj runtimeobject.RuntimeObject, baseURL string) {
-	if idpObj, ok := obj.(*v1alpha1.IdentityProviderConfiguration); ok {
-		realmName := idpObj.Name
-		for i := range idpObj.Spec.Clients {
-			if idpObj.Spec.Clients[i].ClientID != "" {
-				idpObj.Spec.Clients[i].RegistrationClientURI = fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect/%s", baseURL, realmName, idpObj.Spec.Clients[i].ClientID)
-			}
-		}
-	}
-}
-
 func getTestConfig(cfg *config.Config, baseURL string) *config.Config {
 	if cfg == nil {
 		return &config.Config{
@@ -833,52 +822,6 @@ func TestSubroutineProcess(t *testing.T) {
 			},
 		},
 		{
-			desc: "error patching spec",
-			obj: &v1alpha1.IdentityProviderConfiguration{
-				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
-				Spec: v1alpha1.IdentityProviderConfigurationSpec{
-					Clients: []v1alpha1.IdentityProviderClientConfig{{
-						ClientName: "test-realm", ClientType: v1alpha1.IdentityProviderClientTypeConfidential,
-						RedirectURIs: []string{"https://test.example.com/*"},
-						SecretRef:    corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
-					}},
-				},
-			},
-			cfg:       &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
-			expectErr: true,
-			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
-				m.EXPECT().Create(mock.Anything, mock.Anything).Return(nil).Maybe()
-				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "portal-client-secret-test-realm")).Maybe()
-			},
-			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
-				mux.HandleFunc("POST /admin/realms", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusCreated) })
-				mux.HandleFunc("GET /admin/realms/test-realm/clients", func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					_ = json.NewEncoder(w).Encode([]map[string]any{})
-				})
-				mux.HandleFunc("POST /admin/realms/test-realm/clients-initial-access", func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusOK)
-					_ = json.NewEncoder(w).Encode(map[string]string{"token": "initial-access-token"})
-				})
-				mux.HandleFunc("POST /realms/test-realm/clients-registrations/openid-connect", func(w http.ResponseWriter, r *http.Request) {
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusCreated)
-					_ = json.NewEncoder(w).Encode(map[string]string{"client_id": "client-id", "client_secret": "secret", "registration_access_token": "token", "registration_client_uri": fmt.Sprintf("%s/realms/test-realm/clients-registrations/openid-connect/client-id", baseURL)})
-				})
-			},
-			setupManager: func(t *testing.T, initialObjects []client.Object) (*mocks.MockManager, client.Client) {
-				mockKcpClient := mocks.NewMockClient(t)
-				mockKcpClient.EXPECT().Patch(mock.Anything, mock.Anything, mock.Anything).Return(fmt.Errorf("patch error")).Maybe()
-				cluster := mocks.NewMockCluster(t)
-				cluster.EXPECT().GetClient().Return(mockKcpClient).Maybe()
-				mgr := mocks.NewMockManager(t)
-				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Maybe()
-				return mgr, mockKcpClient
-			},
-		},
-		{
 			desc: "error creating secret",
 			obj: &v1alpha1.IdentityProviderConfiguration{
 				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
@@ -937,7 +880,7 @@ func TestSubroutineProcess(t *testing.T) {
 			var initialObjects []client.Object
 			if idpObj, ok := test.obj.(*v1alpha1.IdentityProviderConfiguration); ok {
 				for clientName, managedClient := range idpObj.Status.ManagedClients {
-					if managedClient.RegistrationClientURI == "" && managedClient.ClientID != "" {
+					if managedClient.ClientID != "" {
 						if idpObj.Status.ManagedClients == nil {
 							idpObj.Status.ManagedClients = make(map[string]v1alpha1.ManagedClient)
 						}
@@ -1002,7 +945,18 @@ func TestFinalize(t *testing.T) {
 					Clients: []v1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName: "test-realm",
-							ClientID:   "client-id-123",
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
+							},
+						},
+					},
+				},
+				Status: v1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]v1alpha1.ManagedClient{
+						"test-realm": {
+							ClientID:              "client-id-123",
+							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/client-id-123",
 							SecretRef: corev1.SecretReference{
 								Name:      "portal-client-secret-test-realm",
 								Namespace: "default",
@@ -1050,9 +1004,21 @@ func TestFinalize(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
 					Clients: []v1alpha1.IdentityProviderClientConfig{{
-						ClientName: "test-realm", ClientID: "client-id-123",
-						SecretRef: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
+						ClientName: "test-realm",
+						SecretRef:  corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
 					}},
+				},
+				Status: v1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]v1alpha1.ManagedClient{
+						"test-realm": {
+							ClientID:              "client-id-123",
+							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/client-id-123",
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
+							},
+						},
+					},
 				},
 			},
 			cfg:       &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
@@ -1070,9 +1036,21 @@ func TestFinalize(t *testing.T) {
 				ObjectMeta: metav1.ObjectMeta{Name: "test-realm"},
 				Spec: v1alpha1.IdentityProviderConfigurationSpec{
 					Clients: []v1alpha1.IdentityProviderClientConfig{{
-						ClientName: "test-realm", ClientID: "client-id-123",
-						SecretRef: corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
+						ClientName: "test-realm",
+						SecretRef:  corev1.SecretReference{Name: "portal-client-secret-test-realm", Namespace: "default"},
 					}},
+				},
+				Status: v1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]v1alpha1.ManagedClient{
+						"test-realm": {
+							ClientID:              "client-id-123",
+							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/client-id-123",
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
+							},
+						},
+					},
 				},
 			},
 			cfg:       &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
@@ -1100,7 +1078,18 @@ func TestFinalize(t *testing.T) {
 					Clients: []v1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName: "test-realm",
-							ClientID:   "client-id-123",
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
+							},
+						},
+					},
+				},
+				Status: v1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]v1alpha1.ManagedClient{
+						"test-realm": {
+							ClientID:              "client-id-123",
+							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/client-id-123",
 							SecretRef: corev1.SecretReference{
 								Name:      "portal-client-secret-test-realm",
 								Namespace: "default",
@@ -1150,7 +1139,18 @@ func TestFinalize(t *testing.T) {
 					Clients: []v1alpha1.IdentityProviderClientConfig{
 						{
 							ClientName: "test-realm",
-							ClientID:   "client-id-123",
+							SecretRef: corev1.SecretReference{
+								Name:      "portal-client-secret-test-realm",
+								Namespace: "default",
+							},
+						},
+					},
+				},
+				Status: v1alpha1.IdentityProviderConfigurationStatus{
+					ManagedClients: map[string]v1alpha1.ManagedClient{
+						"test-realm": {
+							ClientID:              "client-id-123",
+							RegistrationClientURI: "http://localhost/realms/test-realm/clients-registrations/openid-connect/client-id-123",
 							SecretRef: corev1.SecretReference{
 								Name:      "portal-client-secret-test-realm",
 								Namespace: "default",
@@ -1215,7 +1215,16 @@ func TestFinalize(t *testing.T) {
 				test.setupKeycloakMocks(mux, srv.URL)
 			}
 
-			setRegistrationClientURI(test.obj, srv.URL)
+			// Update RegistrationClientURI with the actual server URL
+			if idpObj, ok := test.obj.(*v1alpha1.IdentityProviderConfiguration); ok {
+				for clientName, managedClient := range idpObj.Status.ManagedClients {
+					if managedClient.ClientID != "" {
+						managedClient.RegistrationClientURI = fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect/%s", srv.URL, idpObj.Name, managedClient.ClientID)
+						idpObj.Status.ManagedClients[clientName] = managedClient
+					}
+				}
+			}
+
 			cfg := getTestConfig(test.cfg, srv.URL)
 
 			s, err := idp.New(ctx, cfg, orgsClient, mgr)

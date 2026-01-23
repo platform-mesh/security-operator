@@ -17,12 +17,10 @@ const (
 type IdentityProviderClientConfig struct {
 	// +kubebuilder:validation:Enum=confidential;public
 	ClientType             IdentityProviderClientType `json:"clientType"`
-	ClientID               string                     `json:"clientId"`
 	ClientName             string                     `json:"clientName"`
 	RedirectURIs           []string                   `json:"redirectUris"`
 	PostLogoutRedirectURIs []string                   `json:"postLogoutRedirectUris,omitempty"`
 	SecretRef              corev1.SecretReference     `json:"secretRef,omitempty"`
-	RegistrationClientURI  string                     `json:"registrationClientUri,omitempty"`
 }
 
 // IdentityProviderConfigurationSpec defines the desired state of IdentityProviderConfiguration

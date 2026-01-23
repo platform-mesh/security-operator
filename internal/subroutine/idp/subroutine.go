@@ -91,7 +91,19 @@ func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.Runtim
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
 		}
 
-		err = oidcClient.Delete(ctx, clientToDelete.ClientID, clientToDelete.RegistrationClientURI, registrationAccessToken)
+		clientIDToDelete := idpToDelete.Status.ManagedClients[clientToDelete.ClientName].ClientID
+		if clientIDToDelete == "" {
+			log.Info().Str("clientName", clientToDelete.ClientName).Msg("Client ID not found in status, skipping client deletion")
+			continue
+		}
+
+		registrationClientURIToDelete := idpToDelete.Status.ManagedClients[clientToDelete.ClientName].RegistrationClientURI
+		if registrationClientURIToDelete == "" {
+			log.Info().Str("clientName", clientToDelete.ClientName).Msg("Registration client URI not found in status, skipping client deletion")
+			continue
+		}
+
+		err = oidcClient.Delete(ctx, clientIDToDelete, registrationClientURIToDelete, registrationAccessToken)
 		if err != nil && !clientreg.IsNotFound(err) {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete oidc client: %w", err), true, false)
 		}
@@ -145,19 +157,9 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	for i := range idpConfig.Spec.Clients {
 		clientConfig := &idpConfig.Spec.Clients[i]
 
-		clientInfo, err := s.registerOrUpdateClient(ctx, clientConfig, realmName, oidcClient, adminClient)
+		clientInfo, err := s.registerOrUpdateClient(ctx, idpConfig, clientConfig, realmName, oidcClient, adminClient)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to process client %s: %w", clientConfig.ClientName, err), true, true)
-		}
-
-		// Update spec with client ID and registration URI
-		original := idpConfig.DeepCopy()
-		clientConfig.ClientID = clientInfo.ClientID
-		if clientInfo.RegistrationClientURI != "" {
-			clientConfig.RegistrationClientURI = clientInfo.RegistrationClientURI
-		}
-		if err := kcpClient.Patch(ctx, idpConfig, client.MergeFrom(original)); err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch IDP spec: %w", err), true, true)
 		}
 
 		if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo, idpConfig.Name); err != nil {
@@ -265,7 +267,7 @@ func (s *subroutine) deleteRemovedClients(ctx context.Context, idpConfig *v1alph
 	return nil
 }
 
-func (s *subroutine) registerOrUpdateClient(ctx context.Context, clientConfig *v1alpha1.IdentityProviderClientConfig, realmName string, oidcClient clientreg.Client, adminClient *keycloak.AdminClient) (clientreg.ClientInformation, error) {
+func (s *subroutine) registerOrUpdateClient(ctx context.Context, ipc *v1alpha1.IdentityProviderConfiguration, clientConfig *v1alpha1.IdentityProviderClientConfig, realmName string, oidcClient clientreg.Client, adminClient *keycloak.AdminClient) (clientreg.ClientInformation, error) {
 	existingClient, err := adminClient.GetClientByName(ctx, clientConfig.ClientName)
 	if err != nil {
 		return clientreg.ClientInformation{}, fmt.Errorf("failed to check if client exists: %w", err)
@@ -294,12 +296,12 @@ func (s *subroutine) registerOrUpdateClient(ctx context.Context, clientConfig *v
 		return clientreg.ClientInformation{}, fmt.Errorf("failed to get registration access token from secret: %w", err)
 	}
 
-	registrationClientURI := clientConfig.RegistrationClientURI
+	registrationClientURI := ipc.Status.ManagedClients[clientConfig.ClientName].RegistrationClientURI
 	if registrationClientURI == "" {
 		registrationClientURI = fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect/%s", s.keycloakBaseURL, realmName, existingClient.ClientID)
 	}
 
-	metadata.ClientID = clientConfig.ClientID
+	metadata.ClientID = ipc.Status.ManagedClients[clientConfig.ClientName].ClientID
 	if metadata.ClientID == "" {
 		metadata.ClientID = existingClient.ClientID
 	}
