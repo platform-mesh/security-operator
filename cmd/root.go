@@ -34,6 +34,7 @@ func init() {
 	rootCmd.AddCommand(initializerCmd)
 	rootCmd.AddCommand(operatorCmd)
 	rootCmd.AddCommand(modelGeneratorCmd)
+	rootCmd.AddCommand(initContainerCmd)
 
 	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 
@@ -53,6 +54,10 @@ func init() {
 	}
 	initializerV := newViper()
 	if err := platformeshconfig.BindConfigToFlags(initializerV, initializerCmd, &initializerCfg); err != nil {
+		panic(err)
+	}
+	initContainerV := newViper()
+	if err := platformeshconfig.BindConfigToFlags(initContainerV, initContainerCmd, &initContainerCfg); err != nil {
 		panic(err)
 	}
 
