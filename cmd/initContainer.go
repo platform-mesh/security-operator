@@ -11,11 +11,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"golang.org/x/oauth2"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/rest"
+	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var initContainerCfg config.InitContainerConfig
@@ -61,10 +62,7 @@ var initContainerCmd = &cobra.Command{
 		httpClient := oauthCfg.Client(ctx, token)
 		adminClient := keycloak.NewAdminClient(httpClient, initContainerCfg.KeycloakBaseURL, "master")
 
-		k8sCfg, err := rest.InClusterConfig()
-		if err != nil {
-			return fmt.Errorf("failed to get in-cluster config: %w", err)
-		}
+		k8sCfg := ctrl.GetConfigOrDie()
 
 		k8sClient, err := client.New(k8sCfg, client.Options{})
 		if err != nil {
@@ -158,10 +156,6 @@ var initContainerCmd = &cobra.Command{
 
 func loadInitContainerConfig(cfg *config.InitContainerConfig) error {
 	configPath := cfg.ConfigFile
-	if configPath == "" {
-		configPath = "/config/config.yaml"
-	}
-
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
 		return nil
 	}
