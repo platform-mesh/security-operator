@@ -1,4 +1,3 @@
-// Package keycloak provides Keycloak-specific extensions for Dynamic Client Registration.
 package keycloak
 
 import (
@@ -15,17 +14,12 @@ import (
 
 const maxErrorBodySize = 4096
 
-// AdminClient provides Keycloak admin operations for OIDC Dynamic Client Registration.
-// It implements both clientreg.TokenProvider (for initial registration) and clientreg.TokenRefresher
-// (for automatic token refresh on 401 responses).
 type AdminClient struct {
 	httpClient *http.Client
 	baseURL    string
 	realm      string
 }
 
-// NewAdminClient creates a new Keycloak admin client.
-// The httpClient should be configured with appropriate authentication (e.g., OAuth2 client credentials).
 func NewAdminClient(httpClient *http.Client, baseURL, realm string) *AdminClient {
 	return &AdminClient{
 		httpClient: httpClient,
@@ -34,8 +28,6 @@ func NewAdminClient(httpClient *http.Client, baseURL, realm string) *AdminClient
 	}
 }
 
-// TokenForRegistration implements clientreg.TokenProvider.
-// It creates a new initial access token for client registration.
 func (c *AdminClient) TokenForRegistration(ctx context.Context) (string, error) {
 	url := fmt.Sprintf("%s/admin/realms/%s/clients-initial-access", c.baseURL, c.realm)
 
@@ -65,8 +57,6 @@ func (c *AdminClient) TokenForRegistration(ctx context.Context) (string, error) 
 	return response.Token, nil
 }
 
-// RefreshToken implements clientreg.TokenRefresher.
-// It regenerates the registration access token for a client when a 401 is received.
 func (c *AdminClient) RefreshToken(ctx context.Context, clientID string) (string, error) {
 	clientUUID, err := c.resolveClientUUID(ctx, clientID)
 	if err != nil {
@@ -100,13 +90,10 @@ func (c *AdminClient) RefreshToken(ctx context.Context, clientID string) (string
 	return response.RegistrationAccessToken, nil
 }
 
-// RegistrationEndpoint returns the OIDC Dynamic Client Registration endpoint for the realm.
 func (c *AdminClient) RegistrationEndpoint() string {
 	return fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect", c.baseURL, c.realm)
 }
 
-// CreateOrUpdateRealm creates a new realm or updates it if it already exists.
-// Returns true if the realm was created, false if it was updated.
 func (c *AdminClient) CreateOrUpdateRealm(ctx context.Context, config RealmConfig) (created bool, err error) {
 	body, err := json.Marshal(config)
 	if err != nil {
@@ -158,7 +145,6 @@ func (c *AdminClient) updateRealm(ctx context.Context, realmName string, body []
 	return nil
 }
 
-// DeleteRealm deletes a realm. Returns nil if the realm doesn't exist.
 func (c *AdminClient) DeleteRealm(ctx context.Context, realmName string) error {
 	url := fmt.Sprintf("%s/admin/realms/%s", c.baseURL, realmName)
 
@@ -180,10 +166,8 @@ func (c *AdminClient) DeleteRealm(ctx context.Context, realmName string) error {
 	return nil
 }
 
-// GetClientByName finds a client by its name (display name) in the realm.
-// Returns nil if the client is not found.
 func (c *AdminClient) GetClientByName(ctx context.Context, clientName string) (*ClientInfo, error) {
-	clients, err := c.listClients(ctx)
+	clients, err := c.ListClients(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +182,7 @@ func (c *AdminClient) GetClientByName(ctx context.Context, clientName string) (*
 }
 
 func (c *AdminClient) resolveClientUUID(ctx context.Context, clientID string) (string, error) {
-	clients, err := c.listClients(ctx)
+	clients, err := c.ListClients(ctx)
 	if err != nil {
 		return "", err
 	}
@@ -212,7 +196,7 @@ func (c *AdminClient) resolveClientUUID(ctx context.Context, clientID string) (s
 	return "", fmt.Errorf("client with client_id %q not found", clientID)
 }
 
-func (c *AdminClient) listClients(ctx context.Context) ([]ClientInfo, error) {
+func (c *AdminClient) ListClients(ctx context.Context) ([]ClientInfo, error) {
 	url := fmt.Sprintf("%s/admin/realms/%s/clients", c.baseURL, c.realm)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
@@ -238,13 +222,11 @@ func (c *AdminClient) listClients(ctx context.Context) ([]ClientInfo, error) {
 	return clients, nil
 }
 
-// readErrorResponse reads an error response body and returns a formatted error.
 func readErrorResponse(resp *http.Response, operation string) error {
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodySize))
 	return fmt.Errorf("failed to %s: status %d body: %s", operation, resp.StatusCode, body)
 }
 
-// RealmConfig contains the configuration for a Keycloak realm.
 type RealmConfig struct {
 	Realm                       string      `json:"realm"`
 	DisplayName                 string      `json:"displayName,omitempty"`
@@ -257,7 +239,6 @@ type RealmConfig struct {
 	SMTPServer                  *SMTPConfig `json:"smtpServer,omitempty"`
 }
 
-// SMTPConfig contains SMTP server configuration for a realm.
 type SMTPConfig struct {
 	Host     string `json:"host,omitempty"`
 	Port     string `json:"port,omitempty"`
@@ -269,11 +250,178 @@ type SMTPConfig struct {
 	Password string `json:"password,omitempty"`
 }
 
-// ClientInfo contains basic information about a Keycloak client.
 type ClientInfo struct {
-	ID       string `json:"id"`       // Keycloak's internal UUID
-	ClientID string `json:"clientId"` // The client_id used in OIDC
-	Name     string `json:"name"`     // Display name
+	ID       string `json:"id"`
+	ClientID string `json:"clientId"`
+	Name     string `json:"name"`
+	Secret   string `json:"secret"`
+}
+
+type ServiceAccountClientConfig struct {
+	ClientID               string `json:"clientId"`
+	Name                   string `json:"name,omitempty"`
+	Enabled                bool   `json:"enabled"`
+	ServiceAccountsEnabled bool   `json:"serviceAccountsEnabled"`
+	PublicClient           bool   `json:"publicClient"`
+}
+
+type UserInfo struct {
+	ID       string `json:"id"`
+	Username string `json:"username"`
+}
+
+type RoleInfo struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func (c *AdminClient) CreateServiceAccountClient(ctx context.Context, config ServiceAccountClientConfig) (*ClientInfo, error) {
+	url := fmt.Sprintf("%s/admin/realms/%s/clients", c.baseURL, c.realm)
+
+	body, err := json.Marshal(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal client config: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create client: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusCreated {
+		return nil, readErrorResponse(resp, "create client")
+	}
+
+	location := resp.Header.Get("Location")
+	if location == "" {
+		return nil, fmt.Errorf("no location header in create client response")
+	}
+
+	parts := strings.Split(location, "/")
+	clientUUID := parts[len(parts)-1]
+
+	return &ClientInfo{
+		ID:       clientUUID,
+		ClientID: config.ClientID,
+		Name:     config.Name,
+	}, nil
+}
+
+func (c *AdminClient) GetClientSecret(ctx context.Context, clientUUID string) (string, error) {
+	url := fmt.Sprintf("%s/admin/realms/%s/clients/%s/client-secret", c.baseURL, c.realm, clientUUID)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create get client secret request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("failed to get client secret: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusOK {
+		return "", readErrorResponse(resp, "get client secret")
+	}
+
+	var result struct {
+		Value string `json:"value"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("failed to parse client secret response: %w", err)
+	}
+
+	return result.Value, nil
+}
+
+func (c *AdminClient) GetServiceAccountUser(ctx context.Context, clientUUID string) (*UserInfo, error) {
+	url := fmt.Sprintf("%s/admin/realms/%s/clients/%s/service-account-user", c.baseURL, c.realm, clientUUID)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create get service account user request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get service account user: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp, "get service account user")
+	}
+
+	var user UserInfo
+	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
+		return nil, fmt.Errorf("failed to parse service account user response: %w", err)
+	}
+
+	return &user, nil
+}
+
+func (c *AdminClient) GetRealmRole(ctx context.Context, roleName string) (*RoleInfo, error) {
+	url := fmt.Sprintf("%s/admin/realms/%s/roles/%s", c.baseURL, c.realm, roleName)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create get role request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get role: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, readErrorResponse(resp, "get role")
+	}
+
+	var role RoleInfo
+	if err := json.NewDecoder(resp.Body).Decode(&role); err != nil {
+		return nil, fmt.Errorf("failed to parse role response: %w", err)
+	}
+
+	return &role, nil
+}
+
+func (c *AdminClient) AssignRealmRoleToUser(ctx context.Context, userID string, role RoleInfo) error {
+	url := fmt.Sprintf("%s/admin/realms/%s/users/%s/role-mappings/realm", c.baseURL, c.realm, userID)
+
+	body, err := json.Marshal([]RoleInfo{role})
+	if err != nil {
+		return fmt.Errorf("failed to marshal role: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to create assign role request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to assign role: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
+		return readErrorResponse(resp, "assign role to user")
+	}
+
+	return nil
 }
 
 var (
