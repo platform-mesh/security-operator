@@ -8,11 +8,11 @@ type InitContainerClientConfig struct {
 }
 
 type InitContainerConfiguration struct {
-	KeycloakBaseURL  string                      `mapstructure:"keycloak-base-url" yaml:"keycloakBaseURL"`
-	KeycloakClientID string                      `mapstructure:"keycloak-client-id" default:"admin-cli" yaml:"keycloakClientID"`
-	KeycloakUser     string                      `mapstructure:"keycloak-user" default:"admin" yaml:"keycloakUser"`
-	PasswordFile     string                      `mapstructure:"password-file" default:"/secrets/keycloak-password" yaml:"passwordFile"`
-	Clients          []InitContainerClientConfig `mapstructure:"clients" yaml:"clients"`
+	KeycloakBaseURL  string                      `mapstructure:"keycloakBaseURL"`
+	KeycloakClientID string                      `mapstructure:"keycloakClientID" default:"admin-cli"`
+	KeycloakUser     string                      `mapstructure:"keycloakUser" default:"admin"`
+	PasswordFile     string                      `mapstructure:"passwordFile" default:"/secrets/keycloak-password"`
+	Clients          []InitContainerClientConfig `mapstructure:"clients"`
 }
 
 type InitContainerConfig struct {
