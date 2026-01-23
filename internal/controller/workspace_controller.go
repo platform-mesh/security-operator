@@ -35,8 +35,10 @@ func NewWorkspaceReconciler(log *logger.Logger, orgClient client.Client, cfg con
 		mgr: mgr,
 		mclifecycle: builder.NewBuilder("logicalcluster", "LogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
 			subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr),
+			subroutine.NewIDPSubroutine(orgClient, mgr, cfg),
+			subroutine.NewInviteSubroutine(orgClient, mgr),
 			subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, mgr, cfg),
-		}, log).WithReadOnly().WithStaticThenExponentialRateLimiter().BuildMultiCluster(mgr),
+		}, log).WithReadOnly().BuildMultiCluster(mgr),
 	}
 }
 
