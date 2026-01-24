@@ -90,7 +90,7 @@ func (i *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 	}
 
 	idp := &v1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
-	_, err = controllerutil.CreateOrPatch(ctx, cl.GetClient(), idp, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctx, cl.GetClient(), idp, func() error {
 		idp.Spec.Clients = []v1alpha1.IdentityProviderClientConfig{
 			{
 				ClientName:             workspaceName,
