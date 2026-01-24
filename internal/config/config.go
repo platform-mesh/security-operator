@@ -20,7 +20,8 @@ type Config struct {
 	GroupClaim                       string `mapstructure:"group-claim" default:"groups"`
 	UserClaim                        string `mapstructure:"user-claim" default:"email"`
 	DevelopmentAllowUnverifiedEmails bool   `mapstructure:"development-allow-unverified-emails" default:"false"`
-	InitializerName                  string `mapstructure:"initializer-name" default:"root:security"`
+	WorkspacePath                    string `mapstructure:"workspace-path" default:"root"`
+	WorkspaceTypeName                string `mapstructure:"workspace-type-name" default:"security"`
 	DomainCALookup                   bool   `mapstructure:"domain-ca-lookup" default:"false"`
 	MigrateAuthorizationModels       bool   `mapstructure:"migrate-authorization-models" default:"false"`
 	HttpClientTimeoutSeconds         int    `mapstructure:"http-client-timeout-seconds" default:"30"`
@@ -44,4 +45,8 @@ type Config struct {
 		AccessTokenLifespan int `mapstructure:"idp-access-token-lifespan" default:"28800"`
 	} `mapstructure:",squash"`
 	Invite InviteConfig `mapstructure:",squash"`
+}
+
+func (config Config) InitializerName() string {
+	return config.WorkspacePath + ":" + config.WorkspaceTypeName
 }

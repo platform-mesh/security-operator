@@ -41,7 +41,11 @@ func (f *fakeStatusWriter) Patch(ctx context.Context, obj client.Object, patch c
 }
 
 func TestRemoveInitializer_Process(t *testing.T) {
-	const initializerName = "foo.initializer.kcp.dev"
+	cfg := config.Config{
+		WorkspacePath:     "root",
+		WorkspaceTypeName: "foo.initializer.kcp.dev",
+	}
+	initializerName := cfg.InitializerName()
 
 	t.Run("skips when initializer is absent", func(t *testing.T) {
 		mgr := mocks.NewMockManager(t)
@@ -51,7 +55,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 		lc := &kcpcorev1alpha1.LogicalCluster{}
 		lc.Status.Initializers = []kcpcorev1alpha1.LogicalClusterInitializer{"other.initializer"}
 
-		r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: initializerName})
+		r := subroutine.NewRemoveInitializer(mgr, cfg)
 		_, err := r.Process(context.Background(), lc)
 		assert.Nil(t, err)
 	})
@@ -71,7 +75,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 			"another.initializer",
 		}
 
-		r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: initializerName})
+		r := subroutine.NewRemoveInitializer(mgr, cfg)
 		_, err := r.Process(context.Background(), lc)
 		assert.Nil(t, err)
 		for _, init := range lc.Status.Initializers {
@@ -93,7 +97,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 			kcpcorev1alpha1.LogicalClusterInitializer(initializerName),
 		}
 
-		r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: initializerName})
+		r := subroutine.NewRemoveInitializer(mgr, cfg)
 		_, err := r.Process(context.Background(), lc)
 		assert.NotNil(t, err)
 	})
@@ -101,7 +105,7 @@ func TestRemoveInitializer_Process(t *testing.T) {
 
 func TestRemoveInitializer_Misc(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
-	r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: "foo.initializer.kcp.dev"})
+	r := subroutine.NewRemoveInitializer(mgr, config.Config{WorkspacePath: "root", WorkspaceTypeName: "foo.initializer.kcp.dev"})
 
 	assert.Equal(t, "RemoveInitializer", r.GetName())
 	assert.Equal(t, []string{}, r.Finalizers(nil))
@@ -114,7 +118,7 @@ func TestRemoveInitializer_ManagerError(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError)
 
-	r := subroutine.NewRemoveInitializer(mgr, config.Config{InitializerName: "foo.initializer.kcp.dev"})
+	r := subroutine.NewRemoveInitializer(mgr, config.Config{WorkspacePath: "root", WorkspaceTypeName: "foo.initializer.kcp.dev"})
 	_, err := r.Process(context.Background(), &kcpcorev1alpha1.LogicalCluster{})
 	assert.NotNil(t, err)
 }

@@ -64,7 +64,7 @@ func (r *removeInitializer) Process(ctx context.Context, instance runtimeobject.
 
 func NewRemoveInitializer(mgr mcmanager.Manager, cfg config.Config) *removeInitializer {
 	return &removeInitializer{
-		initializerName: cfg.InitializerName,
+		initializerName: cfg.InitializerName(),
 		mgr:             mgr,
 	}
 }
