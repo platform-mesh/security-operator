@@ -22,15 +22,14 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-type WorkspaceReconciler struct {
+type LogicalClusterReconciler struct {
 	log         *logger.Logger
 	mgr         mcmanager.Manager
-	initializer kcpcorev1alpha1.LogicalClusterInitializer
 	mclifecycle *multicluster.LifecycleManager
 }
 
-func NewWorkspaceReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *WorkspaceReconciler {
-	return &WorkspaceReconciler{
+func NewLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *LogicalClusterReconciler {
+	return &LogicalClusterReconciler{
 		log: log,
 		mgr: mgr,
 		mclifecycle: builder.NewBuilder("logicalcluster", "LogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
@@ -42,13 +41,12 @@ func NewWorkspaceReconciler(log *logger.Logger, orgClient client.Client, cfg con
 	}
 }
 
-func (r *WorkspaceReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
+func (r *LogicalClusterReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
 	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpcorev1alpha1.LogicalCluster{})
 }
 
-func (r *WorkspaceReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, initializerName string, evp ...predicate.Predicate) error {
-	r.initializer = kcpcorev1alpha1.LogicalClusterInitializer(initializerName)
+func (r *LogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, initializerName string, evp ...predicate.Predicate) error {
 	allPredicates := append([]predicate.Predicate{HasInitializerPredicate(initializerName)}, evp...)
 	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "LogicalCluster", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r, r.log, allPredicates...)
 }
