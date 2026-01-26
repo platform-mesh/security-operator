@@ -183,7 +183,7 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewLogicalClusterReconciler(log, orgClient, operatorCfg, runtimeClient, mgr).SetupWithManager(mgr, defaultCfg, operatorCfg.InitializerName); err != nil {
+		if err = controller.NewLogicalClusterReconciler(log, orgClient, operatorCfg, runtimeClient, mgr).SetupWithManager(mgr, defaultCfg, operatorCfg.InitializerName()); err != nil {
 			log.Error().Err(err).Str("controller", "workspace").Msg("unable to create controller")
 			return err
 		}
