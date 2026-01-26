@@ -33,7 +33,7 @@ import (
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	kcptenancyv1alphav1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 )
@@ -251,7 +251,7 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
-	utilruntime.Must(kcptenancyv1alphav1.AddToScheme(scheme))
+	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))

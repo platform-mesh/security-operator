@@ -56,10 +56,11 @@ var initializerCmd = &cobra.Command{
 			mgrOpts.LeaderElectionConfig = inClusterCfg
 		}
 
-		provider, err := initializingworkspaces.New(restCfg, initializingworkspaces.Options{
-			InitializerName: initializerCfg.InitializerName,
-			Scheme:          mgrOpts.Scheme,
-		})
+		provider, err := initializingworkspaces.New(restCfg, initializerCfg.WorkspaceTypeName,
+			initializingworkspaces.Options{
+				Scheme: mgrOpts.Scheme,
+			},
+		)
 		if err != nil {
 			log.Error().Err(err).Msg("unable to construct cluster provider")
 			os.Exit(1)
