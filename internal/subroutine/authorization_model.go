@@ -15,6 +15,7 @@ import (
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/util"
 	"google.golang.org/protobuf/encoding/protojson"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -243,7 +244,7 @@ func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Temp
 
 	group := "core"
 	if resource.Group != "" {
-		group = resource.Group
+		group = util.CapGroupToRelationLength(schema.GroupVersionResource{Group: resource.Group, Resource: resource.Name}, 50)
 	}
 
 	var buffer bytes.Buffer
