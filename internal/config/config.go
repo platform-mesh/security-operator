@@ -26,6 +26,7 @@ type Config struct {
 	MigrateAuthorizationModels       bool   `mapstructure:"migrate-authorization-models" default:"false"`
 	HttpClientTimeoutSeconds         int    `mapstructure:"http-client-timeout-seconds" default:"30"`
 	SetDefaultPassword               bool   `mapstructure:"set-default-password" default:"false"`
+	AllowMemberTuplesEnabled         bool   `mapstructure:"allow-member-tuples-enabled" default:"false"`
 	IDP                              struct {
 		// SMTP settings
 		SMTPServer  string `mapstructure:"idp-smtp-server"`
