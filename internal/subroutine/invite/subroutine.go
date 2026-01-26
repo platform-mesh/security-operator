@@ -193,6 +193,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	}
 
 	if s.setDefaultPassword {
+		newUser.RequiredActions = []string{RequiredActionUpdatePassword}
 		newUser.Credentials = []keycloakCredential{
 			{
 				Type:      UserDefaultPasswordType,
