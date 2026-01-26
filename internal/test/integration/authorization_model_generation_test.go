@@ -100,6 +100,19 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 	apiBinding1 := suite.createTestAPIBinding(ctx, testAccount1Client, apiExportName, suite.platformMeshSysPath.String(), apiExportName)
 	apiBinding2 := suite.createTestAPIBinding(ctx, testAccount2Client, apiExportName, suite.platformMeshSysPath.String(), apiExportName)
 
+	// Wait for APIBindings to be bound (status populated with APIExportClusterName)
+	suite.Assert().Eventually(func() bool {
+		var binding1, binding2 kcpapiv1alpha1.APIBinding
+		if err := testAccount1Client.Get(ctx, client.ObjectKey{Name: apiBinding1.Name}, &binding1); err != nil {
+			return false
+		}
+		if err := testAccount2Client.Get(ctx, client.ObjectKey{Name: apiBinding2.Name}, &binding2); err != nil {
+			return false
+		}
+		return binding1.Status.Phase == kcpapiv1alpha1.APIBindingPhaseBound &&
+			binding2.Status.Phase == kcpapiv1alpha1.APIBindingPhaseBound
+	}, 10*time.Second, 200*time.Millisecond, "APIBindings should be bound before checking finalizers")
+
 	expectedModelName := fmt.Sprintf("%s-%s", pluralResourceSchemaName, testOrgName)
 	var model securityv1alpha1.AuthorizationModel
 	suite.Assert().Eventually(func() bool {
@@ -123,7 +136,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 		}
 		return suite.Equal(expectedFinalizers, testApiBinding1.Finalizers) &&
 			suite.Equal(expectedFinalizers, testApiBinding2.Finalizers)
-	}, 5*time.Second, 200*time.Millisecond, "APIBindings should have the expected finalizers")
+	}, 10*time.Second, 200*time.Millisecond, "APIBindings should have the expected finalizers")
 
 	err = testAccount1Client.Delete(ctx, apiBinding1)
 	suite.Require().NoError(err)
