@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 
+	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
@@ -20,6 +21,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -136,8 +138,47 @@ func (i *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 
 	i.limiter.Forget(idp)
 
+	if err := i.patchAccountInfo(ctx, cl.GetClient(), workspaceName, idp); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to update accountInfo: %w", err), true, true)
+	}
+
 	log.Info().Str("workspace", workspaceName).Msg("idp resource is ready")
 	return ctrl.Result{}, nil
+}
+
+func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl client.Client, workspaceName string, idp *v1alpha1.IdentityProviderConfiguration) error {
+	accountInfo := accountsv1alpha1.AccountInfo{
+		ObjectMeta: metav1.ObjectMeta{Name: "account"},
+	}
+	if err := cl.Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo); err != nil {
+		return fmt.Errorf("failed to get accountInfo: %w", err)
+	}
+
+	desiredIssuerURL := fmt.Sprintf("https://%s/keycloak/realms/%s", i.baseDomain, workspaceName)
+	desiredClients := make(map[string]accountsv1alpha1.ClientInfo)
+	for clientName, managedClient := range idp.Status.ManagedClients {
+		desiredClients[clientName] = accountsv1alpha1.ClientInfo{
+			ClientID: managedClient.ClientID,
+		}
+	}
+
+	desiredOIDC := &accountsv1alpha1.OIDCInfo{
+		IssuerURL: desiredIssuerURL,
+		Clients:   desiredClients,
+	}
+
+	if equality.Semantic.DeepEqual(accountInfo.Spec.OIDC, desiredOIDC) {
+		log.Debug().Str("workspace", workspaceName).Msg("accountInfo OIDC configuration already up to date, skip patching")
+		return nil
+	}
+
+	original := accountInfo.DeepCopy()
+	accountInfo.Spec.OIDC = desiredOIDC
+
+	if err := cl.Patch(ctx, &accountInfo, client.MergeFrom(original)); err != nil {
+		return fmt.Errorf("failed to patch accountInfo: %w", err)
+	}
+	return nil
 }
 
 // ensureClient updates only fields managed by this subroutine, preserving ClientID and RegistrationClientURI
