@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
@@ -147,7 +146,7 @@ func (i *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 }
 
 func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl client.Client, workspaceName string, idp *v1alpha1.IdentityProviderConfiguration) error {
-	accountInfo := accountsv1alpha1.AccountInfo{
+	accountInfo := accountv1alpha1.AccountInfo{
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
 	}
 	if err := cl.Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo); err != nil {
@@ -155,14 +154,14 @@ func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl client.Client, 
 	}
 
 	desiredIssuerURL := fmt.Sprintf("https://%s/keycloak/realms/%s", i.baseDomain, workspaceName)
-	desiredClients := make(map[string]accountsv1alpha1.ClientInfo)
+	desiredClients := make(map[string]accountv1alpha1.ClientInfo)
 	for clientName, managedClient := range idp.Status.ManagedClients {
-		desiredClients[clientName] = accountsv1alpha1.ClientInfo{
+		desiredClients[clientName] = accountv1alpha1.ClientInfo{
 			ClientID: managedClient.ClientID,
 		}
 	}
 
-	desiredOIDC := &accountsv1alpha1.OIDCInfo{
+	desiredOIDC := &accountv1alpha1.OIDCInfo{
 		IssuerURL: desiredIssuerURL,
 		Clients:   desiredClients,
 	}
