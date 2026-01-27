@@ -190,7 +190,7 @@ func (s *subroutine) ensureRealm(ctx context.Context, adminClient *keycloak.Admi
 		Enabled:                     true,
 		LoginWithEmailAllowed:       true,
 		RegistrationEmailAsUsername: true,
-		RegistrationAllowed:         true,
+		RegistrationAllowed:         s.cfg.IDP.RegistrationAllowed,
 		SSOSessionIdleTimeout:       s.cfg.IDP.AccessTokenLifespan,
 		AccessTokenLifespan:         s.cfg.IDP.AccessTokenLifespan,
 	}
