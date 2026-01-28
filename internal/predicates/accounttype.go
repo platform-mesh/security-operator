@@ -15,6 +15,6 @@ func IsAccountTypeOrg() predicate.Predicate {
 	return predicate.NewPredicateFuncs(func(object client.Object) bool {
 		a := object.GetAnnotations()
 		lc := a[kcpcore.LogicalClusterPathAnnotationKey]
-		return strings.Contains(lc, "/orgs/")
+		return strings.Contains(lc, ":orgs:")
 	})
 }
