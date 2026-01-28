@@ -7,17 +7,19 @@ import (
 	mcclient "github.com/kcp-dev/multicluster-provider/client"
 	kcpcore "github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	openfgav1 "github.com/openfga/api/proto/openfga/v1"
+	openfga "github.com/openfga/go-sdk"
+
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
 	ctrl "sigs.k8s.io/controller-runtime"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 type AccountTuplesSubroutine struct {
-	fga openfgav1.OpenFGAServiceClient
+	fga *openfga.APIClient
 	mgr mcmanager.Manager
 	mcc mcclient.ClusterClient
 }
@@ -53,12 +55,13 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 	if p == "" {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("annotation on LogicalCluster is not set"), true, true)
 	}
-	log.Info().Msgf("Processing logical cluster of path %s", p)
+	cluster, _ := mccontext.ClusterFrom(ctx)
+	log.Info().Msgf("Processing logical cluster of path %s with %s in context", p, cluster)
 
 	return ctrl.Result{}, nil
 }
 
-func NewAccountTuplesSubroutine(fga openfgav1.OpenFGAServiceClient, mcc mcclient.ClusterClient, mgr mcmanager.Manager) *AccountTuplesSubroutine {
+func NewAccountTuplesSubroutine(fga *openfga.APIClient, mcc mcclient.ClusterClient, mgr mcmanager.Manager) *AccountTuplesSubroutine {
 	return &AccountTuplesSubroutine{
 		fga: fga,
 		mgr: mgr,

@@ -7,12 +7,10 @@ import (
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	mcclient "github.com/kcp-dev/multicluster-provider/client"
-	openfgav1 "github.com/openfga/api/proto/openfga/v1"
+	openfga "github.com/openfga/go-sdk"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/platform-mesh/security-operator/internal/predicates"
 	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -82,12 +80,14 @@ var initializerCmd = &cobra.Command{
 		utilruntime.Must(sourcev1.AddToScheme(runtimeScheme))
 		utilruntime.Must(helmv2.AddToScheme(runtimeScheme))
 
-		conn, err := grpc.NewClient(operatorCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		fgaConfiguration, err := openfga.NewConfiguration(openfga.Configuration{
+			ApiUrl: operatorCfg.FGA.Target,
+		})
 		if err != nil {
-			log.Error().Err(err).Msg("unable to create grpc client")
+			log.Error().Err(err).Msg("unable to create OpenFGA client")
 			return err
 		}
-		fga := openfgav1.NewOpenFGAServiceClient(conn)
+		fga := openfga.NewAPIClient(fgaConfiguration)
 
 		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
 		if err != nil {
