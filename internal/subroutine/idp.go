@@ -17,6 +17,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	corev1 "k8s.io/api/core/v1"
@@ -133,6 +134,20 @@ func (i *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 	if !meta.IsStatusConditionTrue(idp.GetConditions(), "Ready") {
 		log.Debug().Str("workspace", workspaceName).Msg("idp resource is not ready yet, requeuing")
 		return ctrl.Result{RequeueAfter: i.limiter.When(idp)}, nil
+	}
+
+	if len(idp.Spec.Clients) == 0 || len(idp.Status.ManagedClients) == 0 {
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("IdentityProviderConfiguration %s has no clients in spec or status", workspaceName), true, false)
+	}
+
+	for _, specClient := range idp.Spec.Clients {
+		managedClient, ok := idp.Status.ManagedClients[specClient.ClientName]
+		if !ok {
+			return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("managed client %s not found in IdentityProviderConfiguration status", specClient.ClientName), true, false)
+		}
+		if managedClient.ClientID == "" {
+			return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("managed client %s has empty ClientID in IdentityProviderConfiguration status", specClient.ClientName), true, false)
+		}
 	}
 
 	i.limiter.Forget(idp)
