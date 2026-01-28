@@ -6,12 +6,18 @@ import (
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	mcclient "github.com/kcp-dev/multicluster-provider/client"
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/platform-mesh/security-operator/internal/controller"
+	"github.com/platform-mesh/security-operator/internal/predicates"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -76,6 +82,13 @@ var initializerCmd = &cobra.Command{
 		utilruntime.Must(sourcev1.AddToScheme(runtimeScheme))
 		utilruntime.Must(helmv2.AddToScheme(runtimeScheme))
 
+		conn, err := grpc.NewClient(operatorCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Error().Err(err).Msg("unable to create grpc client")
+			return err
+		}
+		fga := openfgav1.NewOpenFGAServiceClient(conn)
+
 		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
 		if err != nil {
 			setupLog.Error(err, "Failed to create org client")
@@ -95,8 +108,19 @@ var initializerCmd = &cobra.Command{
 		}
 
 		if err := controller.NewLogicalClusterReconciler(log, orgClient, initializerCfg, runtimeClient, mgr).
-			SetupWithManager(mgr, defaultCfg); err != nil {
+			SetupWithManager(mgr, defaultCfg, predicates.IsAccountTypeOrg()); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")
+			os.Exit(1)
+		}
+
+		mcc, err := mcclient.New(k8sCfg, client.Options{Scheme: scheme})
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create multicluster client")
+			os.Exit(1)
+		}
+		if err := controller.NewAccountLogicalClusterReconciler(log, fga, initializerCfg, mcc, mgr).
+			SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.IsAccountTypeOrg())); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "AccountLogicalCluster")
 			os.Exit(1)
 		}
 
