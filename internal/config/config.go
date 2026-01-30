@@ -24,6 +24,7 @@ type Config struct {
 	WorkspaceTypeName                string `mapstructure:"workspace-type-name" default:"security"`
 	DomainCALookup                   bool   `mapstructure:"domain-ca-lookup" default:"false"`
 	MigrateAuthorizationModels       bool   `mapstructure:"migrate-authorization-models" default:"false"`
+	MigrateIdentityProviders         bool   `mapstructure:"migrate-identity-providers" default:"false"`
 	HttpClientTimeoutSeconds         int    `mapstructure:"http-client-timeout-seconds" default:"30"`
 	SetDefaultPassword               bool   `mapstructure:"set-default-password" default:"false"`
 	AllowMemberTuplesEnabled         bool   `mapstructure:"allow-member-tuples-enabled" default:"false"`

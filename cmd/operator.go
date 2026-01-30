@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net/url"
+	"slices"
+	"strings"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
@@ -23,6 +25,7 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
@@ -81,6 +84,13 @@ var operatorCmd = &cobra.Command{
 		if operatorCfg.MigrateAuthorizationModels {
 			if err := migrateAuthorizationModels(ctx, restCfg, scheme, logicalClusterClientFromKey(restCfg, log)); err != nil {
 				log.Error().Err(err).Msg("migration failed")
+				return err
+			}
+		}
+
+		if operatorCfg.MigrateIdentityProviders {
+			if err := migrateIdentityProviders(ctx, restCfg, scheme, logicalClusterClientFromKey(restCfg, log), operatorCfg.InitializerName()); err != nil {
+				log.Error().Err(err).Msg("IDP migration failed")
 				return err
 			}
 		}
@@ -234,6 +244,74 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme
 
 	log.Info().Msg("AuthorizationModel migration completed")
 	return nil
+}
+
+// migrateIdentityProviders re-adds the initializer to workspaces that are missing IdentityProviderConfiguration.
+// This triggers the normal initialization flow where IDPSubroutine creates the IDP resources.
+// All initialization subroutines are idempotent, so this is safe to run on existing workspaces.
+func migrateIdentityProviders(ctx context.Context, config *rest.Config, scheme *runtime.Scheme,
+	getClusterClient NewLogicalClusterClientFunc, initializerName string) error {
+
+	allClient, err := controller.GetAllClient(config, scheme)
+	if err != nil {
+		return fmt.Errorf("failed to create all-cluster client: %w", err)
+	}
+
+	// List all LogicalClusters
+	var logicalClusters kcpcorev1alpha1.LogicalClusterList
+	if err := allClient.List(ctx, &logicalClusters); err != nil {
+		return fmt.Errorf("failed to list LogicalClusters: %w", err)
+	}
+
+	for i := range logicalClusters.Items {
+		lc := &logicalClusters.Items[i]
+
+		// Skip if initializer already present
+		if slices.Contains(lc.Status.Initializers, kcpcorev1alpha1.LogicalClusterInitializer(initializerName)) {
+			continue
+		}
+
+		clusterName := logicalcluster.From(lc)
+		clusterClient, err := getClusterClient(clusterName)
+		if err != nil {
+			log.Warn().Err(err).Str("cluster", clusterName.String()).Msg("failed to create cluster client, skipping")
+			continue
+		}
+
+		// Check if IDP already exists (skip if present)
+		workspaceName := getWorkspaceNameFromLC(lc)
+		if workspaceName == "" {
+			continue
+		}
+
+		var idp corev1alpha1.IdentityProviderConfiguration
+		if err := clusterClient.Get(ctx, types.NamespacedName{Name: workspaceName}, &idp); err == nil {
+			log.Debug().Str("workspace", workspaceName).Msg("IDP already exists, skipping")
+			continue
+		}
+
+		// Re-add the initializer
+		original := lc.DeepCopy()
+		lc.Status.Initializers = append(lc.Status.Initializers, kcpcorev1alpha1.LogicalClusterInitializer(initializerName))
+
+		if err := clusterClient.Status().Patch(ctx, lc, client.MergeFrom(original)); err != nil {
+			log.Warn().Err(err).Str("workspace", workspaceName).Msg("failed to add initializer")
+			continue
+		}
+
+		log.Info().Str("workspace", workspaceName).Msg("re-added initializer for IDP migration")
+	}
+
+	log.Info().Msg("Identity provider migration completed")
+	return nil
+}
+
+func getWorkspaceNameFromLC(lc *kcpcorev1alpha1.LogicalCluster) string {
+	if path, ok := lc.Annotations["kcp.io/path"]; ok {
+		pathElements := strings.Split(path, ":")
+		return pathElements[len(pathElements)-1]
+	}
+	return ""
 }
 
 func init() {
