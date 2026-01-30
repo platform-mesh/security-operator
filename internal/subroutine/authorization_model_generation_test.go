@@ -48,6 +48,14 @@ func mockAccountInfo(cl *mocks.MockClient, orgName, originCluster string) {
 		}
 		return nil
 	}).Once()
+
+	cl.EXPECT().Update(
+		mock.Anything,
+		mock.MatchedBy(func(o client.Object) bool {
+			_, ok := o.(*accountv1alpha1.AccountInfo)
+			return ok
+		}),
+	).Return(nil).Maybe()
 }
 
 func TestAuthorizationModelGeneration_Process(t *testing.T) {
@@ -82,12 +90,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockClient, cluster *mocks.MockCluster, kcpClient *mocks.MockClient) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
-				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-					if _, ok := o.(*accountv1alpha1.AccountInfo); ok {
-						return nil
-					}
-					return nil
-				}).Once()
+				mockAccountInfo(kcpClient, "org", "origin")
 				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil)
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 			},
@@ -99,12 +102,7 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockClient, cluster *mocks.MockCluster, kcpClient *mocks.MockClient) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
-				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-					if _, ok := o.(*accountv1alpha1.AccountInfo); ok {
-						return nil
-					}
-					return nil
-				}).Once()
+				mockAccountInfo(kcpClient, "org", "origin")
 				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil)
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					if ae, ok := o.(*kcpapisv1alpha1.APIExport); ok {
