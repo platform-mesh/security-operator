@@ -918,10 +918,52 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 	}
 }
 
-func TestFinalizeAuthorizationModelGeneration(t *testing.T) {
-	allClient := mocks.NewMockClient(t)
-	finalizers := subroutine.NewAuthorizationModelGenerationSubroutine(nil, allClient).Finalizers(nil)
-	assert.Equal(t, []string{"core.platform-mesh.io/apibinding-finalizer"}, finalizers)
+func TestAuthorizationModelGeneration_Finalizers(t *testing.T) {
+	sub := subroutine.NewAuthorizationModelGenerationSubroutine(nil, mocks.NewMockClient(t))
+
+	tests := []struct {
+		name           string
+		bindingName    string
+		expectFinalizer bool
+	}{
+		{
+			name:           "returns finalizer when name has neither platform-mesh.io nor kcp.io",
+			bindingName:    "my-binding",
+			expectFinalizer: true,
+		},
+		{
+			name:           "returns no finalizer when name contains platform-mesh.io",
+			bindingName:    "core.platform-mesh.io-awuzd",
+			expectFinalizer: false,
+		},
+		{
+			name:           "returns no finalizer when name contains kcp.io",
+			bindingName:    "tenancy.kcp.io-dr0q1",
+			expectFinalizer: false,
+		},
+		{
+			name:           "returns no finalizer when name contains topology.kcp.io",
+			bindingName:    "topology.kcp.io-5oxoy",
+			expectFinalizer: false,
+		},
+		{
+			name:           "returns no finalizer when name contains platform-mesh.io in the middle",
+			bindingName:    "something.platform-mesh.io-suffix",
+			expectFinalizer: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			binding := newApiBinding("foo", "bar")
+			binding.Name = tt.bindingName
+			got := sub.Finalizers(binding)
+			if tt.expectFinalizer {
+				assert.Equal(t, []string{"core.platform-mesh.io/apibinding-finalizer"}, got)
+			} else {
+				assert.Empty(t, got)
+			}
+		})
+	}
 }
 
 func TestAuthorizationModelGenerationSubroutine_GetName(t *testing.T) {
