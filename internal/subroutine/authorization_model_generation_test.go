@@ -934,7 +934,7 @@ func TestAuthorizationModelGeneration_Finalizers(t *testing.T) {
 			expectFinalizer: true,
 		},
 		{
-			name:           "returns no finalizer when name contains platform-mesh.io",
+			name:           "returns no finalizer when name contains core.platform-mesh.io",
 			bindingName:    "core.platform-mesh.io-awuzd",
 			expectFinalizer: false,
 		},
@@ -949,9 +949,9 @@ func TestAuthorizationModelGeneration_Finalizers(t *testing.T) {
 			expectFinalizer: false,
 		},
 		{
-			name:           "returns no finalizer when name contains platform-mesh.io in the middle",
+			name:           "returns finalizer when name contains platform-mesh.io in the middle",
 			bindingName:    "something.platform-mesh.io-suffix",
-			expectFinalizer: false,
+			expectFinalizer: true,
 		},
 	}
 	for _, tt := range tests {
