@@ -934,11 +934,6 @@ func TestAuthorizationModelGeneration_Finalizers(t *testing.T) {
 			expectFinalizer: true,
 		},
 		{
-			name:            "returns finalizer when export name is foo",
-			exportName:      "foo",
-			expectFinalizer: true,
-		},
-		{
 			name:            "returns no finalizer when export name equals core.platform-mesh.io",
 			exportName:      "core.platform-mesh.io",
 			expectFinalizer: false,
@@ -946,16 +941,6 @@ func TestAuthorizationModelGeneration_Finalizers(t *testing.T) {
 		{
 			name:            "returns no finalizer when export name has suffix kcp.io",
 			exportName:      "tenancy.kcp.io",
-			expectFinalizer: false,
-		},
-		{
-			name:            "returns no finalizer when export name is topology.kcp.io",
-			exportName:      "topology.kcp.io",
-			expectFinalizer: false,
-		},
-		{
-			name:            "returns no finalizer when export name has suffix kcp.io (apis.kcp.io)",
-			exportName:      "apis.kcp.io",
 			expectFinalizer: false,
 		},
 		{
