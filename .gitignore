@@ -9,6 +9,7 @@ Dockerfile.cross
 .kcp
 .env
 .secret/*
+.claude
 
 # Test binary, built with `go test -c`
 *.test

@@ -12,11 +12,12 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
-	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -25,6 +26,7 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 )
 
 const (
@@ -92,14 +94,14 @@ type modelInput struct {
 func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 
-	bindingToDelete := instance.(*kcpapisv1alpha1.APIBinding)
+	bindingToDelete := instance.(*kcpapisv1alpha2.APIBinding)
 
 	bindingCluster, err := a.mgr.ClusterFromContext(ctx)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
 	}
 
-	var bindings kcpapisv1alpha1.APIBindingList
+	var bindings kcpapisv1alpha2.APIBindingList
 	err = a.allClient.List(ctx, &bindings)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
@@ -154,16 +156,16 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 	}
 	apiExportClient := apiExportCluster.GetClient()
 
-	var apiExport kcpapisv1alpha1.APIExport
+	var apiExport kcpapisv1alpha2.APIExport
 	err = apiExportClient.Get(ctx, types.NamespacedName{Name: bindingToDelete.Spec.Reference.Export.Name}, &apiExport)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get apiexport for binding deletion")
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
-	for _, latestResourceSchema := range apiExport.Spec.LatestResourceSchemas {
+	for _, latestResourceSchema := range apiExport.Spec.Resources {
 		var resourceSchema kcpapisv1alpha1.APIResourceSchema
-		err := apiExportClient.Get(ctx, types.NamespacedName{Name: latestResourceSchema}, &resourceSchema)
+		err := apiExportClient.Get(ctx, types.NamespacedName{Name: latestResourceSchema.Schema}, &resourceSchema)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to get resource schema for binding deletion")
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
@@ -193,7 +195,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 
 // Finalizers implements lifecycle.Subroutine.
 func (a *AuthorizationModelGenerationSubroutine) Finalizers(instance lifecyclecontrollerruntime.RuntimeObject) []string {
-	binding := instance.(*kcpapisv1alpha1.APIBinding)
+	binding := instance.(*kcpapisv1alpha2.APIBinding)
 	if strings.Contains(binding.Name, "platform-mesh.io") || strings.Contains(binding.Name, "kcp.io") {
 		return []string{}
 	}
@@ -207,7 +209,7 @@ func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 
 // Process implements lifecycle.Subroutine.
 func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	binding := instance.(*kcpapisv1alpha1.APIBinding)
+	binding := instance.(*kcpapisv1alpha2.APIBinding)
 
 	cluster, err := a.mgr.ClusterFromContext(ctx)
 	if err != nil {
@@ -216,11 +218,10 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 
 	var accountInfo accountv1alpha1.AccountInfo
 	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
-	if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
-		// If the accountinfo does not exist, we can skip the model generation.
-		return ctrl.Result{}, nil
-	}
 	if err != nil {
+		if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
+			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		}
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
@@ -234,15 +235,15 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
-	var apiExport kcpapisv1alpha1.APIExport
+	var apiExport kcpapisv1alpha2.APIExport
 	err = apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: binding.Spec.Reference.Export.Name}, &apiExport)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
-	for _, latestResourceSchema := range apiExport.Spec.LatestResourceSchemas {
+	for _, latestResourceSchema := range apiExport.Spec.Resources {
 		var resourceSchema kcpapisv1alpha1.APIResourceSchema
-		err := apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: latestResourceSchema}, &resourceSchema)
+		err := apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: latestResourceSchema.Schema}, &resourceSchema)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}

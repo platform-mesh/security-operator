@@ -109,3 +109,4 @@ tasks:
   run:
     cmds:
       - go run ./cmd/main.go operator
+
