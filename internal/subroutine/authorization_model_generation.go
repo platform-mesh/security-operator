@@ -188,7 +188,11 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 }
 
 // Finalizers implements lifecycle.Subroutine.
-func (a *AuthorizationModelGenerationSubroutine) Finalizers(_ lifecyclecontrollerruntime.RuntimeObject) []string {
+func (a *AuthorizationModelGenerationSubroutine) Finalizers(instance lifecyclecontrollerruntime.RuntimeObject) []string {
+	binding := instance.(*kcpapisv1alpha1.APIBinding)
+	if strings.Contains(binding.Name, "platform-mesh.io") || strings.Contains(binding.Name, "kcp.io") {
+		return []string{}
+	}
 	return []string{"core.platform-mesh.io/apibinding-finalizer"}
 }
 
