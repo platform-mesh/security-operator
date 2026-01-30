@@ -924,39 +924,39 @@ func TestAuthorizationModelGeneration_Finalizers(t *testing.T) {
 	sub := subroutine.NewAuthorizationModelGenerationSubroutine(nil, mocks.NewMockClient(t))
 
 	tests := []struct {
-		name           string
-		bindingName    string
+		name            string
+		bindingName     string
 		expectFinalizer bool
 	}{
 		{
-			name:           "returns finalizer when name has neither platform-mesh.io nor kcp.io",
-			bindingName:    "my-binding",
+			name:            "returns finalizer when binding name is core.platform-mesh.io",
+			bindingName:     "core.platform-mesh.io",
 			expectFinalizer: true,
 		},
 		{
-			name:           "returns no finalizer when name contains platform-mesh.io",
-			bindingName:    "core.platform-mesh.io-awuzd",
+			name:            "returns no finalizer when binding name contains kcp.io",
+			bindingName:     "tenancy.kcp.io",
 			expectFinalizer: false,
 		},
 		{
-			name:           "returns no finalizer when name contains kcp.io",
-			bindingName:    "tenancy.kcp.io-dr0q1",
+			name:            "returns no finalizer when binding name is topology.kcp.io",
+			bindingName:     "topology.kcp.io",
 			expectFinalizer: false,
 		},
 		{
-			name:           "returns no finalizer when name contains topology.kcp.io",
-			bindingName:    "topology.kcp.io-5oxoy",
+			name:            "returns no finalizer when binding name is apis.kcp.io",
+			bindingName:     "apis.kcp.io",
 			expectFinalizer: false,
 		},
 		{
-			name:           "returns no finalizer when name contains platform-mesh.io in the middle",
-			bindingName:    "something.platform-mesh.io-suffix",
-			expectFinalizer: false,
+			name:            "returns finalizer when binding name contains platform-mesh.io but not kcp.io",
+			bindingName:     "something.platform-mesh.io",
+			expectFinalizer: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			binding := newApiBinding("foo", "bar")
+			binding := newApiBinding("export", "root:orgs:test")
 			binding.Name = tt.bindingName
 			got := sub.Finalizers(binding)
 			if tt.expectFinalizer {
