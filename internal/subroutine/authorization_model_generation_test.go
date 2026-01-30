@@ -925,33 +925,39 @@ func TestAuthorizationModelGeneration_Finalizers(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		exportName      string
+		bindingName     string
 		expectFinalizer bool
 	}{
 		{
-			name:            "returns finalizer when export name is neither core.platform-mesh.io nor suffix kcp.io",
-			exportName:      "my-export",
+			name:            "returns finalizer when binding name is core.platform-mesh.io",
+			bindingName:     "core.platform-mesh.io",
 			expectFinalizer: true,
 		},
 		{
-			name:            "returns no finalizer when export name equals core.platform-mesh.io",
-			exportName:      "core.platform-mesh.io",
+			name:            "returns no finalizer when binding name contains kcp.io",
+			bindingName:     "tenancy.kcp.io",
 			expectFinalizer: false,
 		},
 		{
-			name:            "returns no finalizer when export name has suffix kcp.io",
-			exportName:      "tenancy.kcp.io",
+			name:            "returns no finalizer when binding name is topology.kcp.io",
+			bindingName:     "topology.kcp.io",
 			expectFinalizer: false,
 		},
 		{
-			name:            "returns finalizer when export name is not exact core.platform-mesh.io",
-			exportName:      "something.platform-mesh.io",
+			name:            "returns no finalizer when binding name is apis.kcp.io",
+			bindingName:     "apis.kcp.io",
+			expectFinalizer: false,
+		},
+		{
+			name:            "returns finalizer when binding name contains platform-mesh.io but not kcp.io",
+			bindingName:     "something.platform-mesh.io",
 			expectFinalizer: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			binding := newApiBinding(tt.exportName, "root")
+			binding := newApiBinding("export", "root:orgs:test")
+			binding.Name = tt.bindingName
 			got := sub.Finalizers(binding)
 			if tt.expectFinalizer {
 				assert.Equal(t, []string{"core.platform-mesh.io/apibinding-finalizer"}, got)
