@@ -180,8 +180,25 @@ func TestIDPSubroutine_Process(t *testing.T) {
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
 						idp := obj.(*secopv1alpha1.IdentityProviderConfiguration)
 						idp.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
+						idp.Status.ManagedClients = map[string]secopv1alpha1.ManagedClient{
+							"acme":    {ClientID: "acme-client-id"},
+							"kubectl": {ClientID: "kubectl-client-id"},
+						}
 						return nil
 					}).Once()
+				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo")).
+					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
+						accountInfo := obj.(*accountv1alpha1.AccountInfo)
+						accountInfo.Spec.OIDC = &accountv1alpha1.OIDCInfo{
+							IssuerURL: "https://old.example.com/keycloak/realms/acme",
+							Clients: map[string]accountv1alpha1.ClientInfo{
+								"old-client": {ClientID: "old-client-id"},
+							},
+						}
+						return nil
+					}).Once()
+				orgsClient.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					Return(nil).Once()
 			},
 			lc: &kcpv1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
