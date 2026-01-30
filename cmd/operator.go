@@ -174,6 +174,10 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
 			return err
 		}
+		if err = controller.NewAccountInfoReconciler(log, mgr).SetupWithManager(mgr, defaultCfg); err != nil {
+			log.Error().Err(err).Str("controller", "accountinfo").Msg("unable to create controller")
+			return err
+		}
 		// +kubebuilder:scaffold:builder
 
 		if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
