@@ -27,6 +27,10 @@ import (
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
+const (
+	apiBindingFinalizer = "core.platform-mesh.io/apibinding-finalizer"
+)
+
 func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, allClient client.Client) *AuthorizationModelGenerationSubroutine {
 	return &AuthorizationModelGenerationSubroutine{
 		mgr:       mcMgr,
@@ -193,7 +197,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalizers(instance lifecycleco
 	if strings.Contains(binding.Name, "platform-mesh.io") || strings.Contains(binding.Name, "kcp.io") {
 		return []string{}
 	}
-	return []string{"core.platform-mesh.io/apibinding-finalizer"}
+	return []string{apiBindingFinalizer}
 }
 
 // GetName implements lifecycle.Subroutine.
