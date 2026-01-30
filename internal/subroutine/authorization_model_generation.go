@@ -27,6 +27,10 @@ import (
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
+const (
+	authorizationModelGenerationFinalizer = "core.platform-mesh.io/authorization-model-generation"
+)
+
 func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, allClient client.Client) *AuthorizationModelGenerationSubroutine {
 	return &AuthorizationModelGenerationSubroutine{
 		mgr:       mcMgr,
@@ -139,8 +143,15 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 		bindingCount++
 	}
 
+	// If there are still other bindings for the same APIExport, we can skip the model deletion.
 	if bindingCount > 1 {
-		// If there are still other bindings for the same APIExport, we can skip the model deletion.
+		if controllerutil.ContainsFinalizer(&toDeleteAccountInfo, authorizationModelGenerationFinalizer) {
+			controllerutil.RemoveFinalizer(&toDeleteAccountInfo, authorizationModelGenerationFinalizer)
+			if err := bindingCluster.GetClient().Update(ctx, &toDeleteAccountInfo); err != nil {
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating AccountInfo to remove finalizer: %w", err), true, true)
+			}
+		}
+
 		return ctrl.Result{}, nil
 	}
 
@@ -183,6 +194,13 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 		log.Info().Msg(fmt.Sprintf("authorization model %s has been deleted", authModelName))
 	}
 
+	if controllerutil.ContainsFinalizer(&toDeleteAccountInfo, authorizationModelGenerationFinalizer) {
+		controllerutil.RemoveFinalizer(&toDeleteAccountInfo, authorizationModelGenerationFinalizer)
+		if err := bindingCluster.GetClient().Update(ctx, &toDeleteAccountInfo); err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating AccountInfo to remove finalizer: %w", err), true, true)
+		}
+	}
+
 	return ctrl.Result{}, nil
 
 }
@@ -214,6 +232,13 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 	}
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	}
+	// Manage finalizer on AccountInfo because we need it for deletion later
+	if !controllerutil.ContainsFinalizer(&accountInfo, authorizationModelGenerationFinalizer) {
+		controllerutil.AddFinalizer(&accountInfo, authorizationModelGenerationFinalizer)
+		if err := cluster.GetClient().Update(ctx, &accountInfo); err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating AccountInfo with finalizer: %w", err), true, true)
+		}
 	}
 
 	if binding.Spec.Reference.Export.Name == "core.platform-mesh.io" || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
