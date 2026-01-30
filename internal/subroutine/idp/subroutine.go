@@ -145,7 +145,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	realmName := idpConfig.Name
 	oidcClient, adminClient := s.newOIDCClient(realmName)
 
-	if err := s.ensureRealm(ctx, adminClient, realmName, log); err != nil {
+	if err := s.ensureRealm(ctx, adminClient, realmName, idpConfig.Spec.RegistrationAllowed, log); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 	}
 
@@ -183,14 +183,14 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	return ctrl.Result{}, nil
 }
 
-func (s *subroutine) ensureRealm(ctx context.Context, adminClient *keycloak.AdminClient, realmName string, log *logger.Logger) error {
+func (s *subroutine) ensureRealm(ctx context.Context, adminClient *keycloak.AdminClient, realmName string, registrationAllowed bool, log *logger.Logger) error {
 	realmConfig := keycloak.RealmConfig{
 		Realm:                       realmName,
 		DisplayName:                 realmName,
 		Enabled:                     true,
 		LoginWithEmailAllowed:       true,
 		RegistrationEmailAsUsername: true,
-		RegistrationAllowed:         s.cfg.IDP.RegistrationAllowed,
+		RegistrationAllowed:         registrationAllowed,
 		SSOSessionIdleTimeout:       s.cfg.IDP.AccessTokenLifespan,
 		AccessTokenLifespan:         s.cfg.IDP.AccessTokenLifespan,
 	}
