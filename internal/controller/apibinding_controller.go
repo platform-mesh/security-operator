@@ -24,6 +24,7 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 )
 
 func GetAllClient(config *rest.Config, schema *runtime.Scheme) (client.Client, error) {
@@ -97,9 +98,9 @@ type APIBindingReconciler struct {
 
 func (r *APIBindingReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpapisv1alpha1.APIBinding{})
+	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpapisv1alpha2.APIBinding{})
 }
 
 func (r *APIBindingReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
-	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "apibinding-controller", &kcpapisv1alpha1.APIBinding{}, cfg.DebugLabelValue, r, r.log, evp...)
+	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "apibinding-controller", &kcpapisv1alpha2.APIBinding{}, cfg.DebugLabelValue, r, r.log, evp...)
 }
