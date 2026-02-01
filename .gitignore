@@ -10,6 +10,7 @@ Dockerfile.cross
 .env
 .secret/*
 .claude
+CLAUDE.local.md
 
 # Test binary, built with `go test -c`
 *.test
