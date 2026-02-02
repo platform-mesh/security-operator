@@ -22,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -80,27 +79,15 @@ func TestSubroutineProcess(t *testing.T) {
 								Organization: accountsv1alpha1.AccountLocation{
 									Name: "acme",
 								},
-							},
-						}
-						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
-						return nil
-					}).Once()
-
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						idp := &v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "acme",
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"acme": {
-										ClientID: "acme",
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									IssuerURL: "https://keycloak/realms/acme",
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"acme": {ClientID: "acme"},
 									},
 								},
 							},
 						}
-						*o.(*v1alpha1.IdentityProviderConfiguration) = *idp
+						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
 						return nil
 					}).Once()
 			},
@@ -161,27 +148,15 @@ func TestSubroutineProcess(t *testing.T) {
 								Organization: accountsv1alpha1.AccountLocation{
 									Name: "acme",
 								},
-							},
-						}
-						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
-						return nil
-					}).Once()
-
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						idp := &v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "acme",
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"acme": {
-										ClientID: "acme",
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									IssuerURL: "https://keycloak/realms/acme",
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"acme": {ClientID: "acme"},
 									},
 								},
 							},
 						}
-						*o.(*v1alpha1.IdentityProviderConfiguration) = *idp
+						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
 						return nil
 					}).Once()
 			},
@@ -262,27 +237,15 @@ func TestSubroutineProcess(t *testing.T) {
 								Organization: accountsv1alpha1.AccountLocation{
 									Name: "acme",
 								},
-							},
-						}
-						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
-						return nil
-					}).Once()
-
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						idp := &v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "acme",
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"acme": {
-										ClientID: "acme",
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									IssuerURL: "https://keycloak/realms/acme",
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"acme": {ClientID: "acme"},
 									},
 								},
 							},
 						}
-						*o.(*v1alpha1.IdentityProviderConfiguration) = *idp
+						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
 						return nil
 					}).Once()
 			},
@@ -337,27 +300,15 @@ func TestSubroutineProcess(t *testing.T) {
 								Organization: accountsv1alpha1.AccountLocation{
 									Name: "acme",
 								},
-							},
-						}
-						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
-						return nil
-					}).Once()
-
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						idp := &v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "acme",
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"acme": {
-										ClientID: "acme",
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									IssuerURL: "https://keycloak/realms/acme",
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"acme": {ClientID: "acme"},
 									},
 								},
 							},
 						}
-						*o.(*v1alpha1.IdentityProviderConfiguration) = *idp
+						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
 						return nil
 					}).Once()
 			},
@@ -400,27 +351,15 @@ func TestSubroutineProcess(t *testing.T) {
 								Organization: accountsv1alpha1.AccountLocation{
 									Name: "acme",
 								},
-							},
-						}
-						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
-						return nil
-					}).Once()
-
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-						idp := &v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{
-								Name: "acme",
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"acme": {
-										ClientID: "acme",
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									IssuerURL: "https://keycloak/realms/acme",
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"acme": {ClientID: "acme"},
 									},
 								},
 							},
 						}
-						*o.(*v1alpha1.IdentityProviderConfiguration) = *idp
+						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
 						return nil
 					}).Once()
 			},
@@ -473,6 +412,73 @@ func TestSubroutineProcess(t *testing.T) {
 					}).Once()
 			},
 			setupKeycloakMocks: func(mux *http.ServeMux) {
+			},
+		},
+		{
+			desc: "AccountInfo OIDC is nil",
+			obj: &v1alpha1.Invite{
+				Spec: v1alpha1.InviteSpec{
+					Email: "oidcnil@acme.corp",
+				},
+			},
+			expectErr: true,
+			setupK8sMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						accountInfo := &accountsv1alpha1.AccountInfo{
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								Organization: accountsv1alpha1.AccountLocation{
+									Name: "acme",
+								},
+								OIDC: nil,
+							},
+						}
+						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						return nil
+					}).Once()
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				users := []map[string]any{}
+				mux.HandleFunc("GET /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode(&users)
+				})
+			},
+		},
+		{
+			desc: "organization not found in OIDC clients",
+			obj: &v1alpha1.Invite{
+				Spec: v1alpha1.InviteSpec{
+					Email: "missingorg@acme.corp",
+				},
+			},
+			expectErr: true,
+			setupK8sMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						accountInfo := &accountsv1alpha1.AccountInfo{
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								Organization: accountsv1alpha1.AccountLocation{
+									Name: "acme",
+								},
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									IssuerURL: "https://keycloak/realms/acme",
+									Clients:   map[string]accountsv1alpha1.ClientInfo{},
+								},
+							},
+						}
+						*o.(*accountsv1alpha1.AccountInfo) = *accountInfo
+						return nil
+					}).Once()
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				users := []map[string]any{}
+				mux.HandleFunc("GET /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode(&users)
+				})
 			},
 		},
 	}
