@@ -128,6 +128,11 @@ tasks:
         sh: kubectl get deployment security-operator -n {{.DEPLOYMENT_NAMESPACE}} -o jsonpath='{.spec.template.spec.containers[0].image}' | cut -d':' -f2
       IMAGE_NAME: ghcr.io/platform-mesh/security-operator:{{.IMAGE_TAG}}
     cmds:
+      - |
+        if [ -z "{{.IMAGE_TAG}}" ]; then
+          echo "Error: Could not determine IMAGE_TAG from deployment security-operator in namespace {{.DEPLOYMENT_NAMESPACE}}"
+          exit 1
+        fi
       - echo "Building image with tag {{.IMAGE_TAG}} using {{.CONTAINER_RUNTIME}}"
       - "{{.CONTAINER_RUNTIME}} build -t {{.IMAGE_NAME}} ."
       - |

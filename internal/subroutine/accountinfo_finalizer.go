@@ -13,7 +13,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 )
 
 const (
@@ -54,7 +54,7 @@ func (a *AccountInfoFinalizerSubroutine) Finalize(ctx context.Context, instance 
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
-	var apiBindings kcpapisv1alpha1.APIBindingList
+	var apiBindings kcpapisv1alpha2.APIBindingList
 	if err := cluster.GetClient().List(ctx, &apiBindings); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}

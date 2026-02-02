@@ -10,7 +10,7 @@ KCP_SERVER="https://localhost:8443/clusters/root:platform-mesh-system"
 
 KUBECONFIG_YAML="$SECRET_DIR/operator.yaml"
 
-echo "Retrieving kind kubeconfig and saving as runtime.yaml..."
+echo "Checking for Kind cluster 'platform-mesh'..."
 
 if ! kind get clusters | grep -q "^platform-mesh$"; then
     echo "Error: Kind cluster 'platform-mesh' not found"
@@ -44,6 +44,11 @@ fi
 if [ "$CLIENT_KEY_DATA" == "null" ] || [ -z "$CLIENT_KEY_DATA" ]; then
     echo "Error: Failed to extract client-key-data from kubeconfig"
     exit 1
+fi
+
+if [ ! -f "$KUBECONFIG_YAML" ]; then
+  echo "Error: operator.yaml not found at $KUBECONFIG_YAML"
+  exit 1
 fi
 
 echo "Updating certificate-authority-data and user info in $KUBECONFIG_YAML"
