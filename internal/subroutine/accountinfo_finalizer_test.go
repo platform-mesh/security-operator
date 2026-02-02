@@ -15,7 +15,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 )
 
 func TestAccountInfoFinalizerSubroutine_GetName(t *testing.T) {
@@ -65,8 +65,8 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					list := ol.(*kcpapisv1alpha1.APIBindingList)
-					list.Items = []kcpapisv1alpha1.APIBinding{}
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					list.Items = []kcpapisv1alpha2.APIBinding{}
 					return nil
 				})
 			},
@@ -79,8 +79,8 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					list := ol.(*kcpapisv1alpha1.APIBindingList)
-					list.Items = []kcpapisv1alpha1.APIBinding{
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					list.Items = []kcpapisv1alpha2.APIBinding{
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name:       "binding1",
@@ -100,8 +100,8 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					list := ol.(*kcpapisv1alpha1.APIBindingList)
-					list.Items = []kcpapisv1alpha1.APIBinding{
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					list.Items = []kcpapisv1alpha2.APIBinding{
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name:       "binding1",
@@ -121,8 +121,8 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					list := ol.(*kcpapisv1alpha1.APIBindingList)
-					list.Items = []kcpapisv1alpha1.APIBinding{
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					list.Items = []kcpapisv1alpha2.APIBinding{
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name:       "binding1",
@@ -148,8 +148,8 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				kcpClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-					list := ol.(*kcpapisv1alpha1.APIBindingList)
-					list.Items = []kcpapisv1alpha1.APIBinding{
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					list.Items = []kcpapisv1alpha2.APIBinding{
 						{
 							ObjectMeta: metav1.ObjectMeta{
 								Name:       "binding1",
