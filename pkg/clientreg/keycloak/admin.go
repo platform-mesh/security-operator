@@ -94,6 +94,30 @@ func (c *AdminClient) RegistrationEndpoint() string {
 	return fmt.Sprintf("%s/realms/%s/clients-registrations/openid-connect", c.baseURL, c.realm)
 }
 
+func (c *AdminClient) RealmExists(ctx context.Context, realmName string) (bool, error) {
+	url := fmt.Sprintf("%s/admin/realms/%s", c.baseURL, realmName)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to create get realm request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return false, fmt.Errorf("failed to get realm %q: %w", realmName, err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode == http.StatusOK {
+		return true, nil
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		return false, nil
+	}
+
+	return false, readErrorResponse(resp, "get realm")
+}
+
 func (c *AdminClient) CreateOrUpdateRealm(ctx context.Context, config RealmConfig) (created bool, err error) {
 	body, err := json.Marshal(config)
 	if err != nil {
