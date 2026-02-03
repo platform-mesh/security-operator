@@ -927,39 +927,38 @@ func TestAuthorizationModelGeneration_Finalizers(t *testing.T) {
 
 	tests := []struct {
 		name            string
-		bindingName     string
+		exportName      string
 		expectFinalizer bool
 	}{
 		{
-			name:            "returns finalizer when binding name is core.platform-mesh.io",
-			bindingName:     "core.platform-mesh.io",
+			name:            "returns finalizer when export name is core.platform-mesh.io",
+			exportName:      "core.platform-mesh.io",
 			expectFinalizer: true,
 		},
 		{
-			name:            "returns no finalizer when binding name contains kcp.io",
-			bindingName:     "tenancy.kcp.io",
+			name:            "returns no finalizer when export name has suffix kcp.io",
+			exportName:      "tenancy.kcp.io",
 			expectFinalizer: false,
 		},
 		{
-			name:            "returns no finalizer when binding name is topology.kcp.io",
-			bindingName:     "topology.kcp.io",
+			name:            "returns no finalizer when export name is topology.kcp.io",
+			exportName:      "topology.kcp.io",
 			expectFinalizer: false,
 		},
 		{
-			name:            "returns no finalizer when binding name is apis.kcp.io",
-			bindingName:     "apis.kcp.io",
+			name:            "returns no finalizer when export name is apis.kcp.io",
+			exportName:      "apis.kcp.io",
 			expectFinalizer: false,
 		},
 		{
-			name:            "returns finalizer when binding name contains platform-mesh.io but not kcp.io",
-			bindingName:     "something.platform-mesh.io",
+			name:            "returns finalizer when export name has suffix platform-mesh.io but not kcp.io",
+			exportName:      "something.platform-mesh.io",
 			expectFinalizer: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			binding := newApiBinding("export", "root:orgs:test")
-			binding.Name = tt.bindingName
+			binding := newApiBinding(tt.exportName, "root:orgs:test")
 			got := sub.Finalizers(binding)
 			if tt.expectFinalizer {
 				assert.Equal(t, []string{"core.platform-mesh.io/apibinding-finalizer"}, got)

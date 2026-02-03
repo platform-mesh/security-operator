@@ -196,7 +196,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 // Finalizers implements lifecycle.Subroutine.
 func (a *AuthorizationModelGenerationSubroutine) Finalizers(instance lifecyclecontrollerruntime.RuntimeObject) []string {
 	binding := instance.(*kcpapisv1alpha2.APIBinding)
-	if strings.Contains(binding.Name, "kcp.io") {
+	if strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
 		return []string{}
 	}
 	return []string{apiBindingFinalizer}
