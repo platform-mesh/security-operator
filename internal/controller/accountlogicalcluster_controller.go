@@ -32,6 +32,7 @@ func NewAccountLogicalClusterReconciler(log *logger.Logger, fga *openfga.APIClie
 		log: log,
 		mclifecycle: builder.NewBuilder("security", "AccountLogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
 			subroutine.NewAccountTuplesSubroutine(fga, mcc, mgr),
+			subroutine.NewRemoveInitializer(mgr, cfg),
 		}, log).
 			WithReadOnly().
 			WithStaticThenExponentialRateLimiter().
