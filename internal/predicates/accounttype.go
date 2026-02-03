@@ -1,9 +1,8 @@
 package predicates
 
 import (
-	"strings"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 
-	kcpcore "github.com/kcp-dev/sdk/apis/core"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
@@ -13,8 +12,8 @@ import (
 // todo(simontesar): more stable implementation not relying on static orgs path
 func IsAccountTypeOrg() predicate.Predicate {
 	return predicate.NewPredicateFuncs(func(object client.Object) bool {
-		a := object.GetAnnotations()
-		lc := a[kcpcore.LogicalClusterPathAnnotationKey]
-		return strings.Contains(lc, ":orgs:")
+		lc := object.(*kcpcorev1alpha1.LogicalCluster)
+
+		return lc.Spec.Owner.Name == "orgs"
 	})
 }
