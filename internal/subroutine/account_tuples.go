@@ -119,6 +119,17 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 	if err := orgsClient.Update(ctx, &st); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating Store with tuples: %w", err), true, true)
 	}
+
+	// todo(simontesar): checking and waiting for Readiness is currently futile
+	// our conditions don't include the observed generation
+	//
+	// if err := orgsClient.Get(ctx, client.ObjectKey{Name: st.Name}, &st); err != nil {
+	// 	return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Store after update: %w", err), true, true)
+	// }
+	// if conditions.IsPresentAndEqualForGeneration(st.Status.Conditions, lcconditions.ConditionReady, metav1.ConditionTrue, st.GetObjectMeta().GetGeneration()) {
+	// 	return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store %s is not ready", st.Name), true, false)
+	// }
+
 	return ctrl.Result{}, nil
 }
 
