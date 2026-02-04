@@ -3,25 +3,123 @@ package subroutine
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"slices"
+	"strings"
 
+	"github.com/kcp-dev/logicalcluster/v3"
 	mcclient "github.com/kcp-dev/multicluster-provider/client"
 	kcpcore "github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	openfga "github.com/openfga/go-sdk"
+	"github.com/rs/zerolog/log"
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
 
+	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
+	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
 type AccountTuplesSubroutine struct {
-	fga *openfga.APIClient
 	mgr mcmanager.Manager
 	mcc mcclient.ClusterClient
+
+	objectType      string
+	parentRelation  string
+	creatorRelation string
+}
+
+// Process implements lifecycle.Subroutine.
+func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	log := logger.LoadLoggerFromContext(ctx)
+
+	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
+	p := lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey]
+	if p == "" {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("annotation on LogicalCluster is not set"), true, true)
+	}
+	lcID, _ := mccontext.ClusterFrom(ctx)
+	log = log.ChildLogger("ID", lcID).ChildLogger("path", p)
+	log.Info().Msgf("Processing logical cluster")
+
+	lcClient, err := NewLCClient(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(lcID))
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting client: %w", err), true, true)
+	}
+
+	var ai accountsv1alpha1.AccountInfo
+	if err := lcClient.Get(ctx, client.ObjectKey{
+		Name: accountsv1alpha1.DefaultAccountInfoName,
+	}, &ai); err != nil && !kerrors.IsNotFound(err) {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err), true, true)
+	} else if kerrors.IsNotFound(err) {
+		fmt.Println(err)
+
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("AccountInfo not found yet, requeueing"), true, false)
+	}
+
+	parentOrgClient, err := NewLCClient(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(ai.Spec.Organization.Path))
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent organisation client: %w", err), true, true)
+	}
+
+	var acc accountsv1alpha1.Account
+	if err := parentOrgClient.Get(ctx, client.ObjectKey{
+		Name: ai.Spec.Account.Name,
+	}, &acc); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Account in parent organisation: %w", err), true, true)
+	}
+
+	orgsClient, err := NewLCClient(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name("root:orgs"))
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting orgs client: %w", err), true, true)
+	}
+
+	var st v1alpha1.Store
+	if err := orgsClient.Get(ctx, client.ObjectKey{
+		Name: ai.Spec.Organization.Name,
+	}, &st); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent organisation's Store: %w", err), true, true)
+	}
+
+	tuples := []v1alpha1.Tuple{
+		v1alpha1.Tuple{
+			User:     fmt.Sprintf("%s:%s/%s", s.objectType, ai.Spec.ParentAccount.OriginClusterId, ai.Spec.ParentAccount.Name),
+			Relation: s.parentRelation,
+			Object:   fmt.Sprintf("%s:%s/%s", s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
+		},
+		v1alpha1.Tuple{
+			User:     fmt.Sprintf("user:%s", formatUser(*acc.Spec.Creator)),
+			Relation: "assignee",
+			Object:   fmt.Sprintf("role:%s/%s/%s/owner", s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
+		},
+		v1alpha1.Tuple{
+			User:     fmt.Sprintf("role:%s/%s/%s/owner#assignee", s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
+			Relation: s.creatorRelation,
+			Object:   fmt.Sprintf("%s:%s/%s", s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
+		},
+	}
+
+	// Append the stores tuples with every tuple for the Account not yet managed
+	// via the Store resource
+	for _, t := range tuples {
+		if !slices.Contains(st.Spec.Tuples, t) {
+			st.Spec.Tuples = append(st.Spec.Tuples, t)
+		}
+	}
+
+	if err := orgsClient.Update(ctx, &st); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating Store with tuples: %w", err), true, true)
+	}
+	return ctrl.Result{}, nil
 }
 
 // Finalize implements lifecycle.Subroutine.
@@ -46,27 +144,49 @@ func (s *AccountTuplesSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []st
 // GetName implements lifecycle.Subroutine.
 func (s *AccountTuplesSubroutine) GetName() string { return "AccountTuplesSubroutine" }
 
-// Process implements lifecycle.Subroutine.
-func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	log := logger.LoadLoggerFromContext(ctx)
-
-	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
-	p := lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey]
-	if p == "" {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("annotation on LogicalCluster is not set"), true, true)
-	}
-	cluster, _ := mccontext.ClusterFrom(ctx)
-	log.Info().Msgf("Processing logical cluster of path %s with %s in context", p, cluster)
-
-	return ctrl.Result{}, nil
-}
-
-func NewAccountTuplesSubroutine(fga *openfga.APIClient, mcc mcclient.ClusterClient, mgr mcmanager.Manager) *AccountTuplesSubroutine {
+func NewAccountTuplesSubroutine(mcc mcclient.ClusterClient, mgr mcmanager.Manager, creatorRelation, parentRelation, objectType string) *AccountTuplesSubroutine {
 	return &AccountTuplesSubroutine{
-		fga: fga,
-		mgr: mgr,
-		mcc: mcc,
+		mgr:             mgr,
+		mcc:             mcc,
+		creatorRelation: creatorRelation,
+		parentRelation:  parentRelation,
+		objectType:      objectType,
 	}
 }
 
 var _ lifecyclesubroutine.Subroutine = &AccountTuplesSubroutine{}
+
+func NewLCClient(config *rest.Config, scheme *runtime.Scheme, clusterKey logicalcluster.Name) (client.Client, error) {
+	cfg := rest.CopyConfig(config)
+
+	parsed, err := url.Parse(cfg.Host)
+	if err != nil {
+		log.Error().Err(err).Msg("unable to parse host")
+		panic(err)
+	}
+
+	parsed.Path = fmt.Sprintf("/clusters/%s", clusterKey)
+
+	cfg.Host = parsed.String()
+
+	return client.New(cfg, client.Options{
+		Scheme: scheme,
+	})
+}
+
+// isServiceAccount determines wheter a user appears to be a Kubernetes
+// ServiceAccount.
+func isServiceAccount(user string) bool {
+	return strings.HasPrefix(user, "system:serviceaccount:")
+}
+
+// formatUser formats a user to be stored in an FGA tuple, i.e. replaces colons
+// with dots in case of a Kubernetes ServiceAccount.
+// todo(simontesar): why was this implemented ot only be done in case of SAs?
+func formatUser(user string) string {
+	if isServiceAccount(user) {
+		return strings.ReplaceAll(user, ":", ".")
+	}
+
+	return user
+}

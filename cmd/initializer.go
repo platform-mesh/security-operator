@@ -7,7 +7,6 @@ import (
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	mcclient "github.com/kcp-dev/multicluster-provider/client"
-	openfga "github.com/openfga/go-sdk"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/platform-mesh/security-operator/internal/predicates"
 	"github.com/spf13/cobra"
@@ -80,15 +79,6 @@ var initializerCmd = &cobra.Command{
 		utilruntime.Must(sourcev1.AddToScheme(runtimeScheme))
 		utilruntime.Must(helmv2.AddToScheme(runtimeScheme))
 
-		fgaConfiguration, err := openfga.NewConfiguration(openfga.Configuration{
-			ApiUrl: operatorCfg.FGA.Target,
-		})
-		if err != nil {
-			log.Error().Err(err).Msg("unable to create OpenFGA client")
-			return err
-		}
-		fga := openfga.NewAPIClient(fgaConfiguration)
-
 		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
 		if err != nil {
 			setupLog.Error(err, "Failed to create org client")
@@ -113,12 +103,18 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		mcc, err := mcclient.New(k8sCfg, client.Options{Scheme: scheme})
+		kcpCfg, err := getKubeconfigFromPath(operatorCfg.KCP.Kubeconfig)
+		if err != nil {
+			log.Error().Err(err).Msg("unable to get KCP kubeconfig")
+			return err
+		}
+
+		mcc, err := mcclient.New(kcpCfg, client.Options{Scheme: scheme})
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create multicluster client")
 			os.Exit(1)
 		}
-		if err := controller.NewAccountLogicalClusterReconciler(log, fga, initializerCfg, mcc, mgr).
+		if err := controller.NewAccountLogicalClusterReconciler(log, initializerCfg, mcc, mgr).
 			SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.IsAccountTypeOrg())); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "AccountLogicalCluster")
 			os.Exit(1)

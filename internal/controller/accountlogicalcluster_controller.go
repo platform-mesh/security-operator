@@ -4,7 +4,6 @@ import (
 	"context"
 
 	mcclient "github.com/kcp-dev/multicluster-provider/client"
-	openfga "github.com/openfga/go-sdk"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
@@ -27,11 +26,11 @@ type AccountLogicalClusterReconciler struct {
 	mclifecycle *multicluster.LifecycleManager
 }
 
-func NewAccountLogicalClusterReconciler(log *logger.Logger, fga *openfga.APIClient, cfg config.Config, mcc mcclient.ClusterClient, mgr mcmanager.Manager) *AccountLogicalClusterReconciler {
+func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, mcc mcclient.ClusterClient, mgr mcmanager.Manager) *AccountLogicalClusterReconciler {
 	return &AccountLogicalClusterReconciler{
 		log: log,
 		mclifecycle: builder.NewBuilder("security", "AccountLogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
-			subroutine.NewAccountTuplesSubroutine(fga, mcc, mgr),
+			subroutine.NewAccountTuplesSubroutine(mcc, mgr, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType),
 			subroutine.NewRemoveInitializer(mgr, cfg),
 		}, log).
 			WithReadOnly().
