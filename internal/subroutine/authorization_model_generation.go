@@ -29,7 +29,8 @@ import (
 )
 
 const (
-	apiBindingFinalizer = "core.platform-mesh.io/apibinding-finalizer"
+	apiBindingFinalizer       = "core.platform-mesh.io/apibinding-finalizer"
+	corePlatformMeshApiExport = "core.platform-mesh.io"
 )
 
 func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, allClient client.Client) *AuthorizationModelGenerationSubroutine {
@@ -195,7 +196,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 // Finalizers implements lifecycle.Subroutine.
 func (a *AuthorizationModelGenerationSubroutine) Finalizers(instance lifecyclecontrollerruntime.RuntimeObject) []string {
 	binding := instance.(*kcpapisv1alpha2.APIBinding)
-	if strings.Contains(binding.Name, "platform-mesh.io") || strings.Contains(binding.Name, "kcp.io") {
+	if strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
 		return []string{}
 	}
 	return []string{apiBindingFinalizer}
@@ -224,7 +225,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
-	if binding.Spec.Reference.Export.Name == "core.platform-mesh.io" || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
+	if binding.Spec.Reference.Export.Name == corePlatformMeshApiExport || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
 		// If the APIExport is the core.platform-mesh.io, we can skip the model generation.
 		return ctrl.Result{}, nil
 	}
