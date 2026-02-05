@@ -98,7 +98,7 @@ var initializerCmd = &cobra.Command{
 		}
 
 		if err := controller.NewLogicalClusterReconciler(log, orgClient, initializerCfg, runtimeClient, mgr).
-			SetupWithManager(mgr, defaultCfg, predicates.IsAccountTypeOrg()); err != nil {
+			SetupWithManager(mgr, defaultCfg, predicates.LogicalClusterIsAccountTypeOrg()); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")
 			os.Exit(1)
 		}
@@ -115,7 +115,7 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		if err := controller.NewAccountLogicalClusterReconciler(log, initializerCfg, mcc, mgr).
-			SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.IsAccountTypeOrg())); err != nil {
+			SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "AccountLogicalCluster")
 			os.Exit(1)
 		}
