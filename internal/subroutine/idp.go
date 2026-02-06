@@ -190,24 +190,6 @@ func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl client.Client, 
 	return nil
 }
 
-// ensureClient updates only fields managed by this subroutine, preserving ClientID and RegistrationClientURI
-// that are set by reconciling an idp resource
-func ensureClient(existing []v1alpha1.IdentityProviderClientConfig, desired v1alpha1.IdentityProviderClientConfig) []v1alpha1.IdentityProviderClientConfig {
-	idx := slices.IndexFunc(existing, func(c v1alpha1.IdentityProviderClientConfig) bool {
-		return c.ClientName == desired.ClientName
-	})
-
-	if idx != -1 {
-		existing[idx].ClientType = desired.ClientType
-		existing[idx].RedirectURIs = desired.RedirectURIs
-		existing[idx].PostLogoutRedirectURIs = desired.PostLogoutRedirectURIs
-		existing[idx].SecretRef = desired.SecretRef
-		return existing
-	}
-
-	return append(existing, desired)
-}
-
 func getWorkspaceName(lc *kcpcorev1alpha1.LogicalCluster) string {
 	if path, ok := lc.Annotations["kcp.io/path"]; ok {
 		pathElements := strings.Split(path, ":")

@@ -184,8 +184,8 @@ var operatorCmd = &cobra.Command{
 
 		if err = controller.NewLogicalClusterReconciler(log, orgClient, operatorCfg, runtimeClient, mgr).SetupWithManager(mgr, defaultCfg, operatorCfg.InitializerName()); err != nil {
 			log.Error().Err(err).Str("controller", "logicalcluster").Msg("unable to create controller")
-      return err
-    }
+			return err
+		}
 		if err = controller.NewAccountInfoReconciler(log, mgr).SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "accountinfo").Msg("unable to create controller")
 			return err
