@@ -15,6 +15,7 @@ import (
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/util"
 	"google.golang.org/protobuf/encoding/protojson"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -24,6 +25,7 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/rest"
 )
@@ -242,7 +244,7 @@ func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Temp
 
 	group := "core"
 	if resource.Group != "" {
-		group = resource.Group
+		group = util.CapGroupToRelationLength(schema.GroupVersionResource{Group: resource.Group, Resource: resource.Name}, 50)
 	}
 
 	var buffer bytes.Buffer
@@ -267,9 +269,18 @@ func discoverAndRender(dc discovery.DiscoveryInterface, tpl *template.Template, 
 			return nil, fmt.Errorf("discover resources for %s: %w", gv, err)
 		}
 
+		parsedGV, err := schema.ParseGroupVersion(resourceList.GroupVersion)
+		if err != nil {
+			return nil, fmt.Errorf("parse group version %s: %w", resourceList.GroupVersion, err)
+		}
+
 		for _, apiRes := range resourceList.APIResources {
 			if strings.Contains(apiRes.Name, "/") { // skip subresources
 				continue
+			}
+
+			if parsedGV.Group != "" && apiRes.Group == "" {
+				apiRes.Group = parsedGV.Group
 			}
 
 			buf, err := processAPIResourceIntoModel(apiRes, tpl)

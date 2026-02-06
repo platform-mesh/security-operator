@@ -27,11 +27,10 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
-	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
-	// to ensure that exec-entrypoint and run can make use of them.
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 
@@ -184,7 +183,11 @@ var operatorCmd = &cobra.Command{
 		}
 
 		if err = controller.NewLogicalClusterReconciler(log, orgClient, operatorCfg, runtimeClient, mgr).SetupWithManager(mgr, defaultCfg, operatorCfg.InitializerName()); err != nil {
-			log.Error().Err(err).Str("controller", "workspace").Msg("unable to create controller")
+			log.Error().Err(err).Str("controller", "logicalcluster").Msg("unable to create controller")
+      return err
+    }
+		if err = controller.NewAccountInfoReconciler(log, mgr).SetupWithManager(mgr, defaultCfg); err != nil {
+			log.Error().Err(err).Str("controller", "accountinfo").Msg("unable to create controller")
 			return err
 		}
 		// +kubebuilder:scaffold:builder
@@ -254,6 +257,7 @@ func init() {
 	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
+	utilruntime.Must(kcpapisv1alpha2.AddToScheme(scheme))
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(accountsv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme

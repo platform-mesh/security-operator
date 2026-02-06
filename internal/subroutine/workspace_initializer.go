@@ -34,6 +34,7 @@ func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mc
 		coreModule:      string(res),
 		initializerName: cfg.InitializerName(),
 		mgr:             mgr,
+		cfg:             cfg,
 	}
 }
 
@@ -42,6 +43,7 @@ var _ lifecyclesubroutine.Subroutine = &workspaceInitializer{}
 type workspaceInitializer struct {
 	orgsClient      client.Client
 	mgr             mcmanager.Manager
+	cfg             config.Config
 	coreModule      string
 	initializerName string
 }
@@ -66,7 +68,11 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 
 	_, err := controllerutil.CreateOrUpdate(ctx, w.orgsClient, &store, func() error {
 		store.Spec = v1alpha1.StoreSpec{
-			Tuples: []v1alpha1.Tuple{
+			CoreModule: w.coreModule,
+		}
+
+		if w.cfg.AllowMemberTuplesEnabled { // TODO: remove this flag once the feature is tested and stable
+			store.Spec.Tuples = []v1alpha1.Tuple{
 				{
 					Object:   "role:authenticated",
 					Relation: "assignee",
@@ -77,8 +83,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 					Relation: "member",
 					User:     "role:authenticated#assignee",
 				},
-			},
-			CoreModule: w.coreModule,
+			}
 		}
 
 		return nil

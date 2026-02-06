@@ -13,6 +13,8 @@ import (
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
+	ctrhandler "sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
@@ -67,23 +69,25 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 	return builder.
 		Watches(
 			&corev1alpha1.AuthorizationModel{},
-			handler.TypedEnqueueRequestsFromMapFunc(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
-				model, ok := obj.(*corev1alpha1.AuthorizationModel)
-				if !ok {
-					return nil
-				}
+			func(clusterName string, c cluster.Cluster) ctrhandler.TypedEventHandler[client.Object, mcreconcile.Request] {
+				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
+					model, ok := obj.(*corev1alpha1.AuthorizationModel)
+					if !ok {
+						return nil
+					}
 
-				return []mcreconcile.Request{
-					{
-						Request: reconcile.Request{
-							NamespacedName: types.NamespacedName{
-								Name: model.Spec.StoreRef.Name,
+					return []mcreconcile.Request{
+						{
+							Request: reconcile.Request{
+								NamespacedName: types.NamespacedName{
+									Name: model.Spec.StoreRef.Name,
+								},
 							},
+							ClusterName: model.Spec.StoreRef.Cluster,
 						},
-						ClusterName: model.Spec.StoreRef.Cluster,
-					},
-				}
-			}),
+					}
+				})
+			},
 			mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{}),
 		).Complete(r)
 }
