@@ -6,6 +6,13 @@ type InviteConfig struct {
 	KeycloakClientSecret string `mapstructure:"invite-keycloak-client-secret"`
 }
 
+type WebhooksConfig struct {
+	Enabled  bool   `mapstructure:"webhooks-enabled" default:"false"`
+	Port     int    `mapstructure:"webhooks-port" default:"9443"`
+	CertDir  string `mapstructure:"webhooks-cert-dir" default:"/tmp/k8s-webhook-server/serving-certs"`
+	Register bool   `mapstructure:"webhooks-register" default:"true"`
+}
+
 // Config struct to hold the app config
 type Config struct {
 	FGA struct {
@@ -47,7 +54,8 @@ type Config struct {
 		AccessTokenLifespan int  `mapstructure:"idp-access-token-lifespan" default:"28800"`
 		RegistrationAllowed bool `mapstructure:"idp-registration-allowed" default:"false"`
 	} `mapstructure:",squash"`
-	Invite InviteConfig `mapstructure:",squash"`
+	Invite   InviteConfig   `mapstructure:",squash"`
+	Webhooks WebhooksConfig `mapstructure:",squash"`
 }
 
 func (config Config) InitializerName() string {
