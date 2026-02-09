@@ -75,33 +75,21 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 						return nil
 					}).Once()
 
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace-org"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						wt.Name = "test-workspace-org"
+				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{
+							{ObjectMeta: metav1.ObjectMeta{Name: "test-workspace-org", Labels: map[string]string{"core.platform-mesh.io/org": "test-workspace"}}},
+							{ObjectMeta: metav1.ObjectMeta{Name: "test-workspace-acc", Labels: map[string]string{"core.platform-mesh.io/org": "test-workspace"}}},
+						}
 						return nil
 					}).Once()
 				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						assert.Equal(t, "test-workspace-org", wt.Name)
 						assert.Equal(t, "test-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
 						return nil
-					}).Once()
-
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace-acc"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						wt.Name = "test-workspace-acc"
-						return nil
-					}).Once()
-				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						assert.Equal(t, "test-workspace-acc", wt.Name)
-						assert.Equal(t, "test-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
-						return nil
-					}).Once()
+					}).Times(2)
 			},
 			expectError:    false,
 			expectedResult: ctrl.Result{},
@@ -159,33 +147,21 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 						return nil
 					}).Once()
 
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "existing-workspace-org"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						wt.Name = "existing-workspace-org"
+				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{
+							{ObjectMeta: metav1.ObjectMeta{Name: "existing-workspace-org", Labels: map[string]string{"core.platform-mesh.io/org": "existing-workspace"}}},
+							{ObjectMeta: metav1.ObjectMeta{Name: "existing-workspace-acc", Labels: map[string]string{"core.platform-mesh.io/org": "existing-workspace"}}},
+						}
 						return nil
 					}).Once()
 				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						assert.Equal(t, "existing-workspace-org", wt.Name)
 						assert.Equal(t, "existing-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
 						return nil
-					}).Once()
-
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "existing-workspace-acc"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						wt.Name = "existing-workspace-acc"
-						return nil
-					}).Once()
-				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						assert.Equal(t, "existing-workspace-acc", wt.Name)
-						assert.Equal(t, "existing-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
-						return nil
-					}).Once()
+					}).Times(2)
 			},
 			expectError:    false,
 			expectedResult: ctrl.Result{},
@@ -372,33 +348,21 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 						return nil
 					}).Once()
 
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace-org"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						wt.Name = "single-workspace-org"
+				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{
+							{ObjectMeta: metav1.ObjectMeta{Name: "single-workspace-org", Labels: map[string]string{"core.platform-mesh.io/org": "single-workspace"}}},
+							{ObjectMeta: metav1.ObjectMeta{Name: "single-workspace-acc", Labels: map[string]string{"core.platform-mesh.io/org": "single-workspace"}}},
+						}
 						return nil
 					}).Once()
 				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						assert.Equal(t, "single-workspace-org", wt.Name)
 						assert.Equal(t, "single-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
 						return nil
-					}).Once()
-
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace-acc"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						wt.Name = "single-workspace-acc"
-						return nil
-					}).Once()
-				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						assert.Equal(t, "single-workspace-acc", wt.Name)
-						assert.Equal(t, "single-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
-						return nil
-					}).Once()
+					}).Times(2)
 			},
 			expectError:    false,
 			expectedResult: ctrl.Result{},
@@ -457,39 +421,27 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 						return nil
 					}).Once()
 
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace-org"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						wt.Name = "single-workspace-org"
+				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{
+							{ObjectMeta: metav1.ObjectMeta{Name: "single-workspace-org", Labels: map[string]string{"core.platform-mesh.io/org": "single-workspace"}}},
+							{ObjectMeta: metav1.ObjectMeta{Name: "single-workspace-acc", Labels: map[string]string{"core.platform-mesh.io/org": "single-workspace"}}},
+						}
 						return nil
 					}).Once()
 				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						assert.Equal(t, "single-workspace-org", wt.Name)
 						assert.Equal(t, "single-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
 						return nil
-					}).Once()
-
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace-acc"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						wt.Name = "single-workspace-acc"
-						return nil
-					}).Once()
-				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						assert.Equal(t, "single-workspace-acc", wt.Name)
-						assert.Equal(t, "single-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
-						return nil
-					}).Once()
+					}).Times(2)
 			},
 			expectError:    false,
 			expectedResult: ctrl.Result{},
 		},
 		{
-			name: "error - patchWorkspaceType fails for -org",
+			name: "error - patchWorkspaceTypes fails on list",
 			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
@@ -522,20 +474,14 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).Return(nil).Once()
 
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace-org"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						wt.Name = "test-workspace-org"
-						return nil
-					}).Once()
-				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					Return(errors.New("failed to patch workspace type")).Once()
+				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
+					Return(errors.New("failed to list workspace types")).Once()
 			},
 			expectError:    true,
 			expectedResult: ctrl.Result{},
 		},
 		{
-			name: "error - patchWorkspaceType fails for -acc",
+			name: "error - patchWorkspaceTypes fails on patch",
 			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
@@ -568,18 +514,12 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
 				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).Return(nil).Once()
 
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace-org"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						wt.Name = "test-workspace-org"
-						return nil
-					}).Once()
-				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).Return(nil).Once()
-
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace-acc"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						wt.Name = "test-workspace-acc"
+				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{
+							{ObjectMeta: metav1.ObjectMeta{Name: "test-workspace-org", Labels: map[string]string{"core.platform-mesh.io/org": "test-workspace"}}},
+						}
 						return nil
 					}).Once()
 				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
@@ -663,33 +603,21 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 						return nil
 					}).Once()
 
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "dev-workspace-org"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						wt.Name = "dev-workspace-org"
+				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{
+							{ObjectMeta: metav1.ObjectMeta{Name: "dev-workspace-org", Labels: map[string]string{"core.platform-mesh.io/org": "dev-workspace"}}},
+							{ObjectMeta: metav1.ObjectMeta{Name: "dev-workspace-acc", Labels: map[string]string{"core.platform-mesh.io/org": "dev-workspace"}}},
+						}
 						return nil
 					}).Once()
 				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						assert.Equal(t, "dev-workspace-org", wt.Name)
 						assert.Equal(t, "dev-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
 						return nil
-					}).Once()
-
-				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "dev-workspace-acc"}, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, key types.NamespacedName, obj client.Object, opts ...client.GetOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						wt.Name = "dev-workspace-acc"
-						return nil
-					}).Once()
-				m.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceType"), mock.Anything).
-					RunAndReturn(func(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-						wt := obj.(*kcptenancyv1alphav1.WorkspaceType)
-						assert.Equal(t, "dev-workspace-acc", wt.Name)
-						assert.Equal(t, "dev-workspace", wt.Spec.AuthenticationConfigurations[0].Name)
-						return nil
-					}).Once()
+					}).Times(2)
 			},
 			expectError:    false,
 			expectedResult: ctrl.Result{},
