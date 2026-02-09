@@ -3,7 +3,6 @@ package subroutine
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"slices"
 	"strings"
 
@@ -11,10 +10,7 @@ import (
 	mcclient "github.com/kcp-dev/multicluster-provider/client"
 	kcpcore "github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	"github.com/rs/zerolog/log"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
 
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
@@ -22,6 +18,8 @@ import (
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
+	logicalclusterclient "github.com/platform-mesh/security-operator/internal/client"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
@@ -50,7 +48,7 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 	log = log.ChildLogger("ID", lcID).ChildLogger("path", p)
 	log.Info().Msgf("Processing logical cluster")
 
-	lcClient, err := NewLCClient(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(lcID))
+	lcClient, err := iclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(lcID))
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting client: %w", err), true, true)
 	}
@@ -66,7 +64,7 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("AccountInfo not found yet, requeueing"), true, false)
 	}
 
-	parentOrgClient, err := NewLCClient(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(ai.Spec.Organization.Path))
+	parentOrgClient, err := logicalclusterclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(ai.Spec.Organization.Path))
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent organisation client: %w", err), true, true)
 	}
@@ -78,7 +76,7 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Account in parent organisation: %w", err), true, true)
 	}
 
-	orgsClient, err := NewLCClient(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name("root:orgs"))
+	orgsClient, err := logicalclusterclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name("root:orgs"))
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting orgs client: %w", err), true, true)
 	}
@@ -119,13 +117,13 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 	if err := orgsClient.Update(ctx, &st); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating Store with tuples: %w", err), true, true)
 	}
+	if err := orgsClient.Get(ctx, client.ObjectKey{Name: st.Name}, &st); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Store after update: %w", err), true, true)
+	}
 
 	// todo(simontesar): checking and waiting for Readiness is currently futile
 	// our conditions don't include the observed generation
-	//
-	// if err := orgsClient.Get(ctx, client.ObjectKey{Name: st.Name}, &st); err != nil {
-	// 	return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Store after update: %w", err), true, true)
-	// }
+
 	// if conditions.IsPresentAndEqualForGeneration(st.Status.Conditions, lcconditions.ConditionReady, metav1.ConditionTrue, st.GetObjectMeta().GetGeneration()) {
 	// 	return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store %s is not ready", st.Name), true, false)
 	// }
@@ -166,24 +164,6 @@ func NewAccountTuplesSubroutine(mcc mcclient.ClusterClient, mgr mcmanager.Manage
 }
 
 var _ lifecyclesubroutine.Subroutine = &AccountTuplesSubroutine{}
-
-func NewLCClient(config *rest.Config, scheme *runtime.Scheme, clusterKey logicalcluster.Name) (client.Client, error) {
-	cfg := rest.CopyConfig(config)
-
-	parsed, err := url.Parse(cfg.Host)
-	if err != nil {
-		log.Error().Err(err).Msg("unable to parse host")
-		panic(err)
-	}
-
-	parsed.Path = fmt.Sprintf("/clusters/%s", clusterKey)
-
-	cfg.Host = parsed.String()
-
-	return client.New(cfg, client.Options{
-		Scheme: scheme,
-	})
-}
 
 // isServiceAccount determines wheter a user appears to be a Kubernetes
 // ServiceAccount.
