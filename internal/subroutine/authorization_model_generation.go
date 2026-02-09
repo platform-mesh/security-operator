@@ -210,6 +210,11 @@ func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	binding := instance.(*kcpapisv1alpha2.APIBinding)
 
+	if binding.Spec.Reference.Export.Name == "core.platform-mesh.io" || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
+		// If the APIExport is the core.platform-mesh.io, we can skip the model generation.
+		return ctrl.Result{}, nil
+	}
+
 	cluster, err := a.mgr.ClusterFromContext(ctx)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
@@ -222,11 +227,6 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
 		}
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
-	}
-
-	if binding.Spec.Reference.Export.Name == "core.platform-mesh.io" || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
-		// If the APIExport is the core.platform-mesh.io, we can skip the model generation.
-		return ctrl.Result{}, nil
 	}
 
 	apiExportCluster, err := a.mgr.GetCluster(ctx, binding.Status.APIExportClusterName)
