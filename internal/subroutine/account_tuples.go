@@ -88,6 +88,7 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent organisation's Store: %w", err), true, true)
 	}
 
+	// Build tuples for Account
 	tuples := []v1alpha1.Tuple{
 		v1alpha1.Tuple{
 			User:     fmt.Sprintf("%s:%s/%s", s.objectType, ai.Spec.ParentAccount.OriginClusterId, ai.Spec.ParentAccount.Name),
@@ -117,21 +118,22 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 	if err := orgsClient.Update(ctx, &st); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating Store with tuples: %w", err), true, true)
 	}
+	// Re-get Store for potential update
 	if err := orgsClient.Get(ctx, client.ObjectKey{Name: st.Name}, &st); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Store after update: %w", err), true, true)
 	}
 
+	// Check if Store applied tuple changes
 	for _, t := range tuples {
 		if !slices.Contains(st.Status.ManagedTuples, t) {
 			log.Info().Msgf("Store does not yet contain all specified tuples, requeueing")
-			// todo: add watch instead of requeue
+
 			return ctrl.Result{Requeue: true}, nil
 		}
 	}
 
-	// todo(simontesar): checking and waiting for Readiness is currently futile
+	// todo(simontesar): checking and waiting for Readiness is currently futile,
 	// our conditions don't include the observed generation
-
 	// if conditions.IsPresentAndEqualForGeneration(st.Status.Conditions, lcconditions.ConditionReady, metav1.ConditionTrue, st.GetObjectMeta().GetGeneration()) {
 	// 	return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store %s is not ready", st.Name), true, false)
 	// }
