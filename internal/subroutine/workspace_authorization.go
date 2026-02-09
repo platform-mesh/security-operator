@@ -149,42 +149,38 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err), true, true)
 	}
 
-	err = r.patchWorkspaceType(ctx, r.orgClient, fmt.Sprintf("%s-org", workspaceName), workspaceName)
+	err = r.patchWorkspaceTypes(ctx, r.orgClient, workspaceName)
 	if err != nil {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch workspace type: %w", err), true, true)
-	}
-
-	err = r.patchWorkspaceType(ctx, r.orgClient, fmt.Sprintf("%s-acc", workspaceName), workspaceName)
-	if err != nil {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch workspace type: %w", err), true, true)
+		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch workspace types: %w", err), true, true)
 	}
 
 	return ctrl.Result{}, nil
 }
 
-func (r *workspaceAuthSubroutine) patchWorkspaceType(ctx context.Context, cl client.Client, workspaceTypeName, authConfigurationRefName string) error {
-	wsType := &kcptenancyv1alphav1.WorkspaceType{
-		ObjectMeta: metav1.ObjectMeta{Name: workspaceTypeName},
-	}
-
-	if err := cl.Get(ctx, client.ObjectKey{Name: workspaceTypeName}, wsType); err != nil {
-		return fmt.Errorf("failed to get WorkspaceType: %w", err)
+func (r *workspaceAuthSubroutine) patchWorkspaceTypes(ctx context.Context, cl client.Client, workspaceName string) error {
+	wsTypeList := &kcptenancyv1alphav1.WorkspaceTypeList{}
+	if err := cl.List(ctx, wsTypeList, client.MatchingLabels{"core.platform-mesh.io/org": workspaceName}); err != nil {
+		return fmt.Errorf("failed to list WorkspaceTypes: %w", err)
 	}
 
 	desiredAuthConfig := []kcptenancyv1alphav1.AuthenticationConfigurationReference{
-		{Name: authConfigurationRefName},
+		{Name: workspaceName},
 	}
 
-	if equality.Semantic.DeepEqual(wsType.Spec.AuthenticationConfigurations, desiredAuthConfig) {
-		log.Debug().Msg(fmt.Sprintf("workspaceType %s already has authentication configuration, skip patching", workspaceTypeName))
-		return nil
+	for _, wsType := range wsTypeList.Items {
+		if equality.Semantic.DeepEqual(wsType.Spec.AuthenticationConfigurations, desiredAuthConfig) {
+			log.Debug().Msg(fmt.Sprintf("workspaceType %s already has authentication configuration, skip patching", wsType.Name))
+			continue
+		}
+
+		original := wsType.DeepCopy()
+		wsType.Spec.AuthenticationConfigurations = desiredAuthConfig
+
+		if err := cl.Patch(ctx, &wsType, client.MergeFrom(original)); err != nil {
+			return fmt.Errorf("failed to patch WorkspaceType %s: %w", wsType.Name, err)
+		}
+		log.Debug().Msg(fmt.Sprintf("patched workspaceType %s with authentication configuration", wsType.Name))
 	}
 
-	original := wsType.DeepCopy()
-	wsType.Spec.AuthenticationConfigurations = desiredAuthConfig
-
-	if err := cl.Patch(ctx, wsType, client.MergeFrom(original)); err != nil {
-		return fmt.Errorf("failed to patch WorkspaceType: %w", err)
-	}
 	return nil
 }
