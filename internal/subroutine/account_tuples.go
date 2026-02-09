@@ -121,6 +121,14 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Store after update: %w", err), true, true)
 	}
 
+	for _, t := range tuples {
+		if !slices.Contains(st.Status.ManagedTuples, t) {
+			log.Info().Msgf("Store does not yet contain all specified tuples, requeueing")
+			// todo: add watch instead of requeue
+			return ctrl.Result{Requeue: true}, nil
+		}
+	}
+
 	// todo(simontesar): checking and waiting for Readiness is currently futile
 	// our conditions don't include the observed generation
 
