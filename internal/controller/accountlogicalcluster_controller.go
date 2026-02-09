@@ -2,16 +2,21 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	mcclient "github.com/kcp-dev/multicluster-provider/client"
+
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
+	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/security-operator/internal/eventhandlers"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -24,6 +29,7 @@ type AccountLogicalClusterReconciler struct {
 	log *logger.Logger
 
 	mclifecycle *multicluster.LifecycleManager
+	mcc         mcclient.ClusterClient
 }
 
 func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, mcc mcclient.ClusterClient, mgr mcmanager.Manager) *AccountLogicalClusterReconciler {
@@ -44,6 +50,11 @@ func (r *AccountLogicalClusterReconciler) Reconcile(ctx context.Context, req mcr
 	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpcorev1alpha1.LogicalCluster{})
 }
 
-func (r *AccountLogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
-	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "AccountLogicalCluster", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r, r.log, evp...)
+func (r *AccountLogicalClusterReconciler) SetupWithManager(ctx context.Context, mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, platformMeshClient client.Client, evp ...predicate.Predicate) error {
+	b, err := r.mclifecycle.SetupWithManagerBuilder(mgr, cfg.MaxConcurrentReconciles, "AccountLogicalCluster", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r.log, evp...)
+	if err != nil {
+		return fmt.Errorf("setting up manager with builder: %w", err)
+	}
+
+	return b.Watches(&v1alpha1.Store{}, eventhandlers.LogicalClusersOfStore(platformMeshClient)).Complete(r)
 }
