@@ -99,6 +99,8 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 		}
 	}
 
+	// Potentially update Store and requeue to wait for update
+	// todo(simontesar): we could be watching Stores instead
 	if changed {
 		if err := orgsClient.Update(ctx, &st); err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating Store with tuples: %w", err), true, true)
