@@ -13,7 +13,6 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
-	logicalclusterclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/pkg/fga"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -100,7 +99,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("AccountInfo not found yet, requeueing"), true, false)
 	}
 
-	orgsClient, err := logicalclusterclient.NewForLogicalCluster(w.mgr.GetLocalManager().GetConfig(), w.mgr.GetLocalManager().GetScheme(), logicalcluster.Name("root:orgs"))
+	orgsClient, err := iclient.NewForLogicalCluster(w.mgr.GetLocalManager().GetConfig(), w.mgr.GetLocalManager().GetScheme(), logicalcluster.Name("root:orgs"))
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent organisation client: %w", err), true, true)
 	}

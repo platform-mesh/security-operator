@@ -5,12 +5,6 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/kcp-dev/logicalcluster/v3"
-	mcclient "github.com/kcp-dev/multicluster-provider/client"
-	kcpcore "github.com/kcp-dev/sdk/apis/core"
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
-
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
@@ -18,12 +12,18 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
-	logicalclusterclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/pkg/fga"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+
+	"github.com/kcp-dev/logicalcluster/v3"
+	mcclient "github.com/kcp-dev/multicluster-provider/client"
+	kcpcore "github.com/kcp-dev/sdk/apis/core"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 // AccountTuplesSubroutine creates FGA tuples for Accounts not of the
@@ -64,7 +64,7 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("AccountInfo not found yet, requeueing"), true, false)
 	}
 
-	parentOrgClient, err := logicalclusterclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(ai.Spec.Organization.Path))
+	parentOrgClient, err := iclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(ai.Spec.Organization.Path))
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent organisation client: %w", err), true, true)
 	}
@@ -76,7 +76,7 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Account in parent organisation: %w", err), true, true)
 	}
 
-	orgsClient, err := logicalclusterclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name("root:orgs"))
+	orgsClient, err := iclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name("root:orgs"))
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting orgs client: %w", err), true, true)
 	}
@@ -106,13 +106,13 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating Store with tuples: %w", err), true, true)
 		}
 
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("Store needed to be updated, requeueing"), true, false)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store needed to be updated, requeueing"), true, false)
 	}
 
 	// Check if Store applied tuple changes
 	for _, t := range tuples {
 		if !slices.Contains(st.Status.ManagedTuples, t) {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("Store does not yet contain all specified tuples, requeueing"), true, false)
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store does not yet contain all specified tuples, requeueing"), true, false)
 		}
 	}
 

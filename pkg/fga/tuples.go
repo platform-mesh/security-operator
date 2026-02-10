@@ -26,12 +26,12 @@ func TuplesForOrganization(acc accountv1alpha1.Account, ai accountv1alpha1.Accou
 
 func baseTuples(acc accountv1alpha1.Account, ai accountv1alpha1.AccountInfo, creatorRelation, objectType string) []v1alpha1.Tuple {
 	return []v1alpha1.Tuple{
-		v1alpha1.Tuple{
+		{
 			User:     fmt.Sprintf("user:%s", formatUser(*acc.Spec.Creator)),
 			Relation: "assignee",
 			Object:   fmt.Sprintf("role:%s/%s/%s/owner", objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 		},
-		v1alpha1.Tuple{
+		{
 			User:     fmt.Sprintf("role:%s/%s/%s/owner#assignee", objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 			Relation: creatorRelation,
 			Object:   fmt.Sprintf("%s:%s/%s", objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),

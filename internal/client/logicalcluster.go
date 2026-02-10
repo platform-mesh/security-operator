@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/kcp-dev/logicalcluster/v3"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 // NewForLogicalCluster returns a client for a given logical cluster name or
