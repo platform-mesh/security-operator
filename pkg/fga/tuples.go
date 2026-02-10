@@ -40,18 +40,7 @@ func baseTuples(acc accountv1alpha1.Account, ai accountv1alpha1.AccountInfo, cre
 }
 
 // formatUser formats a user to be stored in an FGA tuple, i.e. replaces colons
-// with dots in case of a Kubernetes ServiceAccount.
-// todo(simontesar): why was this implemented ot only be done in case of SAs?
+// with dots.
 func formatUser(user string) string {
-	if isServiceAccount(user) {
-		return strings.ReplaceAll(user, ":", ".")
-	}
-
-	return user
-}
-
-// isServiceAccount determines wheter a user appears to be a Kubernetes
-// ServiceAccount.
-func isServiceAccount(user string) bool {
-	return strings.HasPrefix(user, "system:serviceaccount:")
+	return strings.ReplaceAll(user, ":", ".")
 }
