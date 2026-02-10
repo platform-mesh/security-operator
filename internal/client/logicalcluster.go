@@ -26,8 +26,6 @@ func clientForPath(config *rest.Config, scheme *runtime.Scheme, path string) (cl
 	parsed.Path = path
 	copy.Host = parsed.String()
 
-	fmt.Printf("Creating client for host %s\n", copy.Host)
-
 	return client.New(copy, client.Options{
 		Scheme: scheme,
 	})
