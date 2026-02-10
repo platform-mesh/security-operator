@@ -93,7 +93,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 
 	var ai accountsv1alpha1.AccountInfo
 	if err := lcClient.Get(ctx, client.ObjectKey{
-		Name: accountsv1alpha1.DefaultAccountInfoName,
+		Name: "account",
 	}, &ai); err != nil && !kerrors.IsNotFound(err) {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err), true, true)
 	} else if kerrors.IsNotFound(err) {
