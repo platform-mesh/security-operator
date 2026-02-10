@@ -1,0 +1,9 @@
+apiVersion: core.platform-mesh.io/v1alpha1
+kind: Account
+metadata:
+  name: one
+spec:
+  creator: chainsaw@example.com
+  description: first account
+  displayName: one
+  type: account

@@ -1,0 +1,92 @@
+apiVersion: chainsaw.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: initializer
+spec:
+  clusters:
+    root-orgs:
+      kubeconfig: kcp-kubeconfig.yaml
+      context: root-orgs
+    root-orgs-chainsaw:
+      kubeconfig: kcp-kubeconfig.yaml
+      context: root-orgs-chainsaw
+  steps:
+  - description: Create organisation
+    try:
+    - apply:
+        cluster: root-orgs
+        file: account-org.yaml
+    - wait:
+        cluster: root-orgs
+        timeout: 120s
+        apiVersion: core.platform-mesh.io/v1alpha1
+        kind: Account
+        name: chainsaw
+        for:
+          condition:
+            name: Ready
+            value: 'true'
+  - description: Create account in organisation
+    try:
+    - apply:
+        cluster: root-orgs-chainsaw
+        file: account.yaml
+    - wait:
+        cluster: root-orgs-chainsaw
+        timeout: 120s
+        apiVersion: core.platform-mesh.io/v1alpha1
+        kind: Account
+        name: one
+        for:
+          condition:
+            name: Ready
+            value: 'true'
+  - description: Verify that the Store has applied the tuples we expect
+    try:
+    - assert:
+        cluster: root-orgs
+        resource:
+          apiVersion: core.platform-mesh.io/v1alpha1
+          kind: Store
+          metadata:
+            name: chainsaw
+          status:
+            managedTuples:
+            - object: core_platform-mesh_io_account:2tfhc4b9lg2bmlox/vier
+              relation: parent
+              user: core_platform-mesh_io_account:dv5tjeof4k35sqv0/default
+            - object: role:core_platform-mesh_io_account/2tfhc4b9lg2bmlox/vier/owner
+              relation: assignee
+              user: user:simon@simontesar.com
+            - object: core_platform-mesh_io_account:2tfhc4b9lg2bmlox/vier
+              relation: owner
+              user: role:core_platform-mesh_io_account/2tfhc4b9lg2bmlox/vier/owner#assignee
+            - object: core_platform-mesh_io_account:2tfhc4b9lg2bmlox/fuenf
+              relation: parent
+              user: core_platform-mesh_io_account:dv5tjeof4k35sqv0/default
+            - object: role:core_platform-mesh_io_account/2tfhc4b9lg2bmlox/fuenf/owner
+              relation: assignee
+              user: user:simon@simontesar.com
+            - object: core_platform-mesh_io_account:2tfhc4b9lg2bmlox/fuenf
+              relation: owner
+              user: role:core_platform-mesh_io_account/2tfhc4b9lg2bmlox/fuenf/owner#assignee
+
+            # tuples:
+            # - object: core_platform-mesh_io_account:2tfhc4b9lg2bmlox/vier
+            #   relation: parent
+            #   user: core_platform-mesh_io_account:dv5tjeof4k35sqv0/default
+            # - object: role:core_platform-mesh_io_account/2tfhc4b9lg2bmlox/vier/owner
+            #   relation: assignee
+            #   user: user:simon@simontesar.com
+            # - object: core_platform-mesh_io_account:2tfhc4b9lg2bmlox/vier
+            #   relation: owner
+            #   user: role:core_platform-mesh_io_account/2tfhc4b9lg2bmlox/vier/owner#assignee
+            # - object: core_platform-mesh_io_account:2tfhc4b9lg2bmlox/fuenf
+            #   relation: parent
+            #   user: core_platform-mesh_io_account:dv5tjeof4k35sqv0/default
+            # - object: role:core_platform-mesh_io_account/2tfhc4b9lg2bmlox/fuenf/owner
+            #   relation: assignee
+            #   user: user:simon@simontesar.com
+            # - object: core_platform-mesh_io_account:2tfhc4b9lg2bmlox/fuenf
+            #   relation: owner
+            #   user: role:core_platform-mesh_io_account/2tfhc4b9lg2bmlox/fuenf/owner#assignee

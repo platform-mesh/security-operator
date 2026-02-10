@@ -22,6 +22,52 @@ import (
 	"github.com/kcp-dev/sdk/apis/core"
 )
 
+// TestOrgLogicalCluster_OrgWorkspaceReconcilable creates an org workspace and verifies it has the
+// structure the org LogicalCluster controller reconciles (owner name "orgs").
+func (suite *IntegrationSuite) TestOrgLogicalCluster_OrgWorkspaceReconcilable() {
+	ctx := suite.T().Context()
+	cli, err := clusterclient.New(suite.kcpConfig, client.Options{})
+	suite.Require().NoError(err)
+
+	const testOrgName = "org-ctrl-reconcilable"
+
+	_, testOrgPath := envtest.NewWorkspaceFixture(suite.T(), cli, suite.orgsPath, envtest.WithName(testOrgName), envtest.WithType(core.RootCluster.Path(), "org"))
+
+	testOrgClient := cli.Cluster(testOrgPath)
+
+	// Verify org workspace is usable: create an Account (org type has defaultAPIBindings including core.platform-mesh.io)
+	suite.createAccount(ctx, testOrgClient, "test-account", accountv1alpha1.AccountTypeAccount, suite.T())
+
+	// Verify we can list back (org workspace exists and is ready)
+	var accountList accountv1alpha1.AccountList
+	suite.Require().NoError(testOrgClient.List(ctx, &accountList))
+	suite.Require().NotEmpty(accountList.Items, "org workspace should contain the created Account")
+}
+
+// TestOrgLogicalCluster_StoreCreationInOrgs creates an org workspace and verifies the org LogicalCluster
+// controller creates a Store in the orgs workspace with the org name (when the controller runs).
+func (suite *IntegrationSuite) TestOrgLogicalCluster_StoreCreationInOrgs() {
+	ctx := suite.T().Context()
+	cli, err := clusterclient.New(suite.kcpConfig, client.Options{})
+	suite.Require().NoError(err)
+
+	const testOrgName = "org-ctrl-store-test"
+
+	envtest.NewWorkspaceFixture(suite.T(), cli, suite.orgsPath, envtest.WithName(testOrgName), envtest.WithType(core.RootCluster.Path(), "org"))
+
+	orgsClient := cli.Cluster(suite.orgsPath)
+
+	// Org LogicalCluster controller (when running with initializingworkspaces) creates a Store in orgs named after the org
+	expectedStoreName := testOrgName
+	var store securityv1alpha1.Store
+	suite.Assert().Eventually(func() bool {
+		err := orgsClient.Get(ctx, client.ObjectKey{Name: expectedStoreName}, &store)
+		return err == nil
+	}, 15*time.Second, 200*time.Millisecond, "Store %q should be created in orgs workspace by org LogicalCluster controller", expectedStoreName)
+
+	suite.Assert().NotEmpty(store.Spec.CoreModule, "Store should have CoreModule set by WorkspaceInitializer")
+}
+
 func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 	ctx := suite.T().Context()
 	cli, err := clusterclient.New(suite.kcpConfig, client.Options{})

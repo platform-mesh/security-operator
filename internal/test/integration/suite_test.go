@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/url"
+	"os"
 	"testing"
 	"time"
 
@@ -12,7 +13,9 @@ import (
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/controller"
+	"github.com/platform-mesh/security-operator/internal/predicates"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -31,6 +34,7 @@ import (
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/envtest"
+	"github.com/kcp-dev/multicluster-provider/initializingworkspaces"
 	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	apisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	"github.com/kcp-dev/sdk/apis/core"
@@ -85,6 +89,7 @@ type IntegrationSuite struct {
 	apiExportEndpointSliceConfig *rest.Config
 	platformMeshSysPath          logicalcluster.Path
 	platformMeshSystemClient     client.Client
+	orgsPath                     logicalcluster.Path
 }
 
 func TestIntegrationSuite(t *testing.T) {
@@ -92,6 +97,7 @@ func TestIntegrationSuite(t *testing.T) {
 }
 
 func (suite *IntegrationSuite) SetupSuite() {
+
 	rootCmd := &cobra.Command{
 		Use: "security-operator",
 	}
@@ -106,6 +112,16 @@ func (suite *IntegrationSuite) SetupSuite() {
 	ctrl.SetLogger(testLogger.Logr())
 
 	suite.env = &envtest.Environment{}
+	// Set the context in case using an existing KCP instance.
+	if os.Getenv("USE_EXISTING_KCP") != "" && os.Getenv("EXISTING_KCP_CONTEXT") == "" {
+		suite.env.ExistingKcpContext = "base"
+	}
+
+	// Prevents KCP from cleaning up workspace fixtures before shutdown, the
+	// instance controlled by envtest is ephemeral anyway.
+	if os.Getenv("PRESERVE") == "" {
+		suite.Require().NoError(os.Setenv("PRESERVE", "true"))
+	}
 
 	suite.kcpConfig, err = suite.env.Start()
 	require.NoError(suite.T(), err, "failed to start envtest environment")
@@ -200,9 +216,50 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	}
 	t.Log("created WorkspaceType 'account' in root workspace")
 
+	// // Create WorkspaceType 'security' with initializer so org workspaces can extend it and get root:security initializer
+	// securityWorkspaceType := &tenancyv1alpha1.WorkspaceType{
+	// 	ObjectMeta: metav1.ObjectMeta{Name: "security"},
+	// 	Spec: tenancyv1alpha1.WorkspaceTypeSpec{
+	// 		Initializer: true,
+	// 	},
+	// }
+	// err = rootClient.Create(ctx, securityWorkspaceType)
+	// if err != nil && !kerrors.IsAlreadyExists(err) {
+	// 	suite.Require().NoError(err)
+	// }
+	// t.Log("created WorkspaceType 'security' (initializer) in root workspace")
+
+	// // Patch org WorkspaceType to extend security so new org workspaces get root:security initializer
+	// var orgWT tenancyv1alpha1.WorkspaceType
+	// suite.Require().NoError(rootClient.Get(ctx, client.ObjectKey{Name: "org"}, &orgWT))
+	// orgWT.Spec.Extend = tenancyv1alpha1.WorkspaceTypeExtension{
+	// 	With: []tenancyv1alpha1.WorkspaceTypeReference{
+	// 		{Name: "security", Path: "root"},
+	// 	},
+	// }
+	// suite.Require().NoError(rootClient.Update(ctx, &orgWT))
+	// t.Log("patched WorkspaceType 'org' to extend 'security'")
+
 	// create :root:orgs ws
 	orgsWs, orgsClusterPath := envtest.NewWorkspaceFixture(suite.T(), cli, core.RootCluster.Path(), envtest.WithName("orgs"), envtest.WithType(core.RootCluster.Path(), "orgs"))
+	suite.orgsPath = orgsClusterPath
 	t.Logf("orgs workspace path (%s), cluster id (%s)", orgsClusterPath, orgsWs.Spec.Cluster)
+
+	// // Bind core.platform-mesh.io in orgs so the org LogicalCluster controller can create Store resources there
+	// var orgsPlatformMeshBinding apisv1alpha2.APIBinding
+	// suite.Require().NoError(yaml.Unmarshal(ApiBindingCorePlatformMeshYAML, &orgsPlatformMeshBinding))
+	// err = cli.Cluster(orgsClusterPath).Create(ctx, &orgsPlatformMeshBinding)
+	// if err != nil && !kerrors.IsAlreadyExists(err) {
+	// 	suite.Require().NoError(err)
+	// }
+	// t.Log("created APIBinding 'core.platform-mesh.io' in orgs workspace")
+	// suite.Assert().Eventually(func() bool {
+	// 	var binding apisv1alpha2.APIBinding
+	// 	if err := cli.Cluster(orgsClusterPath).Get(ctx, client.ObjectKey{Name: orgsPlatformMeshBinding.Name}, &binding); err != nil {
+	// 		return false
+	// 	}
+	// 	return binding.Status.Phase == apisv1alpha2.APIBindingPhaseBound
+	// }, 10*time.Second, 200*time.Millisecond, "APIBinding core.platform-mesh.io in orgs should be bound")
 
 	var endpointSlice apisv1alpha1.APIExportEndpointSlice
 	suite.Assert().Eventually(func() bool {
@@ -249,6 +306,52 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 
 	suite.T().Cleanup(func() {
 		cancel()
+	})
+
+	// Start org LogicalCluster controller (initializingworkspaces provider + LogicalClusterReconciler)
+	suite.setupOrgLogicalClusterController(ctx, defaultCfg, testLogger)
+}
+
+func (suite *IntegrationSuite) setupOrgLogicalClusterController(ctx context.Context, defaultCfg *platformeshconfig.CommonServiceConfig, testLogger *logger.Logger) {
+	coreModuleFile, err := os.CreateTemp("", "security-operator-core-module-*.fga")
+	suite.Require().NoError(err)
+	_, err = coreModuleFile.WriteString("model 1.0\n")
+	suite.Require().NoError(err)
+	suite.Require().NoError(coreModuleFile.Close())
+	suite.T().Cleanup(func() { _ = os.Remove(coreModuleFile.Name()) })
+
+	initializerCfg := config.Config{}
+	initializerCfg.CoreModulePath = coreModuleFile.Name()
+	initializerCfg.WorkspaceTypeName = "security"
+	initializerCfg.WorkspacePath = "root"
+
+	rootCfg, err := suite.getRootConfig(suite.kcpConfig)
+	suite.Require().NoError(err)
+	initProvider, err := initializingworkspaces.New(rootCfg, initializerCfg.WorkspaceTypeName, initializingworkspaces.Options{Scheme: scheme.Scheme})
+	suite.Require().NoError(err)
+
+	initMgr, err := mcmanager.New(suite.kcpConfig, initProvider, mcmanager.Options{Scheme: scheme.Scheme})
+	suite.Require().NoError(err)
+
+	orgsCli, err := clusterclient.New(suite.kcpConfig, client.Options{Scheme: scheme.Scheme})
+	suite.Require().NoError(err)
+	orgClient := orgsCli.Cluster(suite.orgsPath)
+
+	inClusterClient, err := client.New(suite.kcpConfig, client.Options{Scheme: scheme.Scheme})
+	suite.Require().NoError(err)
+
+	suite.Require().NoError(controller.NewOrgLogicalClusterReconciler(testLogger, orgClient, initializerCfg, inClusterClient, initMgr).
+		SetupWithManager(initMgr, defaultCfg, predicates.LogicalClusterIsAccountTypeOrg()))
+
+	initManagerCtx, initCancel := context.WithCancel(ctx)
+	go func() {
+		if err := initMgr.Start(initManagerCtx); err != nil {
+			suite.T().Logf("org LogicalCluster controller manager exited with error: %v", err)
+		}
+	}()
+
+	suite.T().Cleanup(func() {
+		initCancel()
 	})
 }
 
@@ -311,6 +414,23 @@ func (suite *IntegrationSuite) getPlatformMeshSystemConfig(cfg *rest.Config) (*r
 	}
 
 	parsed.Path, err = url.JoinPath("clusters", suite.platformMeshSysPath.String())
+	if err != nil {
+		return nil, fmt.Errorf("failed to join path")
+	}
+	providerConfig.Host = parsed.String()
+
+	return providerConfig, nil
+}
+
+func (suite *IntegrationSuite) getRootConfig(cfg *rest.Config) (*rest.Config, error) {
+	providerConfig := rest.CopyConfig(cfg)
+
+	parsed, err := url.Parse(providerConfig.Host)
+	if err != nil {
+		return nil, fmt.Errorf("unable to parse URL: %w", err)
+	}
+
+	parsed.Path, err = url.JoinPath("clusters", "root")
 	if err != nil {
 		return nil, fmt.Errorf("failed to join path")
 	}

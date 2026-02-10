@@ -1,0 +1,8 @@
+apiVersion: core.platform-mesh.io/v1alpha1
+kind: Account
+metadata:
+  name: chainsaw
+spec:
+  creator: chainsaw@example.com
+  displayName: "chainsaw test"
+  type: org
