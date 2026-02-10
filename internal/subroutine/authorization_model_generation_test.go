@@ -130,13 +130,14 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 			},
 		},
 		{
-			name:    "skip core exports in Process",
-			binding: newApiBinding("core.platform-mesh.io", "root"),
-			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockClient, cluster *mocks.MockCluster, kcpClient *mocks.MockClient) {
-				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
-				cluster.EXPECT().GetClient().Return(kcpClient)
-				mockAccountInfo(kcpClient, "org", "origin")
-			},
+			name:      "skip core exports in Process (early return, no mocks)",
+			binding:   newApiBinding("core.platform-mesh.io", "root"),
+			mockSetup: nil,
+		},
+		{
+			name:      "skip kcp.io exports in Process (early return, no mocks)",
+			binding:   newApiBinding("tenancy.kcp.io", "root"),
+			mockSetup: nil,
 		},
 		{
 			name:    "generate model in Process",
