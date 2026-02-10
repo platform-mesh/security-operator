@@ -10,19 +10,27 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
+	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
+	logicalclusterclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/security-operator/internal/fga"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/kcp-dev/logicalcluster/v3"
+	kcpcore "github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mcmanager.Manager) *workspaceInitializer {
+func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mcmanager.Manager, creatorRelation, parentRelation, objectType string) *workspaceInitializer {
 	// read file from path
 	res, err := os.ReadFile(cfg.CoreModulePath)
 	if err != nil {
@@ -35,6 +43,9 @@ func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mc
 		initializerName: cfg.InitializerName(),
 		mgr:             mgr,
 		cfg:             cfg,
+		creatorRelation: creatorRelation,
+		parentRelation:  parentRelation,
+		objectType:      objectType,
 	}
 }
 
@@ -46,6 +57,10 @@ type workspaceInitializer struct {
 	cfg             config.Config
 	coreModule      string
 	initializerName string
+
+	objectType      string
+	parentRelation  string
+	creatorRelation string
 }
 
 func (w *workspaceInitializer) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
@@ -60,16 +75,52 @@ func (w *workspaceInitializer) Finalizers(_ runtimeobject.RuntimeObject) []strin
 func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" }
 
 func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	log := logger.LoadLoggerFromContext(ctx)
+
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
+	p := lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey]
+	if p == "" {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("annotation on LogicalCluster is not set"), true, true)
+	}
+	lcID, _ := mccontext.ClusterFrom(ctx)
+	log = log.ChildLogger("ID", lcID).ChildLogger("path", p)
+	log.Info().Msgf("Processing logical cluster")
+
+	lcClient, err := iclient.NewForLogicalCluster(w.mgr.GetLocalManager().GetConfig(), w.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(lcID))
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting client: %w", err), true, true)
+	}
+
+	var ai accountsv1alpha1.AccountInfo
+	if err := lcClient.Get(ctx, client.ObjectKey{
+		Name: accountsv1alpha1.DefaultAccountInfoName,
+	}, &ai); err != nil && !kerrors.IsNotFound(err) {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err), true, true)
+	} else if kerrors.IsNotFound(err) {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("AccountInfo not found yet, requeueing"), true, false)
+	}
+
+	orgsClient, err := logicalclusterclient.NewForLogicalCluster(w.mgr.GetLocalManager().GetConfig(), w.mgr.GetLocalManager().GetScheme(), logicalcluster.Name("root:orgs"))
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent organisation client: %w", err), true, true)
+	}
+
+	var acc accountsv1alpha1.Account
+	if err := orgsClient.Get(ctx, client.ObjectKey{
+		Name: ai.Spec.Account.Name,
+	}, &acc); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Account in platform-mesh-system: %w", err), true, true)
+	}
 
 	store := v1alpha1.Store{
 		ObjectMeta: metav1.ObjectMeta{Name: generateStoreName(lc)},
 	}
 
-	_, err := controllerutil.CreateOrUpdate(ctx, w.orgsClient, &store, func() error {
+	if _, err := controllerutil.CreateOrUpdate(ctx, w.orgsClient, &store, func() error {
 		store.Spec = v1alpha1.StoreSpec{
 			CoreModule: w.coreModule,
 		}
+		store.Spec.Tuples = fga.TuplesForOrganization(acc, ai, w.creatorRelation, w.objectType)
 
 		if w.cfg.AllowMemberTuplesEnabled { // TODO: remove this flag once the feature is tested and stable
 			store.Spec.Tuples = []v1alpha1.Tuple{
@@ -87,8 +138,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		}
 
 		return nil
-	})
-	if err != nil {
+	}); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to create/update store: %w", err), true, true)
 	}
 

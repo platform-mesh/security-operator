@@ -29,8 +29,8 @@ type OrgLogicalClusterReconciler struct {
 func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *OrgLogicalClusterReconciler {
 	return &OrgLogicalClusterReconciler{
 		log: log,
-		mclifecycle: builder.NewBuilder("logicalcluster", "LogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
-			subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr),
+		mclifecycle: builder.NewBuilder("security", "OrgLogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
+			subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType),
 			subroutine.NewIDPSubroutine(orgClient, mgr, cfg),
 			subroutine.NewInviteSubroutine(orgClient, mgr),
 			subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, mgr, cfg),
