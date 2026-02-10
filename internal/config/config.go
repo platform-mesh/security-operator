@@ -10,9 +10,9 @@ type InviteConfig struct {
 type Config struct {
 	FGA struct {
 		Target          string `mapstructure:"fga-target"`
-		ObjectType      string `mapstructure:"subroutines-fga-object-type" default:"core_platform-mesh_io_account"`
-		ParentRelation  string `mapstructure:"subroutines-fga-parent-relation" default:"parent"`
-		CreatorRelation string `mapstructure:"subroutines-fga-creator-relation" default:"owner"`
+		ObjectType      string `mapstructure:"fga-object-type" default:"core_platform-mesh_io_account"`
+		ParentRelation  string `mapstructure:"fga-parent-relation" default:"parent"`
+		CreatorRelation string `mapstructure:"fga-creator-relation" default:"owner"`
 	} `mapstructure:",squash"`
 	KCP struct {
 		Kubeconfig string `mapstructure:"kcp-kubeconfig" default:"/api-kubeconfig/kubeconfig"`
