@@ -20,6 +20,7 @@ import (
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	logicalclusterclient "github.com/platform-mesh/security-operator/internal/client"
+	"github.com/platform-mesh/security-operator/internal/fga"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
@@ -59,8 +60,6 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 	}, &ai); err != nil && !kerrors.IsNotFound(err) {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err), true, true)
 	} else if kerrors.IsNotFound(err) {
-		fmt.Println(err)
-
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("AccountInfo not found yet, requeueing"), true, false)
 	}
 
@@ -88,47 +87,30 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent organisation's Store: %w", err), true, true)
 	}
 
-	// Build tuples for Account
-	tuples := []v1alpha1.Tuple{
-		v1alpha1.Tuple{
-			User:     fmt.Sprintf("%s:%s/%s", s.objectType, ai.Spec.ParentAccount.OriginClusterId, ai.Spec.ParentAccount.Name),
-			Relation: s.parentRelation,
-			Object:   fmt.Sprintf("%s:%s/%s", s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
-		},
-		v1alpha1.Tuple{
-			User:     fmt.Sprintf("user:%s", formatUser(*acc.Spec.Creator)),
-			Relation: "assignee",
-			Object:   fmt.Sprintf("role:%s/%s/%s/owner", s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
-		},
-		v1alpha1.Tuple{
-			User:     fmt.Sprintf("role:%s/%s/%s/owner#assignee", s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
-			Relation: s.creatorRelation,
-			Object:   fmt.Sprintf("%s:%s/%s", s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
-		},
-	}
-
 	// Append the stores tuples with every tuple for the Account not yet managed
 	// via the Store resource
+	tuples := fga.TuplesForAccount(acc, ai, s.creatorRelation, s.parentRelation, s.objectType)
+	var changed bool
 	for _, t := range tuples {
 		if !slices.Contains(st.Spec.Tuples, t) {
 			st.Spec.Tuples = append(st.Spec.Tuples, t)
+			changed = true
 		}
 	}
 
-	if err := orgsClient.Update(ctx, &st); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating Store with tuples: %w", err), true, true)
-	}
-	// Re-get Store for potential update
-	if err := orgsClient.Get(ctx, client.ObjectKey{Name: st.Name}, &st); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Store after update: %w", err), true, true)
+	if changed {
+		if err := orgsClient.Update(ctx, &st); err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating Store with tuples: %w", err), true, true)
+		}
+
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("Store needed to be updated, requeueing"), true, false)
 	}
 
+	fmt.Printf("Checking tuples: %v", st.Status.ManagedTuples)
 	// Check if Store applied tuple changes
 	for _, t := range tuples {
 		if !slices.Contains(st.Status.ManagedTuples, t) {
-			log.Info().Msgf("Store does not yet contain all specified tuples, requeueing")
-
-			return ctrl.Result{Requeue: true}, nil
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("Store does not yet contain all specified tuples, requeueing"), true, false)
 		}
 	}
 
