@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"slices"
 	"strings"
 
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
@@ -115,30 +116,39 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		ObjectMeta: metav1.ObjectMeta{Name: generateStoreName(lc)},
 	}
 
-	if _, err := controllerutil.CreateOrUpdate(ctx, w.orgsClient, &store, func() error {
+	tuples := fga.TuplesForOrganization(acc, ai, w.creatorRelation, w.objectType)
+	if w.cfg.AllowMemberTuplesEnabled { // TODO: remove this flag once the feature is tested and stable
+		tuples = append(tuples, []v1alpha1.Tuple{
+			{
+				Object:   "role:authenticated",
+				Relation: "assignee",
+				User:     "user:*",
+			},
+			{
+				Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", lc.Spec.Owner.Cluster, lc.Spec.Owner.Name),
+				Relation: "member",
+				User:     "role:authenticated#assignee",
+			},
+		}...)
+	}
+	if result, err := controllerutil.CreateOrUpdate(ctx, w.orgsClient, &store, func() error {
 		store.Spec = v1alpha1.StoreSpec{
 			CoreModule: w.coreModule,
 		}
-		store.Spec.Tuples = fga.TuplesForOrganization(acc, ai, w.creatorRelation, w.objectType)
-
-		if w.cfg.AllowMemberTuplesEnabled { // TODO: remove this flag once the feature is tested and stable
-			store.Spec.Tuples = []v1alpha1.Tuple{
-				{
-					Object:   "role:authenticated",
-					Relation: "assignee",
-					User:     "user:*",
-				},
-				{
-					Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", lc.Spec.Owner.Cluster, lc.Spec.Owner.Name),
-					Relation: "member",
-					User:     "role:authenticated#assignee",
-				},
-			}
-		}
+		store.Spec.Tuples = tuples
 
 		return nil
 	}); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to create/update store: %w", err), true, true)
+	} else if result == controllerutil.OperationResultCreated || result == controllerutil.OperationResultUpdated {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store needed to be updated, requeueing"), true, false)
+	}
+
+	// Check if Store applied tuple changes
+	for _, t := range tuples {
+		if !slices.Contains(store.Status.ManagedTuples, t) {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store does not yet contain all specified tuples, requeueing"), true, false)
+		}
 	}
 
 	if store.Status.StoreID == "" {
