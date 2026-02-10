@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"strings"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	mcclient "github.com/kcp-dev/multicluster-provider/client"
@@ -20,7 +19,7 @@ import (
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	logicalclusterclient "github.com/platform-mesh/security-operator/internal/client"
-	"github.com/platform-mesh/security-operator/internal/fga"
+	"github.com/platform-mesh/security-operator/pkg/fga"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
@@ -156,20 +155,3 @@ func NewAccountTuplesSubroutine(mcc mcclient.ClusterClient, mgr mcmanager.Manage
 }
 
 var _ lifecyclesubroutine.Subroutine = &AccountTuplesSubroutine{}
-
-// isServiceAccount determines wheter a user appears to be a Kubernetes
-// ServiceAccount.
-func isServiceAccount(user string) bool {
-	return strings.HasPrefix(user, "system:serviceaccount:")
-}
-
-// formatUser formats a user to be stored in an FGA tuple, i.e. replaces colons
-// with dots in case of a Kubernetes ServiceAccount.
-// todo(simontesar): why was this implemented ot only be done in case of SAs?
-func formatUser(user string) string {
-	if isServiceAccount(user) {
-		return strings.ReplaceAll(user, ":", ".")
-	}
-
-	return user
-}
