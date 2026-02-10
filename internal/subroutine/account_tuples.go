@@ -105,7 +105,6 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("Store needed to be updated, requeueing"), true, false)
 	}
 
-	fmt.Printf("Checking tuples: %v", st.Status.ManagedTuples)
 	// Check if Store applied tuple changes
 	for _, t := range tuples {
 		if !slices.Contains(st.Status.ManagedTuples, t) {
