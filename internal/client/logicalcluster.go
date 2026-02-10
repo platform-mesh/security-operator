@@ -10,12 +10,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+// NewForLogicalCluster returns a client for a given logical cluster name or
+// path, based on a KCP base config.
 func NewForLogicalCluster(config *rest.Config, scheme *runtime.Scheme, clusterKey logicalcluster.Name) (client.Client, error) {
 	path := fmt.Sprintf("/clusters/%s", clusterKey)
 
 	return clientForPath(config, scheme, path)
 }
 
+// clientForPath returns a client for a give raw URL path.
 func clientForPath(config *rest.Config, scheme *runtime.Scheme, path string) (client.Client, error) {
 	copy := rest.CopyConfig(config)
 

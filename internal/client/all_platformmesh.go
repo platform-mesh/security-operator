@@ -15,12 +15,14 @@ import (
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 )
 
-// todo(simontesar): what is the actual source of truth for these?
 const (
 	corePlatformMeshIOAPIExportEndpointSlice = "core.platform-mesh.io"
 	platformMeshSystemWorkspace              = "root:platform-mesh-system"
 )
 
+// NewForAllPlatformMeshResources returns a client that can query all resources
+// of the core.platform-mesh.io APIExportEndpoint slice, based on a given KCP
+// base config.
 func NewForAllPlatformMeshResources(ctx context.Context, config *rest.Config, scheme *runtime.Scheme) (client.Client, error) {
 	platformMeshClient, err := NewForLogicalCluster(config, scheme, logicalcluster.Name(platformMeshSystemWorkspace))
 	if err != nil {

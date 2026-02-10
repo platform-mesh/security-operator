@@ -26,6 +26,8 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
 
+// AccountTuplesSubroutine creates FGA tuples for Accounts not of the
+// "org"-type.
 type AccountTuplesSubroutine struct {
 	mgr mcmanager.Manager
 	mcc mcclient.ClusterClient

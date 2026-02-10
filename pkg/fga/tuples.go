@@ -8,6 +8,7 @@ import (
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
+// TuplesForAccount returns FGA tuples for an account not of type organization.
 func TuplesForAccount(acc accountv1alpha1.Account, ai accountv1alpha1.AccountInfo, creatorRelation, parentRelation, objectType string) []v1alpha1.Tuple {
 	tuples := append(baseTuples(acc, ai, creatorRelation, objectType), v1alpha1.Tuple{
 		User:     fmt.Sprintf("%s:%s/%s", objectType, ai.Spec.ParentAccount.OriginClusterId, ai.Spec.ParentAccount.Name),
@@ -18,6 +19,7 @@ func TuplesForAccount(acc accountv1alpha1.Account, ai accountv1alpha1.AccountInf
 	return tuples
 }
 
+// TuplesForOrganization returns FGA tuples for an Account of type organization.
 func TuplesForOrganization(acc accountv1alpha1.Account, ai accountv1alpha1.AccountInfo, creatorRelation, objectType string) []v1alpha1.Tuple {
 	return baseTuples(acc, ai, creatorRelation, objectType)
 }
