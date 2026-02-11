@@ -9,7 +9,6 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/pkg/fga"
@@ -39,16 +38,15 @@ type AccountTuplesSubroutine struct {
 
 // Process implements lifecycle.Subroutine.
 func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	log := logger.LoadLoggerFromContext(ctx)
-
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 	p := lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey]
 	if p == "" {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("annotation on LogicalCluster is not set"), true, true)
 	}
-	lcID, _ := mccontext.ClusterFrom(ctx)
-	log = log.ChildLogger("ID", lcID).ChildLogger("path", p)
-	log.Info().Msgf("Processing logical cluster")
+	lcID, ok := mccontext.ClusterFrom(ctx)
+	if !ok {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("cluster name not found in context"), true, true)
+	}
 
 	// The AccountInfo in the logical custer belongs to the Account the
 	// Workspace was created for
@@ -133,21 +131,12 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 
 // Finalize implements lifecycle.Subroutine.
 func (s *AccountTuplesSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	log := logger.LoadLoggerFromContext(ctx)
-
-	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
-	p := lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey]
-	if p == "" {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("annotation on LogicalCluster is not set"), true, true)
-	}
-	log.Info().Msgf("Finalizing logical cluster of path %s", p)
-
 	return ctrl.Result{}, nil
 }
 
 // Finalizers implements lifecycle.Subroutine.
 func (s *AccountTuplesSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
-	return []string{"core.platform-mesh.io/account-fga-tuples"}
+	return []string{}
 }
 
 // GetName implements lifecycle.Subroutine.
