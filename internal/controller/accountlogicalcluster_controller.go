@@ -20,7 +20,7 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-// AccountLogicalClusterReconciler acts as an intializer for account workspaces.
+// AccountLogicalClusterReconciler acts as an initializer for account workspaces.
 type AccountLogicalClusterReconciler struct {
 	log *logger.Logger
 
