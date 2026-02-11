@@ -11,7 +11,6 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
@@ -73,16 +72,12 @@ func (w *workspaceInitializer) Finalizers(_ runtimeobject.RuntimeObject) []strin
 func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" }
 
 func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	log := logger.LoadLoggerFromContext(ctx)
-
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 	p := lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey]
 	if p == "" {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("annotation on LogicalCluster is not set"), true, true)
 	}
 	lcID, _ := mccontext.ClusterFrom(ctx)
-	log = log.ChildLogger("ID", lcID).ChildLogger("path", p)
-	log.Info().Msgf("Processing logical cluster")
 
 	lcClient, err := iclient.NewForLogicalCluster(w.mgr.GetLocalManager().GetConfig(), w.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(lcID))
 	if err != nil {
