@@ -30,7 +30,7 @@ func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client,
 	var subroutines []lifecyclesubroutine.Subroutine
 
 	if cfg.Initializer.WorkspaceInitializerEnabled {
-		subroutines = append(subroutines, subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType))
+		subroutines = append(subroutines, subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr, cfg.FGA.CreatorRelation, cfg.FGA.ObjectType))
 	}
 	if cfg.Initializer.IDPEnabled {
 		subroutines = append(subroutines, subroutine.NewIDPSubroutine(orgClient, mgr, cfg))
