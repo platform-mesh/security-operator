@@ -27,15 +27,26 @@ type LogicalClusterReconciler struct {
 }
 
 func NewLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *LogicalClusterReconciler {
+	var subroutines []lifecyclesubroutine.Subroutine
+
+	if cfg.Initializer.WorkspaceInitializerEnabled {
+		subroutines = append(subroutines, subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr))
+	}
+	if cfg.Initializer.IDPEnabled {
+		subroutines = append(subroutines, subroutine.NewIDPSubroutine(orgClient, mgr, cfg))
+	}
+	if cfg.Initializer.InviteEnabled {
+		subroutines = append(subroutines, subroutine.NewInviteSubroutine(orgClient, mgr))
+	}
+	if cfg.Initializer.WorkspaceAuthEnabled {
+		subroutines = append(subroutines, subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, mgr, cfg))
+	}
+	// RemoveInitializer is always included - it's the final cleanup step
+	subroutines = append(subroutines, subroutine.NewRemoveInitializer(mgr, cfg))
+
 	return &LogicalClusterReconciler{
 		log: log,
-		mclifecycle: builder.NewBuilder("logicalcluster", "LogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
-			subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr),
-			subroutine.NewIDPSubroutine(orgClient, mgr, cfg),
-			subroutine.NewInviteSubroutine(orgClient, mgr),
-			subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, mgr, cfg),
-			subroutine.NewRemoveInitializer(mgr, cfg),
-		}, log).
+		mclifecycle: builder.NewBuilder("logicalcluster", "LogicalClusterReconciler", subroutines, log).
 			WithReadOnly().
 			WithStaticThenExponentialRateLimiter().
 			BuildMultiCluster(mgr),
