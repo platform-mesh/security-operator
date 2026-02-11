@@ -21,6 +21,6 @@ func LogicalClusterIsAccountTypeOrg() predicate.Predicate {
 
 		parts := strings.Split(p, ":")
 
-		return parts[0] == "root" && parts[1] == "orgs" && len(parts) == 3
+		return len(parts) == 3 && parts[0] == "root" && parts[1] == "orgs"
 	})
 }
