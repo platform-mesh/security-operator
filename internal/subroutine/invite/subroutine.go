@@ -219,7 +219,7 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusCreated {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("keylcloak returned non-200 status code: %s", res.Status), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("keycloak returned non-201 status code: %s", res.Status), true, true)
 	}
 
 	res, err = s.keycloak.Get(fmt.Sprintf("%s/admin/realms/%s/users?%s", s.keycloakBaseURL, realm, v.Encode()))
