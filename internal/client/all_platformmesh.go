@@ -34,6 +34,10 @@ func NewForAllPlatformMeshResources(ctx context.Context, config *rest.Config, sc
 		return nil, fmt.Errorf("getting %s APIExportEndpointSlice: %w", corePlatformMeshIOAPIExportEndpointSlice, err)
 	}
 
+	if len(apiExportEndpointSlice.Status.APIExportEndpoints) == 0 {
+		return nil, fmt.Errorf("no endpoints found in %s APIExportEndpointSlice", corePlatformMeshIOAPIExportEndpointSlice)
+	}
+
 	virtualWorkspaceUrl, err := url.Parse(apiExportEndpointSlice.Status.APIExportEndpoints[0].URL)
 	if err != nil {
 		return nil, fmt.Errorf("parsing virtual workspace URL: %w", err)
