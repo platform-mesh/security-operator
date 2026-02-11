@@ -64,23 +64,25 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("AccountInfo not found yet, requeueing"), true, false)
 	}
 
-	parentOrgClient, err := iclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(ai.Spec.Organization.Path))
+	// The actual Account resource belonging to the Workospace needs to be
+	// fetched from the parent Account's Workspace
+	parentAccountClient, err := iclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(ai.Spec.ParentAccount.Path))
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent organisation client: %w", err), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent account cluster client: %w", err), true, true)
 	}
-
 	var acc accountsv1alpha1.Account
-	if err := parentOrgClient.Get(ctx, client.ObjectKey{
+	if err := parentAccountClient.Get(ctx, client.ObjectKey{
 		Name: ai.Spec.Account.Name,
 	}, &acc); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Account in parent organisation: %w", err), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Account in parent account cluster: %w", err), true, true)
 	}
 
+	// The Store to be updated belongs the parent Organization(which is not
+	// necessarily the parent Account!) but exists in the "orgs" Workspace
 	orgsClient, err := iclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name("root:orgs"))
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting orgs client: %w", err), true, true)
 	}
-
 	var st v1alpha1.Store
 	if err := orgsClient.Get(ctx, client.ObjectKey{
 		Name: ai.Spec.Organization.Name,
