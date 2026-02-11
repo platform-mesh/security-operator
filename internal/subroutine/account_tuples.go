@@ -93,7 +93,10 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 
 	// Append the stores tuples with every tuple for the Account not yet managed
 	// via the Store resource
-	tuples := fga.TuplesForAccount(acc, ai, s.creatorRelation, s.parentRelation, s.objectType)
+	tuples, err := fga.TuplesForAccount(acc, ai, s.creatorRelation, s.parentRelation, s.objectType)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for account: %w", err), true, true)
+	}
 	var changed bool
 	for _, t := range tuples {
 		if !slices.Contains(st.Spec.Tuples, t) {

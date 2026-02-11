@@ -116,7 +116,10 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 		ObjectMeta: metav1.ObjectMeta{Name: generateStoreName(lc)},
 	}
 
-	tuples := fga.TuplesForOrganization(acc, ai, w.creatorRelation, w.objectType)
+	tuples, err := fga.TuplesForOrganization(acc, ai, w.creatorRelation, w.objectType)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for organization: %w", err), true, true)
+	}
 	if w.cfg.AllowMemberTuplesEnabled { // TODO: remove this flag once the feature is tested and stable
 		tuples = append(tuples, []v1alpha1.Tuple{
 			{
