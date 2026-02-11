@@ -50,11 +50,12 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 	log = log.ChildLogger("ID", lcID).ChildLogger("path", p)
 	log.Info().Msgf("Processing logical cluster")
 
+	// The AccountInfo in the logical custer belongs to the Account the
+	// Workspace was created for
 	lcClient, err := iclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(lcID))
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting client: %w", err), true, true)
 	}
-
 	var ai accountsv1alpha1.AccountInfo
 	if err := lcClient.Get(ctx, client.ObjectKey{
 		Name: "account",
@@ -64,7 +65,7 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("AccountInfo not found yet, requeueing"), true, false)
 	}
 
-	// The actual Account resource belonging to the Workospace needs to be
+	// The actual Account resource belonging to the Workspace needs to be
 	// fetched from the parent Account's Workspace
 	parentAccountClient, err := iclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(ai.Spec.ParentAccount.Path))
 	if err != nil {
