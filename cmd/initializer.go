@@ -103,7 +103,7 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		kcpCfg, err := getKubeconfigFromPath(operatorCfg.KCP.Kubeconfig)
+		kcpCfg, err := getKubeconfigFromPath(initializerCfg.KCP.Kubeconfig)
 		if err != nil {
 			log.Error().Err(err).Msg("unable to get KCP kubeconfig")
 			return err
