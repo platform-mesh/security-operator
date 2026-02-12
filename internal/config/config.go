@@ -13,6 +13,13 @@ type WebhooksConfig struct {
 	Register bool   `mapstructure:"webhooks-register" default:"true"`
 }
 
+type InitializerConfig struct {
+	WorkspaceInitializerEnabled bool `mapstructure:"initializer-workspace-enabled" default:"true"`
+	IDPEnabled                  bool `mapstructure:"initializer-idp-enabled" default:"true"`
+	InviteEnabled               bool `mapstructure:"initializer-invite-enabled" default:"true"`
+	WorkspaceAuthEnabled        bool `mapstructure:"initializer-workspace-auth-enabled" default:"true"`
+}
+
 // Config struct to hold the app config
 type Config struct {
 	FGA struct {
@@ -54,7 +61,8 @@ type Config struct {
 		AccessTokenLifespan int  `mapstructure:"idp-access-token-lifespan" default:"28800"`
 		RegistrationAllowed bool `mapstructure:"idp-registration-allowed" default:"false"`
 	} `mapstructure:",squash"`
-	Invite   InviteConfig   `mapstructure:",squash"`
+	Invite      InviteConfig      `mapstructure:",squash"`
+	Initializer InitializerConfig `mapstructure:",squash"`
 	Webhooks WebhooksConfig `mapstructure:",squash"`
 }
 
