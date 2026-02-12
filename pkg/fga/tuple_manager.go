@@ -8,6 +8,10 @@ import (
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
+// AuthorizationModelIDLatest is to explicitely acknowledge that no ID means
+// latest.
+const AuthorizationModelIDLatest = ""
+
 // TupleManager wraps around FGA attributes to write and delete sets of tuples.
 type TupleManager struct {
 	client               openfgav1.OpenFGAServiceClient
