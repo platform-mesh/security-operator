@@ -63,7 +63,7 @@ type Config struct {
 	} `mapstructure:",squash"`
 	Invite      InviteConfig      `mapstructure:",squash"`
 	Initializer InitializerConfig `mapstructure:",squash"`
-	Webhooks WebhooksConfig `mapstructure:",squash"`
+	Webhooks    WebhooksConfig    `mapstructure:",squash"`
 }
 
 func (config Config) InitializerName() string {
