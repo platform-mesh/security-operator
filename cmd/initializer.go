@@ -6,9 +6,12 @@ import (
 
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/platform-mesh/security-operator/internal/predicates"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -109,12 +112,19 @@ var initializerCmd = &cobra.Command{
 			return err
 		}
 
+		conn, err := grpc.NewClient(initializerCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Error().Err(err).Msg("unable to create grpc client")
+			return err
+		}
+		fga := openfgav1.NewOpenFGAServiceClient(conn)
+
 		mcc, err := mcclient.New(kcpCfg, client.Options{Scheme: scheme})
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create multicluster client")
 			os.Exit(1)
 		}
-		if err := controller.NewAccountLogicalClusterReconciler(log, initializerCfg, mcc, mgr).
+		if err := controller.NewAccountLogicalClusterReconciler(log, initializerCfg, fga, mcc, mgr).
 			SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "AccountLogicalCluster")
 			os.Exit(1)

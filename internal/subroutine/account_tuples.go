@@ -3,13 +3,13 @@ package subroutine
 import (
 	"context"
 	"fmt"
-	"slices"
 
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
-	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/golang-commons/logger"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/pkg/fga"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -30,6 +30,7 @@ import (
 type AccountTuplesSubroutine struct {
 	mgr mcmanager.Manager
 	mcc mcclient.ClusterClient
+	fga openfgav1.OpenFGAServiceClient
 
 	objectType      string
 	parentRelation  string
@@ -76,55 +77,15 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Account in parent account cluster: %w", err), true, true)
 	}
 
-	// The Store to be updated belongs the parent Organization(which is not
-	// necessarily the parent Account!) but exists in the "orgs" Workspace
-	orgsClient, err := iclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name("root:orgs"))
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting orgs client: %w", err), true, true)
-	}
-	var st v1alpha1.Store
-	if err := orgsClient.Get(ctx, client.ObjectKey{
-		Name: ai.Spec.Organization.Name,
-	}, &st); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent organisation's Store: %w", err), true, true)
-	}
-
 	// Append the stores tuples with every tuple for the Account not yet managed
 	// via the Store resource
 	tuples, err := fga.TuplesForAccount(acc, ai, s.creatorRelation, s.parentRelation, s.objectType)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for account: %w", err), true, true)
 	}
-	var changed bool
-	for _, t := range tuples {
-		if !slices.Contains(st.Spec.Tuples, t) {
-			st.Spec.Tuples = append(st.Spec.Tuples, t)
-			changed = true
-		}
+	if err := fga.NewTupleManager(s.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx)).Apply(ctx, tuples); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("applying tuples for Account: %w", err), true, true)
 	}
-
-	// Potentially update Store and requeue to wait for update
-	// todo(simontesar): we could be watching Stores instead
-	if changed {
-		if err := orgsClient.Update(ctx, &st); err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating Store with tuples: %w", err), true, true)
-		}
-
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store needed to be updated, requeueing"), true, false)
-	}
-
-	// Check if Store applied tuple changes
-	for _, t := range tuples {
-		if !slices.Contains(st.Status.ManagedTuples, t) {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store does not yet contain all specified tuples, requeueing"), true, false)
-		}
-	}
-
-	// todo(simontesar): checking and waiting for Readiness is currently futile,
-	// our conditions don't include the observed generation
-	// if conditions.IsPresentAndEqualForGeneration(st.Status.Conditions, lcconditions.ConditionReady, metav1.ConditionTrue, st.GetObjectMeta().GetGeneration()) {
-	// 	return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store %s is not ready", st.Name), true, false)
-	// }
 
 	return ctrl.Result{}, nil
 }
@@ -142,10 +103,11 @@ func (s *AccountTuplesSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []st
 // GetName implements lifecycle.Subroutine.
 func (s *AccountTuplesSubroutine) GetName() string { return "AccountTuplesSubroutine" }
 
-func NewAccountTuplesSubroutine(mcc mcclient.ClusterClient, mgr mcmanager.Manager, creatorRelation, parentRelation, objectType string) *AccountTuplesSubroutine {
+func NewAccountTuplesSubroutine(mcc mcclient.ClusterClient, mgr mcmanager.Manager, fga openfgav1.OpenFGAServiceClient, creatorRelation, parentRelation, objectType string) *AccountTuplesSubroutine {
 	return &AccountTuplesSubroutine{
 		mgr:             mgr,
 		mcc:             mcc,
+		fga:             fga,
 		creatorRelation: creatorRelation,
 		parentRelation:  parentRelation,
 		objectType:      objectType,
