@@ -8,6 +8,8 @@ import (
 
 // InviteSpec defines the desired state of Invite
 type InviteSpec struct {
+	// +kubebuilder:validation:Format=email
+	// +kubebuilder:validation:Pattern="[a-zA-Z0-9!#$%&'*+/=?^_`{|}~.-]+@[a-zA-Z0-9-]+(\\.[a-zA-Z0-9-]+)*"
 	Email string `json:"email"`
 }
 

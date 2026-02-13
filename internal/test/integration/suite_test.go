@@ -53,6 +53,9 @@ var (
 	//go:embed yaml/apiresourceschema-stores.core.platform-mesh.io.yaml
 	StoreSchemaYAML []byte
 
+	//go:embed yaml/apiresourceschema-invites.core.platform-mesh.io.yaml
+	InviteSchemaYAML []byte
+
 	//go:embed yaml/apiexport-core.platform-mesh.io.yaml
 	ApiExportPlatformMeshSystemYAML []byte
 
@@ -136,7 +139,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	suite.platformMeshSystemClient = cli.Cluster(platformMeshSystemClusterPath)
 
 	// register api-resource schemas
-	schemas := [][]byte{AccountInfoSchemaYAML, AccountSchemaYAML, AuthorizationModelSchemaYAML, StoreSchemaYAML}
+	schemas := [][]byte{AccountInfoSchemaYAML, AccountSchemaYAML, AuthorizationModelSchemaYAML, StoreSchemaYAML, InviteSchemaYAML}
 	for _, schemaYAML := range schemas {
 		var schema apisv1alpha1.APIResourceSchema
 		suite.Require().NoError(yaml.Unmarshal(schemaYAML, &schema))
