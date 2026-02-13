@@ -7,10 +7,9 @@ type InviteConfig struct {
 }
 
 type WebhooksConfig struct {
-	Enabled  bool   `mapstructure:"webhooks-enabled" default:"false"`
-	Port     int    `mapstructure:"webhooks-port" default:"9443"`
-	CertDir  string `mapstructure:"webhooks-cert-dir" default:"/tmp/k8s-webhook-server/serving-certs"`
-	Register bool   `mapstructure:"webhooks-register" default:"true"`
+	Enabled bool   `mapstructure:"webhooks-enabled" default:"false"`
+	Port    int    `mapstructure:"webhooks-port" default:"9443"`
+	CertDir string `mapstructure:"webhooks-cert-dir" default:"/tmp/k8s-webhook-server/serving-certs"`
 }
 
 type InitializerConfig struct {
@@ -42,6 +41,8 @@ type Config struct {
 	SetDefaultPassword               bool   `mapstructure:"set-default-password" default:"false"`
 	AllowMemberTuplesEnabled         bool   `mapstructure:"allow-member-tuples-enabled" default:"false"`
 	IDP                              struct {
+		RealmDenyList []string `mapstructure:"idp-realm-deny-list"`
+
 		// SMTP settings
 		SMTPServer  string `mapstructure:"idp-smtp-server"`
 		SMTPPort    int    `mapstructure:"idp-smtp-port"`

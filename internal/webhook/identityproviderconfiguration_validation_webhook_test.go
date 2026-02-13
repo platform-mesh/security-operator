@@ -20,11 +20,17 @@ func (f fakeRealmChecker) RealmExists(ctx context.Context, realmName string) (bo
 }
 
 func TestIdentityProviderConfigurationValidator_ValidateCreate(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("master realm is denied", func(t *testing.T) {
 		v := &identityProviderConfigurationValidator{keycloakClient: fakeRealmChecker{exists: false}}
 		_, err := v.ValidateCreate(ctx, &v1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: "master"}})
+		require.Error(t, err)
+	})
+
+	t.Run("realm from deny list is denied", func(t *testing.T) {
+		v := &identityProviderConfigurationValidator{keycloakClient: fakeRealmChecker{exists: false}, realmDenyList: []string{"orgs", "forbidden-realm"}}
+		_, err := v.ValidateCreate(ctx, &v1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: "forbidden-realm"}})
 		require.Error(t, err)
 	})
 
@@ -49,6 +55,6 @@ func TestIdentityProviderConfigurationValidator_ValidateCreate(t *testing.T) {
 
 func TestIdentityProviderConfigurationValidator_ValidateUpdate(t *testing.T) {
 	v := &identityProviderConfigurationValidator{keycloakClient: fakeRealmChecker{exists: true}}
-	_, err := v.ValidateUpdate(context.Background(), &v1alpha1.IdentityProviderConfiguration{}, &v1alpha1.IdentityProviderConfiguration{})
+	_, err := v.ValidateUpdate(t.Context(), &v1alpha1.IdentityProviderConfiguration{}, &v1alpha1.IdentityProviderConfiguration{})
 	require.NoError(t, err)
 }

@@ -3,6 +3,7 @@ package webhook
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/coreos/go-oidc"
@@ -27,9 +28,11 @@ func SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx context.
 		return fmt.Errorf("failed to create keycloak admin client for webhook: %w", err)
 	}
 
+	realmDenyList := slices.Clone(cfg.IDP.RealmDenyList)
+
 	return ctrl.NewWebhookManagedBy(mgr).
 		For(&v1alpha1.IdentityProviderConfiguration{}).
-		WithValidator(&identityProviderConfigurationValidator{keycloakClient: keycloakClient}).
+		WithValidator(&identityProviderConfigurationValidator{keycloakClient: keycloakClient, realmDenyList: realmDenyList}).
 		Complete()
 }
 
@@ -38,6 +41,7 @@ var _ realmChecker = (*keycloak.AdminClient)(nil)
 
 type identityProviderConfigurationValidator struct {
 	keycloakClient realmChecker
+	realmDenyList  []string
 }
 
 type realmChecker interface {
@@ -54,6 +58,9 @@ func (v *identityProviderConfigurationValidator) ValidateCreate(ctx context.Cont
 	if realmName == "master" {
 		return nil, fmt.Errorf("creation of IdentityProviderConfiguration for realm 'master' is not allowed")
 	}
+	if isRealmDenied(realmName, v.realmDenyList) {
+		return nil, fmt.Errorf("creation of IdentityProviderConfiguration for realm %q is not allowed", realmName)
+	}
 
 	exists, err := v.keycloakClient.RealmExists(ctx, realmName)
 	if err != nil {
@@ -64,6 +71,16 @@ func (v *identityProviderConfigurationValidator) ValidateCreate(ctx context.Cont
 	}
 
 	return nil, nil
+}
+
+func isRealmDenied(realmName string, denyList []string) bool {
+	for _, forbidden := range denyList {
+		if strings.EqualFold(realmName, strings.TrimSpace(forbidden)) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func (v *identityProviderConfigurationValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
