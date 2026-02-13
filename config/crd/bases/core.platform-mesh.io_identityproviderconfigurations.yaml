@@ -79,8 +79,11 @@ spec:
                   - redirectUris
                   type: object
                 type: array
+              registrationAllowed:
+                type: boolean
             required:
             - clients
+            - registrationAllowed
             type: object
           status:
             description: status defines the observed state of IdentityProviderConfiguration
