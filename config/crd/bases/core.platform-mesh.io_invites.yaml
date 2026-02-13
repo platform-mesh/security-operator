@@ -41,7 +41,7 @@ spec:
             properties:
               email:
                 format: email
-                pattern: ^[^@[:space:]]+@[^@[:space:]]+$
+                pattern: '[a-zA-Z0-9!#$%&''*+/=?^_`{|}~.-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*'
                 type: string
             required:
             - email
