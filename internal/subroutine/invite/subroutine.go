@@ -214,13 +214,12 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 
 	res, err = s.keycloak.Post(fmt.Sprintf("%s/admin/realms/%s/users", s.keycloakBaseURL, realm), "application/json", &buffer)
 	if err != nil { // coverage-ignore
-		log.Err(err).Msg("Failed to create user")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("posting to Keycloak to create user: %w", err), true, true)
 	}
 	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusCreated {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create user: %s", res.Status), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("keycloak returned non-201 status code: %s", res.Status), true, true)
 	}
 
 	res, err = s.keycloak.Get(fmt.Sprintf("%s/admin/realms/%s/users?%s", s.keycloakBaseURL, realm, v.Encode()))
