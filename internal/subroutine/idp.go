@@ -43,6 +43,7 @@ func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg confi
 		additionalRedirectURLs:    cfg.IDP.AdditionalRedirectURLs,
 		kubectlClientRedirectURLs: cfg.IDP.KubectlClientRedirectURLs,
 		baseDomain:                cfg.BaseDomain,
+		registrationAllowed:       cfg.IDP.RegistrationAllowed,
 		limiter:                   limiter,
 	}
 }
@@ -55,6 +56,7 @@ type IDPSubroutine struct {
 	additionalRedirectURLs    []string
 	kubectlClientRedirectURLs []string
 	baseDomain                string
+	registrationAllowed       bool
 	limiter                   workqueue.TypedRateLimiter[*v1alpha1.IdentityProviderConfiguration]
 }
 
@@ -116,6 +118,8 @@ func (i *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.Runt
 
 	idp := &v1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
 	_, err = controllerutil.CreateOrPatch(ctx, cl.GetClient(), idp, func() error {
+		idp.Spec.RegistrationAllowed = i.registrationAllowed
+
 		for _, desired := range clients {
 			idp.Spec.Clients = ensureClient(idp.Spec.Clients, desired)
 		}
