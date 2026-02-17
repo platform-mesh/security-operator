@@ -9,6 +9,7 @@ import (
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
@@ -19,6 +20,10 @@ type fakeStatusWriter struct {
 	t           *testing.T
 	expectClear kcpcorev1alpha1.LogicalClusterInitializer
 	err         error
+}
+
+func (f *fakeStatusWriter) Apply(context.Context, runtime.ApplyConfiguration, ...client.SubResourceApplyOption) error {
+	return nil
 }
 
 func (f *fakeStatusWriter) Create(ctx context.Context, obj client.Object, subResource client.Object, opts ...client.SubResourceCreateOption) error {

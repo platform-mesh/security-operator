@@ -9,13 +9,13 @@ import (
 	"net/http"
 
 	mock "github.com/stretchr/testify/mock"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/events"
 	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // NewMockCluster creates a new instance of MockCluster. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
@@ -225,6 +225,59 @@ func (_c *MockCluster_GetConfig_Call) Return(config *rest.Config) *MockCluster_G
 }
 
 func (_c *MockCluster_GetConfig_Call) RunAndReturn(run func() *rest.Config) *MockCluster_GetConfig_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// GetEventRecorder provides a mock function for the type MockCluster
+func (_mock *MockCluster) GetEventRecorder(name string) events.EventRecorder {
+	ret := _mock.Called(name)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetEventRecorder")
+	}
+
+	var r0 events.EventRecorder
+	if returnFunc, ok := ret.Get(0).(func(string) events.EventRecorder); ok {
+		r0 = returnFunc(name)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(events.EventRecorder)
+		}
+	}
+	return r0
+}
+
+// MockCluster_GetEventRecorder_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetEventRecorder'
+type MockCluster_GetEventRecorder_Call struct {
+	*mock.Call
+}
+
+// GetEventRecorder is a helper method to define mock.On call
+//   - name string
+func (_e *MockCluster_Expecter) GetEventRecorder(name interface{}) *MockCluster_GetEventRecorder_Call {
+	return &MockCluster_GetEventRecorder_Call{Call: _e.mock.On("GetEventRecorder", name)}
+}
+
+func (_c *MockCluster_GetEventRecorder_Call) Run(run func(name string)) *MockCluster_GetEventRecorder_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 string
+		if args[0] != nil {
+			arg0 = args[0].(string)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockCluster_GetEventRecorder_Call) Return(v events.EventRecorder) *MockCluster_GetEventRecorder_Call {
+	_c.Call.Return(v)
+	return _c
+}
+
+func (_c *MockCluster_GetEventRecorder_Call) RunAndReturn(run func(name string) events.EventRecorder) *MockCluster_GetEventRecorder_Call {
 	_c.Call.Return(run)
 	return _c
 }
