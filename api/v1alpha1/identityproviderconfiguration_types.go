@@ -25,7 +25,7 @@ type IdentityProviderClientConfig struct {
 
 // IdentityProviderConfigurationSpec defines the desired state of IdentityProviderConfiguration
 type IdentityProviderConfigurationSpec struct {
-	RegistrationAllowed bool                           `json:"registrationAllowed"`
+	RegistrationAllowed bool                           `json:"registrationAllowed,omitempty"`
 	Clients             []IdentityProviderClientConfig `json:"clients"`
 }
 
