@@ -77,8 +77,7 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Account in parent account cluster: %w", err), true, true)
 	}
 
-	// Append the stores tuples with every tuple for the Account not yet managed
-	// via the Store resource
+	// Ensure the necessary tuples in OpenFGA
 	tuples, err := fga.TuplesForAccount(acc, ai, s.creatorRelation, s.parentRelation, s.objectType)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for account: %w", err), true, true)
