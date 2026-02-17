@@ -64,3 +64,7 @@ type Config struct {
 func (config Config) InitializerName() string {
 	return config.WorkspacePath + ":" + config.WorkspaceTypeName
 }
+
+func (config Config) TerminatorName() string {
+	return config.WorkspacePath + ":" + config.WorkspaceTypeName
+}
