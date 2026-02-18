@@ -34,7 +34,8 @@ func (r *removeInitializer) Finalizers(_ runtimeobject.RuntimeObject) []string {
 // GetName implements subroutine.Subroutine.
 func (r *removeInitializer) GetName() string { return "RemoveInitializer" }
 
-// Process implements subroutine.Subroutine as no-op since Initialize handles the work.
+// Process implements subroutine.Subroutine as no-op since Initialize handles
+// the work.
 func (r *removeInitializer) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	return ctrl.Result{}, nil
 }
