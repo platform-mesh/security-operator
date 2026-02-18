@@ -34,8 +34,13 @@ func (r *removeInitializer) Finalizers(_ runtimeobject.RuntimeObject) []string {
 // GetName implements subroutine.Subroutine.
 func (r *removeInitializer) GetName() string { return "RemoveInitializer" }
 
-// Process implements subroutine.Subroutine.
+// Process implements subroutine.Subroutine as no-op since Initialize handles the work.
 func (r *removeInitializer) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	return ctrl.Result{}, nil
+}
+
+// Initialize implements lifecycle.Initializer.
+func (r *removeInitializer) Initialize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 
 	initializer := kcpcorev1alpha1.LogicalClusterInitializer(r.initializerName)
@@ -69,4 +74,7 @@ func NewRemoveInitializer(mgr mcmanager.Manager, cfg config.Config) *removeIniti
 	}
 }
 
-var _ subroutine.Subroutine = &removeInitializer{}
+var (
+	_ subroutine.Subroutine  = &removeInitializer{}
+	_ subroutine.Initializer = &removeInitializer{}
+)

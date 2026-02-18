@@ -41,14 +41,13 @@ func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client,
 	if cfg.Initializer.WorkspaceAuthEnabled {
 		subroutines = append(subroutines, subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, mgr, cfg))
 	}
-	// RemoveInitializer is always included - it's the final cleanup step
-	subroutines = append(subroutines, subroutine.NewRemoveInitializer(mgr, cfg))
 
 	return &OrgLogicalClusterReconciler{
 		log: log,
 		mclifecycle: builder.NewBuilder("logicalcluster", "OrgLogicalClusterReconciler", subroutines, log).
 			WithReadOnly().
 			WithStaticThenExponentialRateLimiter().
+			WithInitializer(cfg.InitializerName()).
 			BuildMultiCluster(mgr),
 	}
 }

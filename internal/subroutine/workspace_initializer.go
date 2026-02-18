@@ -47,7 +47,10 @@ func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mc
 	}
 }
 
-var _ lifecyclesubroutine.Subroutine = &workspaceInitializer{}
+var (
+	_ lifecyclesubroutine.Subroutine  = &workspaceInitializer{}
+	_ lifecyclesubroutine.Initializer = &workspaceInitializer{}
+)
 
 type workspaceInitializer struct {
 	orgsClient      client.Client
@@ -71,7 +74,14 @@ func (w *workspaceInitializer) Finalizers(_ runtimeobject.RuntimeObject) []strin
 
 func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" }
 
+// Process implements lifecycle.Subroutine as no-op since Initialize handles the
+// work.
 func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	return ctrl.Result{}, nil
+}
+
+// Initialize implements lifecycle.Initializer.
+func (w *workspaceInitializer) Initialize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 	p := lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey]
 	if p == "" {

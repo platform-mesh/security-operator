@@ -31,7 +31,10 @@ func NewInviteSubroutine(orgsClient client.Client, mgr mcmanager.Manager) *invit
 	}
 }
 
-var _ lifecyclesubroutine.Subroutine = &inviteSubroutine{}
+var (
+	_ lifecyclesubroutine.Subroutine  = &inviteSubroutine{}
+	_ lifecyclesubroutine.Initializer = &inviteSubroutine{}
+)
 
 type inviteSubroutine struct {
 	orgsClient client.Client
@@ -48,7 +51,14 @@ func (w *inviteSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
 
 func (w *inviteSubroutine) GetName() string { return "InviteInitilizationSubroutine" }
 
+// Process implements lifecycle.Subroutine as no-op since Initialize handles the
+// work.
 func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	return ctrl.Result{}, nil
+}
+
+// Initialize implements lifecycle.Initializer.
+func (w *inviteSubroutine) Initialize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 
 	wsName := getWorkspaceName(lc)
