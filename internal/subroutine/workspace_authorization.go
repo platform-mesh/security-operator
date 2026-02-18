@@ -13,7 +13,6 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	corev1 "k8s.io/api/core/v1"
@@ -42,7 +41,10 @@ func NewWorkspaceAuthConfigurationSubroutine(orgClient, runtimeClient client.Cli
 	}
 }
 
-var _ lifecyclesubroutine.Subroutine = &workspaceAuthSubroutine{}
+var (
+	_ lifecyclesubroutine.Subroutine  = &workspaceAuthSubroutine{}
+	_ lifecyclesubroutine.Initializer = &workspaceAuthSubroutine{}
+)
 
 func (r *workspaceAuthSubroutine) GetName() string { return "workspaceAuthConfiguration" }
 
@@ -50,11 +52,18 @@ func (r *workspaceAuthSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []st
 	return []string{}
 }
 
-func (r *workspaceAuthSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
-	return reconcile.Result{}, nil
+func (r *workspaceAuthSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	return ctrl.Result{}, nil
 }
 
-func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+// Process implements lifecycle.Subroutine as no-op since Initialize handles the
+// work.
+func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	return ctrl.Result{}, nil
+}
+
+// Initialize implements lifecycle.Initializer.
+func (r *workspaceAuthSubroutine) Initialize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)
@@ -66,33 +75,33 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 	if r.cfg.DomainCALookup {
 		err := r.runtimeClient.Get(ctx, client.ObjectKey{Name: "domain-certificate-ca", Namespace: "platform-mesh-system"}, &domainCASecret)
 		if err != nil {
-			return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get domain CA secret: %w", err), true, false)
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get domain CA secret: %w", err), true, false)
 		}
 	}
 
 	cluster, err := r.mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context %w", err), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context %w", err), true, true)
 	}
 
 	var idpConfig v1alpha1.IdentityProviderConfiguration
 	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: workspaceName}, &idpConfig)
 	if err != nil {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get IdentityProviderConfiguration: %w", err), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get IdentityProviderConfiguration: %w", err), true, true)
 	}
 
 	if len(idpConfig.Spec.Clients) == 0 || len(idpConfig.Status.ManagedClients) == 0 {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("IdentityProviderConfiguration %s has no clients in spec or status", workspaceName), true, false)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("IdentityProviderConfiguration %s has no clients in spec or status", workspaceName), true, false)
 	}
 
 	audiences := make([]string, 0, len(idpConfig.Spec.Clients))
 	for _, specClient := range idpConfig.Spec.Clients {
 		managedClient, ok := idpConfig.Status.ManagedClients[specClient.ClientName]
 		if !ok {
-			return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("managed client %s not found in IdentityProviderConfiguration status", specClient.ClientName), true, false)
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("managed client %s not found in IdentityProviderConfiguration status", specClient.ClientName), true, false)
 		}
 		if managedClient.ClientID == "" {
-			return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("managed client %s has empty ClientID in IdentityProviderConfiguration status", specClient.ClientName), true, false)
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("managed client %s has empty ClientID in IdentityProviderConfiguration status", specClient.ClientName), true, false)
 		}
 		audiences = append(audiences, managedClient.ClientID)
 	}
@@ -146,12 +155,12 @@ func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeo
 		return nil
 	})
 	if err != nil {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err), true, true)
 	}
 
 	err = r.patchWorkspaceTypes(ctx, r.orgClient, workspaceName)
 	if err != nil {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch workspace types: %w", err), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch workspace types: %w", err), true, true)
 	}
 
 	return ctrl.Result{}, nil

@@ -48,7 +48,10 @@ func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg confi
 	}
 }
 
-var _ lifecyclesubroutine.Subroutine = &IDPSubroutine{}
+var (
+	_ lifecyclesubroutine.Subroutine  = &IDPSubroutine{}
+	_ lifecyclesubroutine.Initializer = &IDPSubroutine{}
+)
 
 type IDPSubroutine struct {
 	orgsClient                client.Client
@@ -70,7 +73,14 @@ func (i *IDPSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
 
 func (i *IDPSubroutine) GetName() string { return "IDPSubroutine" }
 
+// Process implements lifecycle.Subroutine as no-op since Initialize handles the
+// work.
 func (i *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	return ctrl.Result{}, nil
+}
+
+// Initialize implements lifecycle.Initializer.
+func (i *IDPSubroutine) Initialize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)

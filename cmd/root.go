@@ -32,6 +32,7 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(initializerCmd)
+	rootCmd.AddCommand(terminatorCmd)
 	rootCmd.AddCommand(operatorCmd)
 	rootCmd.AddCommand(modelGeneratorCmd)
 	rootCmd.AddCommand(initContainerCmd)

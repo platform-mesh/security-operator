@@ -70,7 +70,7 @@ func TestTupleProcessWithStore(t *testing.T) {
 				},
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
-				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil).Times(3)
+				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil)
 			},
 		},
 		{
@@ -108,11 +108,8 @@ func TestTupleProcessWithStore(t *testing.T) {
 				},
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
-				// write calls
-				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil).Times(3)
-
-				// delete call
-				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil)
+				// Apply (batch write) + Delete (batch delete)
+				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil).Twice()
 			},
 		},
 		{
@@ -223,7 +220,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				},
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
-				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil).Times(3)
+				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil)
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
 				// Not used for AuthorizationModel
@@ -287,11 +284,8 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				},
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
-				// write calls
-				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil).Times(3)
-
-				// delete call
-				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil)
+				// Apply (batch write) + Delete (batch delete)
+				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil).Twice()
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
 				// Not used for AuthorizationModel
