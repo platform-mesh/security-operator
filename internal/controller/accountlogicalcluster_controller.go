@@ -33,11 +33,11 @@ func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, f
 		log: log,
 		mclifecycle: builder.NewBuilder("security", "AccountLogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
 			subroutine.NewAccountTuplesSubroutine(mcc, mgr, fga, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType),
-			subroutine.NewRemoveInitializer(mgr, cfg),
 		}, log).
 			WithReadOnly().
 			WithStaticThenExponentialRateLimiter().
 			WithInitializer(cfg.InitializerName()).
+			WithTerminator(cfg.TerminatorName()).
 			BuildMultiCluster(mgr),
 	}
 }
