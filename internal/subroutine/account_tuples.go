@@ -136,7 +136,7 @@ func AccountAndInfoForLogicalCluster(ctx context.Context, mgr mcmanager.Manager,
 	}, &ai); err != nil && !kerrors.IsNotFound(err) {
 		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err), true, true)
 	} else if kerrors.IsNotFound(err) {
-		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("AccountInfo not found yet, requeueing"), true, false)
+		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("AccountInfo not found"), true, true)
 	}
 
 	// The actual Account resource belonging to the Workspace needs to be
