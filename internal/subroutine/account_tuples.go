@@ -18,7 +18,7 @@ import (
 )
 
 // AccountTuplesSubroutine creates FGA tuples for Accounts not of the
-// "org"-type.
+// "org"-type when initializing, and deletes them when terminating.
 type AccountTuplesSubroutine struct {
 	mgr mcmanager.Manager
 	mcc mcclient.ClusterClient
@@ -29,8 +29,14 @@ type AccountTuplesSubroutine struct {
 	creatorRelation string
 }
 
-// Process implements lifecycle.Subroutine.
+// Process implements lifecycle.Subroutine as no-op since Initialize handles the
+// work when not in deletion.
 func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	return ctrl.Result{}, nil
+}
+
+// Initialize implements lifecycle.Initializer.
+func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 	acc, ai, opErr := AccountAndInfoForLogicalCluster(ctx, s.mgr, lc)
 	if opErr != nil {
@@ -44,6 +50,26 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 	}
 	if err := fga.NewTupleManager(s.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx)).Apply(ctx, tuples); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("applying tuples for Account: %w", err), true, true)
+	}
+
+	return ctrl.Result{}, nil
+}
+
+// Terminate implements lifecycle.Terminator.
+func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
+	acc, ai, opErr := AccountAndInfoForLogicalCluster(ctx, s.mgr, lc)
+	if opErr != nil {
+		return ctrl.Result{}, opErr
+	}
+
+	// Delete the corresponding tuples in OpenFGA.
+	tuples, err := fga.TuplesForAccount(acc, ai, s.creatorRelation, s.parentRelation, s.objectType)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for account: %w", err), true, true)
+	}
+	if err := fga.NewTupleManager(s.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx)).Delete(ctx, tuples); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("deleting tuples for Account: %w", err), true, true)
 	}
 
 	return ctrl.Result{}, nil
@@ -73,4 +99,8 @@ func NewAccountTuplesSubroutine(mcc mcclient.ClusterClient, mgr mcmanager.Manage
 	}
 }
 
-var _ lifecyclesubroutine.Subroutine = &AccountTuplesSubroutine{}
+var (
+	_ lifecyclesubroutine.Subroutine   = &AccountTuplesSubroutine{}
+	_ lifecyclesubroutine.Initializer  = &AccountTuplesSubroutine{}
+	_ lifecyclesubroutine.Terminator   = &AccountTuplesSubroutine{}
+)

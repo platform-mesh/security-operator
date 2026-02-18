@@ -37,6 +37,7 @@ func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, f
 		}, log).
 			WithReadOnly().
 			WithStaticThenExponentialRateLimiter().
+			WithInitializer(cfg.InitializerName()).
 			BuildMultiCluster(mgr),
 	}
 }

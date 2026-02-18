@@ -33,12 +33,11 @@ func NewAccountLogicalClusterTerminator(log *logger.Logger, cfg config.Config, f
 	return &AccountLogicalClusterTerminator{
 		log: log,
 		mclifecycle: builder.NewBuilder("security", "AccountLogicalClusterTerminator", []lifecyclesubroutine.Subroutine{
-			// Order will be reversed in the lifecycle manager
-			subroutine.NewRemoveTerminator(mgr, cfg),
-			subroutine.NewAccountTuplesTerminatorSubroutine(mcc, mgr, fga, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType),
+			subroutine.NewAccountTuplesSubroutine(mcc, mgr, fga, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType),
 		}, log).
 			WithReadOnly().
 			WithStaticThenExponentialRateLimiter().
+			WithTerminator(cfg.TerminatorName()).
 			BuildMultiCluster(mgr),
 	}
 }
