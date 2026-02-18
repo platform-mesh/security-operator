@@ -10,7 +10,6 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
-	"github.com/platform-mesh/golang-commons/logger"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -40,10 +39,13 @@ func (s *RemoveTerminatorSubroutine) Finalizers(_ runtimeobject.RuntimeObject) [
 func (s *RemoveTerminatorSubroutine) GetName() string { return "RemoveTerminator" }
 
 // Process implements subroutine.Subroutine.
-func (s *RemoveTerminatorSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (s *RemoveTerminatorSubroutine) Process(_ context.Context, _ runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	return ctrl.Result{}, nil
+}
+
+// Terminate implements subroutine.Terminator.
+func (s *RemoveTerminatorSubroutine) Terminate(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := *(instance.(*kcpcorev1alpha1.LogicalCluster))
-	log := logger.LoadLoggerFromContext(ctx)
-	log.Info().Any("logicalcluster", instance).Msg("Running Process in Terminator")
 
 	lcID, ok := mccontext.ClusterFrom(ctx)
 	if !ok {
@@ -75,3 +77,4 @@ func NewRemoveTerminator(mgr mcmanager.Manager, cfg config.Config) *RemoveTermin
 }
 
 var _ subroutine.Subroutine = &RemoveTerminatorSubroutine{}
+var _ subroutine.Terminator = &RemoveTerminatorSubroutine{}

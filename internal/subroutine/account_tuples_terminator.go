@@ -30,7 +30,12 @@ type AccountTuplesTerminatorSubroutine struct {
 }
 
 // Process implements lifecycle.Subroutine.
-func (s *AccountTuplesTerminatorSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (s *AccountTuplesTerminatorSubroutine) Process(_ context.Context, _ runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+	return ctrl.Result{}, nil
+}
+
+// Terminate implements lifecycle.Terminator.
+func (s *AccountTuplesTerminatorSubroutine) Terminate(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 	acc, ai, opErr := AccountAndInfoForLogicalCluster(ctx, s.mgr, lc)
 	if opErr != nil {
@@ -77,3 +82,4 @@ func NewAccountTuplesTerminatorSubroutine(mcc mcclient.ClusterClient, mgr mcmana
 }
 
 var _ lifecyclesubroutine.Subroutine = &AccountTuplesTerminatorSubroutine{}
+var _ lifecyclesubroutine.Terminator = &AccountTuplesTerminatorSubroutine{}
