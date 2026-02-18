@@ -5,9 +5,12 @@ import (
 	"os"
 	"strings"
 
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/terminatingworkspaces"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/controller"
@@ -103,7 +106,14 @@ var terminatorCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if err := controller.NewAccountLogicalClusterTerminator(log, terminatorCfg, mcc, mgr).
+		conn, err := grpc.NewClient(terminatorCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Error().Err(err).Msg("unable to create grpc client")
+			os.Exit(1)
+		}
+		fga := openfgav1.NewOpenFGAServiceClient(conn)
+
+		if err := controller.NewAccountLogicalClusterTerminator(log, terminatorCfg, fga, mcc, mgr).
 			SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
 			log.Error().Err(err).Msg("Unable to create AccountLogicalClusterTerminator")
 			os.Exit(1)

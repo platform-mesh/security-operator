@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
@@ -28,11 +29,11 @@ type AccountLogicalClusterTerminator struct {
 }
 
 // NewAccountLogicalClusterTerminator returns a new AccountLogicalClusterTerminator.
-func NewAccountLogicalClusterTerminator(log *logger.Logger, cfg config.Config, mcc mcclient.ClusterClient, mgr mcmanager.Manager) *AccountLogicalClusterTerminator {
+func NewAccountLogicalClusterTerminator(log *logger.Logger, cfg config.Config, fga openfgav1.OpenFGAServiceClient, mcc mcclient.ClusterClient, mgr mcmanager.Manager) *AccountLogicalClusterTerminator {
 	return &AccountLogicalClusterTerminator{
 		log: log,
 		mclifecycle: builder.NewBuilder("security", "AccountLogicalClusterTerminator", []lifecyclesubroutine.Subroutine{
-			subroutine.NewAccountTuplesTerminatorSubroutine(mcc, mgr),
+			subroutine.NewAccountTuplesTerminatorSubroutine(mcc, mgr, fga, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType),
 			subroutine.NewRemoveTerminator(mgr, cfg),
 		}, log).
 			WithReadOnly().
