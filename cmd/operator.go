@@ -12,6 +12,7 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/golang-commons/sentry"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -154,7 +155,7 @@ var operatorCmd = &cobra.Command{
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-		if err = controller.NewStoreReconciler(log, fga, mgr).
+		if err = controller.NewStoreReconciler(ctx, log, fga, mgr).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
 			return err
@@ -199,7 +200,7 @@ var operatorCmd = &cobra.Command{
 
 // this function can be removed after the operator has migrated the authz models in all environments
 func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme *runtime.Scheme, getClusterClient NewLogicalClusterClientFunc) error {
-	allClient, err := controller.GetAllClient(config, scheme)
+	allClient, err := iclient.NewForAllPlatformMeshResources(ctx, config, scheme)
 	if err != nil {
 		return fmt.Errorf("failed to create all-cluster client: %w", err)
 	}

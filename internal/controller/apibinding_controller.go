@@ -9,6 +9,7 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/rs/zerolog/log"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -76,8 +77,8 @@ func GetAllClient(config *rest.Config, schema *runtime.Scheme) (client.Client, e
 	return allClient, nil
 }
 
-func NewAPIBindingReconciler(logger *logger.Logger, mcMgr mcmanager.Manager) *APIBindingReconciler {
-	allclient, err := GetAllClient(mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme())
+func NewAPIBindingReconciler(ctx context.Context, logger *logger.Logger, mcMgr mcmanager.Manager) *APIBindingReconciler {
+	allclient, err := iclient.NewForAllPlatformMeshResources(ctx, mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme())
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create new client")
 	}
