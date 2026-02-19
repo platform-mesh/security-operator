@@ -90,11 +90,7 @@ var terminatorCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		virtualWorkspaceCfg := rest.CopyConfig(kcpCfg)
-		virtualWorkspaceCfg.Host = wt.Status.VirtualWorkspaces[0].URL
-		log.Info().Msgf("Created config with %s host", virtualWorkspaceCfg.Host)
-
-		provider, err := terminatingworkspaces.New(kcpCfg, initializerCfg.WorkspaceTypeName,
+		provider, err := terminatingworkspaces.New(kcpCfg, terminatorCfg.WorkspaceTypeName,
 			terminatingworkspaces.Options{
 				Scheme: mgrOpts.Scheme,
 			},
