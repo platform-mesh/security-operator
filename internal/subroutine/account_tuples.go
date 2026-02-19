@@ -15,6 +15,7 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
@@ -23,6 +24,8 @@ import (
 	kcpcore "github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
+
+const accountTuplesTerminatorFinalizer = "core.platform-mesh.io/account-tuples-terminator"
 
 // AccountTuplesSubroutine creates FGA tuples for Accounts not of the
 // "org"-type when initializing, and deletes them when terminating.
@@ -48,6 +51,22 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, instance runti
 	acc, ai, opErr := AccountAndInfoForLogicalCluster(ctx, s.mgr, lc)
 	if opErr != nil {
 		return ctrl.Result{}, opErr
+	}
+
+	if updated := controllerutil.AddFinalizer(&ai, accountTuplesTerminatorFinalizer); updated {
+		lcID, ok := mccontext.ClusterFrom(ctx)
+		if !ok {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("cluster name not found in context"), true, true)
+		}
+
+		lcClient, err := iclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(lcID))
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting client: %w", err), true, true)
+		}
+
+		if err := lcClient.Update(ctx, &ai); err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating AccountInfo to set finalizer: %w", err), true, true)
+		}
 	}
 
 	// Ensure the necessary tuples in OpenFGA.
@@ -77,6 +96,22 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtim
 	}
 	if err := fga.NewTupleManager(s.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx)).Delete(ctx, tuples); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("deleting tuples for Account: %w", err), true, true)
+	}
+
+	if updated := controllerutil.RemoveFinalizer(&ai, accountTuplesTerminatorFinalizer); updated {
+		lcID, ok := mccontext.ClusterFrom(ctx)
+		if !ok {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("cluster name not found in context"), true, true)
+		}
+
+		lcClient, err := iclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(lcID))
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting client: %w", err), true, true)
+		}
+
+		if err := lcClient.Update(ctx, &ai); err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating AccountInfo to remove finalizer: %w", err), true, true)
+		}
 	}
 
 	return ctrl.Result{}, nil
