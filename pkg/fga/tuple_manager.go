@@ -20,6 +20,8 @@ type TupleManager struct {
 	logger               logger.Logger
 }
 
+type TupleFilter func(t v1alpha1.Tuple) bool
+
 func NewTupleManager(client openfgav1.OpenFGAServiceClient, storeID, authorizationModelID string, log *logger.Logger) *TupleManager {
 	return &TupleManager{
 		client:               client,
@@ -91,4 +93,42 @@ func (m *TupleManager) Delete(ctx context.Context, tuples []v1alpha1.Tuple) erro
 
 	m.logger.Debug().Int("count", len(tuples)).Msg("Deleted tuples")
 	return nil
+}
+
+// ListWithFilter gets all tuples in the store and returns a list of all tuples
+// that match the given filter.
+func (m *TupleManager) ListWithFilter(ctx context.Context, filter TupleFilter) ([]v1alpha1.Tuple, error) {
+	var result []v1alpha1.Tuple
+	var continuationToken string
+	for {
+		resp, err := m.client.Read(ctx, &openfgav1.ReadRequest{
+			StoreId:           m.storeID,
+			TupleKey:          nil, // nil returns all tuples
+			ContinuationToken: continuationToken,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, t := range resp.Tuples {
+			if t.Key == nil {
+				continue
+			}
+			tuple := v1alpha1.Tuple{
+				Object:   t.Key.Object,
+				Relation: t.Key.Relation,
+				User:     t.Key.User,
+			}
+			if filter(tuple) {
+				result = append(result, tuple)
+			}
+		}
+
+		continuationToken = resp.ContinuationToken
+		if continuationToken == "" {
+			break
+		}
+	}
+
+	return result, nil
 }

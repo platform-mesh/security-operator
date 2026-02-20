@@ -70,7 +70,7 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, instance runti
 	}
 
 	// Ensure the necessary tuples in OpenFGA.
-	tuples, err := fga.TuplesForAccount(acc, ai, s.creatorRelation, s.parentRelation, s.objectType)
+	tuples, err := fga.InitialTuplesForAccount(acc, ai, s.creatorRelation, s.parentRelation, s.objectType)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for account: %w", err), true, true)
 	}
@@ -90,11 +90,13 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtim
 	}
 
 	// Delete the corresponding tuples in OpenFGA.
-	tuples, err := fga.TuplesForAccount(acc, ai, s.creatorRelation, s.parentRelation, s.objectType)
+	tm := fga.NewTupleManager(s.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx))
+	tuples, err := tm.ListWithFilter(ctx, fga.IsTupleOfAccountFilter(acc))
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for account: %w", err), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("listing Tuples for Account: %w", err), true, true)
 	}
-	if err := fga.NewTupleManager(s.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx)).Delete(ctx, tuples); err != nil {
+
+	if err := tm.Delete(ctx, tuples); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("deleting tuples for Account: %w", err), true, true)
 	}
 

@@ -9,8 +9,9 @@ import (
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
-// TuplesForAccount returns FGA tuples for an account not of type organization.
-func TuplesForAccount(acc accountv1alpha1.Account, ai accountv1alpha1.AccountInfo, creatorRelation, parentRelation, objectType string) ([]v1alpha1.Tuple, error) {
+// InitialTuplesForAccount returns FGA tuples for an account not of type
+// organization.
+func InitialTuplesForAccount(acc accountv1alpha1.Account, ai accountv1alpha1.AccountInfo, creatorRelation, parentRelation, objectType string) ([]v1alpha1.Tuple, error) {
 	base, err := baseTuples(acc, ai, creatorRelation, objectType)
 	if err != nil {
 		return nil, err
@@ -26,6 +27,17 @@ func TuplesForAccount(acc accountv1alpha1.Account, ai accountv1alpha1.AccountInf
 // TuplesForOrganization returns FGA tuples for an Account of type organization.
 func TuplesForOrganization(acc accountv1alpha1.Account, ai accountv1alpha1.AccountInfo, creatorRelation, objectType string) ([]v1alpha1.Tuple, error) {
 	return baseTuples(acc, ai, creatorRelation, objectType)
+}
+
+// IsTupleOfAccountFilter returns a filter determining whether a tuple is tied
+// to the given account. A tuple is considered to belong to an account if its
+// Object or User references the account (e.g. "type:cluster/name" or
+// "role:type/cluster/name/owner").
+func IsTupleOfAccountFilter(acc accountv1alpha1.Account) TupleFilter {
+	return func(t v1alpha1.Tuple) bool {
+		return strings.Contains(t.Object, "/"+acc.Name) || strings.Contains(t.Object, acc.Name+"/") ||
+			strings.Contains(t.User, "/"+acc.Name) || strings.Contains(t.User, acc.Name+"/")
+	}
 }
 
 func baseTuples(acc accountv1alpha1.Account, ai accountv1alpha1.AccountInfo, creatorRelation, objectType string) ([]v1alpha1.Tuple, error) {
