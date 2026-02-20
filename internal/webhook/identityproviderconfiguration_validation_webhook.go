@@ -16,7 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
@@ -58,7 +57,7 @@ func (v *identityProviderConfigurationValidator) ValidateCreate(ctx context.Cont
 	if realmName == "master" {
 		return nil, fmt.Errorf("creation of IdentityProviderConfiguration for realm 'master' is not allowed")
 	}
-	if isRealmDenied(realmName, v.realmDenyList) {
+	if slices.Contains(v.realmDenyList, realmName) {
 		return nil, fmt.Errorf("creation of IdentityProviderConfiguration for realm %q is not allowed", realmName)
 	}
 
@@ -71,16 +70,6 @@ func (v *identityProviderConfigurationValidator) ValidateCreate(ctx context.Cont
 	}
 
 	return nil, nil
-}
-
-func isRealmDenied(realmName string, denyList []string) bool {
-	for _, forbidden := range denyList {
-		if strings.EqualFold(realmName, strings.TrimSpace(forbidden)) {
-			return true
-		}
-	}
-
-	return false
 }
 
 func (v *identityProviderConfigurationValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
@@ -110,11 +99,6 @@ func newKeycloakAdminClient(ctx context.Context, cfg *config.Config) (*keycloak.
 	// Use the master realm for admin endpoint access.
 	adminClient := keycloak.NewAdminClient(adminHTTPClient, cfg.Invite.KeycloakBaseURL, "master")
 	adminHTTPClient.Transport = clientreg.NewRetryTransport(adminHTTPClient.Transport, adminClient)
-
-	_, err = adminClient.RealmExists(ctx, "master")
-	if err != nil {
-		return nil, kerrors.NewInternalError(fmt.Errorf("failed to reach keycloak admin API: %w", err))
-	}
 
 	return adminClient, nil
 }
