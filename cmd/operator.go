@@ -13,6 +13,7 @@ import (
 	"github.com/platform-mesh/golang-commons/sentry"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/controller"
+	internalwebhook "github.com/platform-mesh/security-operator/internal/webhook"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -20,6 +21,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -96,6 +98,17 @@ var operatorCmd = &cobra.Command{
 			defer platformeshcontext.Recover(log)
 		}
 
+		webhookServer := webhook.NewServer(webhook.Options{
+			TLSOpts: []func(*tls.Config){
+				func(c *tls.Config) {
+					log.Info().Msg("disabling http/2")
+					c.NextProtos = []string{"http/1.1"}
+				},
+			},
+			CertDir: operatorCfg.Webhooks.CertDir,
+			Port:    operatorCfg.Webhooks.Port,
+		})
+
 		mgrOpts := ctrl.Options{
 			Scheme: scheme,
 			Metrics: metricsserver.Options{
@@ -111,6 +124,7 @@ var operatorCmd = &cobra.Command{
 			LeaderElection:         defaultCfg.LeaderElection.Enabled,
 			LeaderElectionID:       "security-operator.platform-mesh.io",
 			BaseContext:            func() context.Context { return ctx },
+			WebhookServer:          webhookServer,
 		}
 		if defaultCfg.LeaderElection.Enabled {
 			inClusterCfg, err := rest.InClusterConfig()
@@ -176,6 +190,14 @@ var operatorCmd = &cobra.Command{
 		if err = controller.NewAccountInfoReconciler(log, mgr).SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "accountinfo").Msg("unable to create controller")
 			return err
+		}
+
+		if operatorCfg.Webhooks.Enabled {
+			log.Info().Msg("validating webhooks are enabled")
+			if err := internalwebhook.SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx, mgr.GetLocalManager(), &operatorCfg); err != nil {
+				log.Error().Err(err).Str("webhook", "IdentityProviderConfiguration").Msg("unable to create webhook")
+				return err
+			}
 		}
 		// +kubebuilder:scaffold:builder
 

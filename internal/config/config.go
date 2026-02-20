@@ -6,6 +6,12 @@ type InviteConfig struct {
 	KeycloakClientSecret string `mapstructure:"invite-keycloak-client-secret"`
 }
 
+type WebhooksConfig struct {
+	Enabled bool   `mapstructure:"webhooks-enabled" default:"false"`
+	Port    int    `mapstructure:"webhooks-port" default:"9443"`
+	CertDir string `mapstructure:"webhooks-cert-dir" default:"/tmp/k8s-webhook-server/serving-certs"`
+}
+
 type InitializerConfig struct {
 	WorkspaceInitializerEnabled bool `mapstructure:"initializer-workspace-enabled" default:"true"`
 	IDPEnabled                  bool `mapstructure:"initializer-idp-enabled" default:"true"`
@@ -35,6 +41,8 @@ type Config struct {
 	SetDefaultPassword               bool   `mapstructure:"set-default-password" default:"false"`
 	AllowMemberTuplesEnabled         bool   `mapstructure:"allow-member-tuples-enabled" default:"false"`
 	IDP                              struct {
+		RealmDenyList []string `mapstructure:"idp-realm-deny-list"`
+
 		// SMTP settings
 		SMTPServer  string `mapstructure:"idp-smtp-server"`
 		SMTPPort    int    `mapstructure:"idp-smtp-port"`
@@ -56,6 +64,7 @@ type Config struct {
 	} `mapstructure:",squash"`
 	Invite      InviteConfig      `mapstructure:",squash"`
 	Initializer InitializerConfig `mapstructure:",squash"`
+	Webhooks    WebhooksConfig    `mapstructure:",squash"`
 }
 
 func (config Config) InitializerName() string {
