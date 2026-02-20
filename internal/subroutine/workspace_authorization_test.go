@@ -23,7 +23,7 @@ import (
 	kcptenancyv1alphav1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
-func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
+func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 	tests := []struct {
 		name           string
 		logicalCluster *kcpcorev1alpha1.LogicalCluster
@@ -640,7 +640,7 @@ func TestWorkspaceAuthSubroutine_Process(t *testing.T) {
 
 			subroutine := NewWorkspaceAuthConfigurationSubroutine(mockClient, mockClient, mgr, tt.cfg)
 
-			result, opErr := subroutine.Process(context.Background(), tt.logicalCluster)
+			result, opErr := subroutine.Initialize(context.Background(), tt.logicalCluster)
 
 			if tt.expectError {
 				assert.NotNil(t, opErr)

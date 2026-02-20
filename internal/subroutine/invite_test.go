@@ -64,7 +64,7 @@ func TestInviteSubroutine_Finalize(t *testing.T) {
 	assert.Equal(t, ctrl.Result{}, result)
 }
 
-func TestInviteSubroutine_Process(t *testing.T) {
+func TestInviteSubroutine_Initialize(t *testing.T) {
 	tests := []struct {
 		name           string
 		setupMocks     func(*mocks.MockClient, *mocks.MockManager, *mocks.MockCluster)
@@ -232,7 +232,7 @@ func TestInviteSubroutine_Process(t *testing.T) {
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			result, opErr := subroutine.Process(ctx, tt.lc)
+			result, opErr := subroutine.Initialize(ctx, tt.lc)
 
 			if tt.expectedErr {
 				assert.NotNil(t, opErr)
