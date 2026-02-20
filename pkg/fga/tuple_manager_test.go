@@ -3,9 +3,11 @@ package fga
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
+	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
@@ -13,6 +15,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestTupleManager_Apply(t *testing.T) {
@@ -174,4 +177,103 @@ func TestTupleManager_Delete_verifies_tuple_contents(t *testing.T) {
 		(keys[1].Object == "doc:1" && keys[1].Relation == "viewer" && keys[1].User == "user:alice"))
 	assert.True(t, (keys[0].Object == "doc:2" && keys[0].Relation == "owner" && keys[0].User == "user:bob") ||
 		(keys[1].Object == "doc:2" && keys[1].Relation == "owner" && keys[1].User == "user:bob"))
+}
+
+func TestIsTupleOfAccountFilter_deleteRemovesGeneratedTuples(t *testing.T) {
+	acc, ai := testAccountAndInfo("test-account", "cluster-id")
+	accountTuples, err := InitialTuplesForAccount(acc, ai, "creator", "parent", "account")
+	require.NoError(t, err)
+
+	// Tuples for a second account (should NOT be deleted when we delete test-account's tuples)
+	acc2, ai2 := testAccountAndInfo("other-account", "cluster-id")
+	otherTuples, err := InitialTuplesForAccount(acc2, ai2, "creator", "parent", "account")
+	require.NoError(t, err)
+
+	// allTuples: database managed by mocks (Write appends/deletes, Read returns current state)
+	allTuples := make([]v1alpha1.Tuple, 0)
+
+	client := mocks.NewMockOpenFGAServiceClient(t)
+	log := testlogger.New()
+	mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
+
+	client.EXPECT().Write(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, req *openfgav1.WriteRequest, opts ...grpc.CallOption) (*openfgav1.WriteResponse, error) {
+		if req.Writes != nil {
+			for _, k := range req.Writes.TupleKeys {
+				allTuples = append(allTuples, v1alpha1.Tuple{
+					Object: k.Object, Relation: k.Relation, User: k.User,
+				})
+			}
+		}
+		if req.Deletes != nil {
+			for _, k := range req.Deletes.TupleKeys {
+				allTuples = slices.DeleteFunc(allTuples, func(t v1alpha1.Tuple) bool {
+					return t.Object == k.Object && t.Relation == k.Relation && t.User == k.User
+				})
+			}
+		}
+		return &openfgav1.WriteResponse{}, nil
+	})
+
+	client.EXPECT().Read(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, req *openfgav1.ReadRequest, opts ...grpc.CallOption) (*openfgav1.ReadResponse, error) {
+		return &openfgav1.ReadResponse{Tuples: tuplesToOpenFGA(allTuples)}, nil
+	})
+
+	// 1. Apply: populate store with account + other tuples
+	tuplesToApply := append(accountTuples, otherTuples...)
+	err = mgr.Apply(context.Background(), tuplesToApply)
+	require.NoError(t, err)
+	require.Len(t, allTuples, len(tuplesToApply), "database should contain all applied tuples")
+
+	// 2. ListWithFilter: should return only account tuples
+	filtered, err := mgr.ListWithFilter(context.Background(), IsTupleOfAccountFilter(acc))
+	require.NoError(t, err)
+	require.Len(t, filtered, len(accountTuples), "filter should return only account tuples")
+
+	// 3. Delete: remove filtered (account) tuples from store
+	err = mgr.Delete(context.Background(), filtered)
+	require.NoError(t, err)
+
+	// 4. Verify database: only otherTuples remain
+	require.Len(t, allTuples, len(otherTuples), "database should only contain non-account tuples after delete")
+	for _, tpl := range allTuples {
+		assert.False(t, slices.Contains(accountTuples, tpl), "account tuple %s should have been deleted", tpl.Object)
+	}
+}
+
+func testAccountAndInfo(accountName, clusterID string) (accountv1alpha1.Account, accountv1alpha1.AccountInfo) {
+	creator := "user:alice"
+	acc := accountv1alpha1.Account{
+		ObjectMeta: metav1.ObjectMeta{Name: accountName},
+		Spec: accountv1alpha1.AccountSpec{
+			Creator: &creator,
+		},
+	}
+	ai := accountv1alpha1.AccountInfo{
+		ObjectMeta: metav1.ObjectMeta{Name: "account"},
+		Spec: accountv1alpha1.AccountInfoSpec{
+			Account: accountv1alpha1.AccountLocation{
+				Name:            accountName,
+				OriginClusterId: clusterID,
+			},
+			ParentAccount: &accountv1alpha1.AccountLocation{
+				Name:            "parent-account",
+				OriginClusterId: clusterID,
+			},
+		},
+	}
+	return acc, ai
+}
+
+func tuplesToOpenFGA(tuples []v1alpha1.Tuple) []*openfgav1.Tuple {
+	out := make([]*openfgav1.Tuple, 0, len(tuples))
+	for _, t := range tuples {
+		out = append(out, &openfgav1.Tuple{
+			Key: &openfgav1.TupleKey{
+				Object:   t.Object,
+				Relation: t.Relation,
+				User:     t.User,
+			},
+		})
+	}
+	return out
 }
