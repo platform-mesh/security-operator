@@ -180,12 +180,13 @@ func TestTupleManager_Delete_verifies_tuple_contents(t *testing.T) {
 }
 
 func TestIsTupleOfAccountFilter_deleteRemovesGeneratedTuples(t *testing.T) {
-	acc, ai := testAccountAndInfo("test-account", "cluster-id")
+	// Use distinct GeneratedClusterIds so the filter matches only one account's tuples
+	acc, ai := testAccountAndInfo("test-account", "1mj722nrt4jo3ggn")
 	accountTuples, err := InitialTuplesForAccount(acc, ai, "creator", "parent", "account")
 	require.NoError(t, err)
 
 	// Tuples for a second account (should NOT be deleted when we delete test-account's tuples)
-	acc2, ai2 := testAccountAndInfo("other-account", "cluster-id")
+	acc2, ai2 := testAccountAndInfo("other-account", "1yrj2fwqtxcxbm1v")
 	otherTuples, err := InitialTuplesForAccount(acc2, ai2, "creator", "parent", "account")
 	require.NoError(t, err)
 
@@ -225,7 +226,7 @@ func TestIsTupleOfAccountFilter_deleteRemovesGeneratedTuples(t *testing.T) {
 	require.Len(t, allTuples, len(tuplesToApply), "database should contain all applied tuples")
 
 	// 2. ListWithFilter: should return only account tuples
-	filtered, err := mgr.ListWithFilter(context.Background(), IsTupleOfAccountFilter(acc))
+	filtered, err := mgr.ListWithFilter(context.Background(), IsTupleOfAccountFilter(ai))
 	require.NoError(t, err)
 	require.Len(t, filtered, len(accountTuples), "filter should return only account tuples")
 
@@ -252,8 +253,9 @@ func testAccountAndInfo(accountName, clusterID string) (accountv1alpha1.Account,
 		ObjectMeta: metav1.ObjectMeta{Name: "account"},
 		Spec: accountv1alpha1.AccountInfoSpec{
 			Account: accountv1alpha1.AccountLocation{
-				Name:            accountName,
-				OriginClusterId: clusterID,
+				Name:               accountName,
+				GeneratedClusterId: clusterID,
+				OriginClusterId:    clusterID,
 			},
 			ParentAccount: &accountv1alpha1.AccountLocation{
 				Name:            "parent-account",

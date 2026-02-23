@@ -30,11 +30,11 @@ func TuplesForOrganization(acc accountv1alpha1.Account, ai accountv1alpha1.Accou
 }
 
 // IsTupleOfAccountFilter returns a filter determining whether a tuple is tied
-// to the given account.
-func IsTupleOfAccountFilter(acc accountv1alpha1.Account) TupleFilter {
+// to the given account, i.e. contains its cluster id.
+func IsTupleOfAccountFilter(ai accountv1alpha1.AccountInfo) TupleFilter {
+	generatedClusterID := ai.Spec.Account.GeneratedClusterId
 	return func(t v1alpha1.Tuple) bool {
-		return strings.Contains(t.Object, "/"+acc.Name) || strings.Contains(t.Object, acc.Name+"/") ||
-			strings.Contains(t.User, "/"+acc.Name) || strings.Contains(t.User, acc.Name+"/")
+		return strings.Contains(t.Object, generatedClusterID) || strings.Contains(t.User, generatedClusterID)
 	}
 }
 

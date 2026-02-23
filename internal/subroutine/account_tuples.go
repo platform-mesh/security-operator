@@ -84,14 +84,14 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, instance runti
 // Terminate implements lifecycle.Terminator.
 func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
-	acc, ai, opErr := AccountAndInfoForLogicalCluster(ctx, s.mgr, lc)
+	_, ai, opErr := AccountAndInfoForLogicalCluster(ctx, s.mgr, lc)
 	if opErr != nil {
 		return ctrl.Result{}, opErr
 	}
 
 	// Delete the corresponding tuples in OpenFGA.
 	tm := fga.NewTupleManager(s.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx))
-	tuples, err := tm.ListWithFilter(ctx, fga.IsTupleOfAccountFilter(acc))
+	tuples, err := tm.ListWithFilter(ctx, fga.IsTupleOfAccountFilter(ai))
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("listing Tuples for Account: %w", err), true, true)
 	}
