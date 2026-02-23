@@ -59,7 +59,7 @@ func (m *TupleManager) Apply(ctx context.Context, tuples []v1alpha1.Tuple) error
 		return err
 	}
 
-	m.logger.Debug().Int("count", len(tuples)).Msg("Wrote tuples")
+	m.logger.Debug().Int("count", len(tuples)).Msg("Ensured tuples")
 	return nil
 }
 
