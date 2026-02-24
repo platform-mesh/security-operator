@@ -3,6 +3,7 @@ package subroutine
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
@@ -10,6 +11,7 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
+	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/pkg/fga"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
@@ -95,11 +97,20 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtim
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("listing tuples referencing Account: %w", err), true, true)
 	}
-	ownerReferenceTuples, err := tm.ListWithKey(ctx, fga.ReferencingOwnerRoleTupleKey(s.objectType, ai))
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("listing tuples referencing Account owner role: %w", err), true, true)
+	accountTuples := make([]v1alpha1.Tuple, 0, len(accountReferenceTuples)*2)
+	accountTuples = append(accountTuples, accountReferenceTuples...)
+
+	rolePrefix := fmt.Sprintf("role:%s/%s/%s/", s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name)
+	for _, t := range accountReferenceTuples {
+		if strings.HasPrefix(t.User, rolePrefix) {
+			role := strings.TrimSuffix(t.User, "#assignee")
+			roleReferences, err := tm.ListWithKey(ctx, &openfgav1.ReadRequestTupleKey{Object: role})
+			if err != nil {
+				return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("listing tuples for role %s: %w", role, err), true, true)
+			}
+			accountTuples = append(accountTuples, roleReferences...)
+		}
 	}
-	accountTuples := append(accountReferenceTuples, ownerReferenceTuples...)
 	if err := tm.Delete(ctx, accountTuples); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("deleting tuples for Account: %w", err), true, true)
 	}
