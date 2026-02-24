@@ -132,3 +132,38 @@ func (m *TupleManager) ListWithFilter(ctx context.Context, filter TupleFilter) (
 
 	return result, nil
 }
+
+// ListWithKey reads tuples from the store filtered by the given
+// ReadRequestTupleKey.
+func (m *TupleManager) ListWithKey(ctx context.Context, key *openfgav1.ReadRequestTupleKey) ([]v1alpha1.Tuple, error) {
+	var result []v1alpha1.Tuple
+	var continuationToken string
+	for {
+		resp, err := m.client.Read(ctx, &openfgav1.ReadRequest{
+			StoreId:           m.storeID,
+			TupleKey:          key,
+			ContinuationToken: continuationToken,
+		})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, t := range resp.Tuples {
+			if t.Key == nil {
+				continue
+			}
+			result = append(result, v1alpha1.Tuple{
+				Object:   t.Key.Object,
+				Relation: t.Key.Relation,
+				User:     t.Key.User,
+			})
+		}
+
+		continuationToken = resp.ContinuationToken
+		if continuationToken == "" {
+			break
+		}
+	}
+
+	return result, nil
+}
