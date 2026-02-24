@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 )
@@ -38,6 +39,21 @@ func IsTupleOfAccountFilter(ai accountv1alpha1.AccountInfo) TupleFilter {
 	}
 }
 
+// ReferencingAccountTupleKey returns a key that can be used to List tuples that
+// reference a given account.
+func ReferencingAccountTupleKey(objectType string, ai accountv1alpha1.AccountInfo) *openfgav1.ReadRequestTupleKey {
+	return &openfgav1.ReadRequestTupleKey{
+		Object: renderAccountEntity(objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
+	}
+}
+
+// ReferencingOwnerRoleTupleKey returns a key that can be used to List tuples
+// that reference the owner role of a given account.
+func ReferencingOwnerRoleTupleKey(objectType string, ai accountv1alpha1.AccountInfo) *openfgav1.ReadRequestTupleKey {
+	return &openfgav1.ReadRequestTupleKey{
+		Object: renderOwnerRole(objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
+	}
+}
 func baseTuples(acc accountv1alpha1.Account, ai accountv1alpha1.AccountInfo, creatorRelation, objectType string) ([]v1alpha1.Tuple, error) {
 	if acc.Spec.Creator == nil {
 		return nil, errors.New("account creator is nil")
