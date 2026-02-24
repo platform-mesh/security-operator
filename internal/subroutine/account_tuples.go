@@ -89,17 +89,22 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtim
 		return ctrl.Result{}, opErr
 	}
 
-	// Delete the corresponding tuples in OpenFGA.
+	// List and delete the corresponding tuples in OpenFGA.
 	tm := fga.NewTupleManager(s.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx))
-	tuples, err := tm.ListWithFilter(ctx, fga.IsTupleOfAccountFilter(ai))
+	accountReferenceTuples, err := tm.ListWithKey(ctx, fga.ReferencingAccountTupleKey(s.objectType, ai))
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("listing Tuples for Account: %w", err), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("listing tuples referencing Account: %w", err), true, true)
 	}
-
-	if err := tm.Delete(ctx, tuples); err != nil {
+	ownerReferenceTuples, err := tm.ListWithKey(ctx, fga.ReferencingOwnerRoleTupleKey(s.objectType, ai))
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("listing tuples referencing Account owner role: %w", err), true, true)
+	}
+	accountTuples := append(accountReferenceTuples, ownerReferenceTuples...)
+	if err := tm.Delete(ctx, accountTuples); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("deleting tuples for Account: %w", err), true, true)
 	}
 
+	// Remove finalizer from AccountInfo
 	if updated := controllerutil.RemoveFinalizer(&ai, accountTuplesTerminatorFinalizer); updated {
 		lcID, ok := mccontext.ClusterFrom(ctx)
 		if !ok {
