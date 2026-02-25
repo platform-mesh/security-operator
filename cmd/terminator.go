@@ -107,6 +107,7 @@ var terminatorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("unable to create grpc client")
 			os.Exit(1)
 		}
+		defer conn.Close()
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
 		if err := controller.NewAccountLogicalClusterReconciler(log, terminatorCfg, fga, mcc, mgr).

@@ -117,6 +117,7 @@ var initializerCmd = &cobra.Command{
 			log.Error().Err(err).Msg("unable to create grpc client")
 			return err
 		}
+		defer conn.Close()
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
 		mcc, err := mcclient.New(kcpCfg, client.Options{Scheme: scheme})
