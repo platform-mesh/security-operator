@@ -87,10 +87,16 @@ func renderCreatorUser(creator string) string {
 	return fmt.Sprintf("user:%s", formatUser(creator))
 }
 
+// RenderRolePrefix returns the prefix for role User strings that reference an
+// Account's roles (e.g. "role:objectType/originClusterID/name/").
+func RenderRolePrefix(objectType, originClusterID, name string) string {
+	return fmt.Sprintf("role:%s/%s/%s/", objectType, originClusterID, name)
+}
+
 func renderOwnerRole(objectType, originClusterID, name string) string {
-	return fmt.Sprintf("role:%s/%s/%s/owner", objectType, originClusterID, name)
+	return RenderRolePrefix(objectType, originClusterID, name) + "owner"
 }
 
 func renderOwnerRoleAssigneeGroup(objectType, originClusterID, name string) string {
-	return fmt.Sprintf("role:%s/%s/%s/owner#assignee", objectType, originClusterID, name)
+	return RenderRolePrefix(objectType, originClusterID, name) + "owner#assignee"
 }

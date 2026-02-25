@@ -100,8 +100,8 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtim
 	accountTuples := make([]v1alpha1.Tuple, 0, len(accountReferenceTuples)*2)
 	accountTuples = append(accountTuples, accountReferenceTuples...)
 
-	// From tuples referencing the account, parse potential roles specific to the acount.
-	rolePrefix := fmt.Sprintf("role:%s/%s/%s/", s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name)
+	// From tuples referencing the account, parse potential roles specific to the account.
+	rolePrefix := fga.RenderRolePrefix(s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name)
 	for _, t := range accountReferenceTuples {
 		if strings.HasPrefix(t.User, rolePrefix) {
 			role := strings.TrimSuffix(t.User, "#assignee")
