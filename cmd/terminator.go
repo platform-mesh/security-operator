@@ -86,7 +86,7 @@ var terminatorCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		if len(wt.Status.VirtualWorkspaces) == 0 {
-			log.Error().Err(err).Msgf("No VirtualWorkspaces found in WorkspaceType %s", terminatorCfg.WorkspaceTypeName)
+			log.Error().Msgf("No VirtualWorkspaces found in WorkspaceType %s", terminatorCfg.WorkspaceTypeName)
 			os.Exit(1)
 		}
 
