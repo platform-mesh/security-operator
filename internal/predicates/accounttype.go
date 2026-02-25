@@ -1,6 +1,7 @@
 package predicates
 
 import (
+	"fmt"
 	"strings"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -16,7 +17,10 @@ const kcpPathAnnotation = "kcp.io/path"
 // "root:orgs" cluster.
 func LogicalClusterIsAccountTypeOrg() predicate.Predicate {
 	return predicate.NewPredicateFuncs(func(object client.Object) bool {
-		lc := object.(*kcpcorev1alpha1.LogicalCluster)
+		lc, ok := object.(*kcpcorev1alpha1.LogicalCluster)
+		if !ok {
+			panic(fmt.Errorf("received non-LogicalCluster resource in LogicalClusterIsAccountTypeOrg predicate"))
+		}
 		p := lc.Annotations[kcpPathAnnotation]
 
 		parts := strings.Split(p, ":")
