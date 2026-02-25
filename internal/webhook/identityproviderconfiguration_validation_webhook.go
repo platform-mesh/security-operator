@@ -15,6 +15,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
+	mcruntime "sigs.k8s.io/multicluster-runtime"
 
 	"k8s.io/apimachinery/pkg/runtime"
 )
@@ -29,13 +30,13 @@ func SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx context.
 
 	realmDenyList := slices.Clone(cfg.IDP.RealmDenyList)
 
-	return ctrl.NewWebhookManagedBy(mgr).
+	return mcruntime.NewWebhookManagedBy(mgr).
 		For(&v1alpha1.IdentityProviderConfiguration{}).
 		WithValidator(&identityProviderConfigurationValidator{keycloakClient: keycloakClient, realmDenyList: realmDenyList}).
 		Complete()
 }
 
-var _ webhook.CustomValidator = (*identityProviderConfigurationValidator)(nil)
+var _ webhook.CustomValidator = (*identityProviderConfigurationValidator)(nil) // nolint:staticcheck
 var _ realmChecker = (*keycloak.AdminClient)(nil)
 
 type identityProviderConfigurationValidator struct {

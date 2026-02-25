@@ -118,8 +118,8 @@ tasks:
     cmds:
       - go run ./cmd/main.go operator
 
-  docker:kind:
-    desc: "Build container image with current tag from kind cluster and load it"
+  docker:kind:load:
+    desc: "Build container image with current tag from kind cluster and load it into kind"
     vars:
       CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME | default "docker"}}'
       KIND_CLUSTER: '{{.KIND_CLUSTER | default "platform-mesh"}}'
@@ -143,8 +143,30 @@ tasks:
         else
           kind load docker-image {{.IMAGE_NAME}} --name {{.KIND_CLUSTER}}
         fi
+      - echo "Image loaded into kind cluster {{.KIND_CLUSTER}}"
+  docker:kind:restart:
+    desc: "Restart security-operator deployments to pick up new image"
+    vars:
+      DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE | default "platform-mesh-system"}}'
+    cmds:
       - kubectl rollout restart deployment/security-operator -n {{.DEPLOYMENT_NAMESPACE}}
       - kubectl rollout restart deployment/security-operator-generator -n {{.DEPLOYMENT_NAMESPACE}}
       - kubectl rollout restart deployment/security-operator-initializer -n {{.DEPLOYMENT_NAMESPACE}}
-      - echo "Image loaded and all deployments restarted"
+      - kubectl rollout restart deployment/security-operator-terminator -n {{.DEPLOYMENT_NAMESPACE}}
+      - echo "All deployments restarted"
+  docker:kind:
+    desc: "Build container image, load it into kind cluster, and restart deployments"
+    vars:
+      DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE | default "platform-mesh-system"}}'
+      CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME | default "docker"}}'
+      KIND_CLUSTER: '{{.KIND_CLUSTER | default "platform-mesh"}}'
+    cmds:
+      - task: docker:kind:load
+        vars:
+          DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE}}'
+          CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME}}'
+          KIND_CLUSTER: '{{.KIND_CLUSTER}}'
+      - task: docker:kind:restart
+        vars:
+          DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE}}'
 

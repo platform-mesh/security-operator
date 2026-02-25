@@ -22,7 +22,10 @@ type InitializerConfig struct {
 // Config struct to hold the app config
 type Config struct {
 	FGA struct {
-		Target string `mapstructure:"fga-target"`
+		Target          string `mapstructure:"fga-target"`
+		ObjectType      string `mapstructure:"fga-object-type" default:"core_platform-mesh_io_account"`
+		ParentRelation  string `mapstructure:"fga-parent-relation" default:"parent"`
+		CreatorRelation string `mapstructure:"fga-creator-relation" default:"owner"`
 	} `mapstructure:",squash"`
 	KCP struct {
 		Kubeconfig string `mapstructure:"kcp-kubeconfig" default:"/api-kubeconfig/kubeconfig"`
@@ -68,5 +71,9 @@ type Config struct {
 }
 
 func (config Config) InitializerName() string {
+	return config.WorkspacePath + ":" + config.WorkspaceTypeName
+}
+
+func (config Config) TerminatorName() string {
 	return config.WorkspacePath + ":" + config.WorkspaceTypeName
 }
