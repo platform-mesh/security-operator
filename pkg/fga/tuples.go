@@ -35,7 +35,7 @@ func TuplesForOrganization(acc accountv1alpha1.Account, ai accountv1alpha1.Accou
 func IsTupleOfAccountFilter(ai accountv1alpha1.AccountInfo) TupleFilter {
 	generatedClusterID := ai.Spec.Account.GeneratedClusterId
 	return func(t v1alpha1.Tuple) bool {
-		return strings.Contains(t.Object, generatedClusterID) || strings.Contains(t.User, generatedClusterID)
+		return generatedClusterID != "" && (strings.Contains(t.Object, generatedClusterID) || strings.Contains(t.User, generatedClusterID))
 	}
 }
 

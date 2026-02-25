@@ -179,6 +179,21 @@ func TestTupleManager_Delete_verifies_tuple_contents(t *testing.T) {
 		(keys[1].Object == "doc:2" && keys[1].Relation == "owner" && keys[1].User == "user:bob"))
 }
 
+func TestIsTupleOfAccountFilter_returnsFalseForAllTuplesWhenGeneratedClusterIdEmpty(t *testing.T) {
+	_, ai := testAccountAndInfo("test-account", "")
+	filter := IsTupleOfAccountFilter(ai)
+
+	// Any tuple should be rejected when GeneratedClusterId is empty
+	tuples := []v1alpha1.Tuple{
+		{Object: "account:1mj722nrt4jo3ggn/test-account", Relation: "viewer", User: "user:alice"},
+		{Object: "account:1yrj2fwqtxcxbm1v/other-account", Relation: "owner", User: "user:bob"},
+		{Object: "doc:1", Relation: "viewer", User: "user:charlie"},
+	}
+	for _, tpl := range tuples {
+		assert.False(t, filter(tpl), "filter should return false for tuple %s when GeneratedClusterId is empty", tpl.Object)
+	}
+}
+
 func TestIsTupleOfAccountFilter_deleteRemovesGeneratedTuples(t *testing.T) {
 	// Use distinct GeneratedClusterIds so the filter matches only one account's tuples
 	acc, ai := testAccountAndInfo("test-account", "1mj722nrt4jo3ggn")
