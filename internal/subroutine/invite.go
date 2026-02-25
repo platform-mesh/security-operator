@@ -49,7 +49,7 @@ func (w *inviteSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
 	return nil
 }
 
-func (w *inviteSubroutine) GetName() string { return "InviteInitilizationSubroutine" }
+func (w *inviteSubroutine) GetName() string { return "InviteInitializationSubroutine" }
 
 // Process implements lifecycle.Subroutine as no-op since Initialize handles the
 // work.
