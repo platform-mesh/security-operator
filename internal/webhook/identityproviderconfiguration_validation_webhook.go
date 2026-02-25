@@ -12,12 +12,12 @@ import (
 	"github.com/platform-mesh/security-operator/pkg/clientreg"
 	"github.com/platform-mesh/security-operator/pkg/clientreg/keycloak"
 	"golang.org/x/oauth2/clientcredentials"
-	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
-
 	mcruntime "sigs.k8s.io/multicluster-runtime"
+
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // SetupIdentityProviderConfigurationValidatingWebhookWithManager registers a validating webhook that prevents

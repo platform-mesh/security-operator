@@ -8,15 +8,14 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
-	"github.com/platform-mesh/security-operator/internal/terminatingworkspaces"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/platform-mesh/security-operator/internal/predicates"
+	"github.com/platform-mesh/security-operator/internal/terminatingworkspaces"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
@@ -27,9 +26,8 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/kcp-dev/logicalcluster/v3"
-	kcptenancyv1alphav1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-
 	mcclient "github.com/kcp-dev/multicluster-provider/client"
+	kcptenancyv1alphav1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 var terminatorCfg config.Config
@@ -111,7 +109,7 @@ var terminatorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("unable to create grpc client")
 			os.Exit(1)
 		}
-		defer conn.Close()
+		defer func() { _ = conn.Close() }()
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
 		if err := controller.NewAccountLogicalClusterReconciler(log, terminatorCfg, fga, mcc, mgr).
