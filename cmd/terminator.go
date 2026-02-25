@@ -95,6 +95,10 @@ var terminatorCmd = &cobra.Command{
 				Scheme: mgrOpts.Scheme,
 			},
 		)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create terminatingworkspaces provider")
+			os.Exit(1)
+		}
 
 		mgr, err := mcmanager.New(kcpCfg, provider, mgrOpts)
 		if err != nil {
