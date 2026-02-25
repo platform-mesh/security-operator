@@ -136,8 +136,6 @@ var terminatorCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(terminatorCmd)
-
 	terminatorV := viper.NewWithOptions(
 		viper.EnvKeyReplacer(strings.NewReplacer("-", "_")),
 	)
