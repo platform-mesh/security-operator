@@ -38,7 +38,7 @@ func TestInviteSubroutine_GetName(t *testing.T) {
 	subroutine := NewInviteSubroutine(orgsClient, mgr)
 
 	name := subroutine.GetName()
-	assert.Equal(t, "InviteInitilizationSubroutine", name)
+	assert.Equal(t, "InviteInitializationSubroutine", name)
 }
 
 func TestInviteSubroutine_Finalizers(t *testing.T) {
