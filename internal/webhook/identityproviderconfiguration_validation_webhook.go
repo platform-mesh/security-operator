@@ -12,11 +12,12 @@ import (
 	"github.com/platform-mesh/security-operator/pkg/clientreg"
 	"github.com/platform-mesh/security-operator/pkg/clientreg/keycloak"
 	"golang.org/x/oauth2/clientcredentials"
+	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
-	"k8s.io/apimachinery/pkg/runtime"
+	mcruntime "sigs.k8s.io/multicluster-runtime"
 )
 
 // SetupIdentityProviderConfigurationValidatingWebhookWithManager registers a validating webhook that prevents
@@ -29,13 +30,13 @@ func SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx context.
 
 	realmDenyList := slices.Clone(cfg.IDP.RealmDenyList)
 
-	return ctrl.NewWebhookManagedBy(mgr).
+	return mcruntime.NewWebhookManagedBy(mgr).
 		For(&v1alpha1.IdentityProviderConfiguration{}).
 		WithValidator(&identityProviderConfigurationValidator{keycloakClient: keycloakClient, realmDenyList: realmDenyList}).
 		Complete()
 }
 
-var _ webhook.CustomValidator = (*identityProviderConfigurationValidator)(nil)
+var _ webhook.CustomValidator = (*identityProviderConfigurationValidator)(nil) // nolint:staticcheck
 var _ realmChecker = (*keycloak.AdminClient)(nil)
 
 type identityProviderConfigurationValidator struct {
