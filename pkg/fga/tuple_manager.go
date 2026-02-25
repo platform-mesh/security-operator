@@ -2,6 +2,7 @@ package fga
 
 import (
 	"context"
+	"fmt"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/platform-mesh/golang-commons/logger"
@@ -98,6 +99,10 @@ func (m *TupleManager) Delete(ctx context.Context, tuples []v1alpha1.Tuple) erro
 // ListWithFilter gets all tuples in the store and returns a list of all tuples
 // that match the given filter.
 func (m *TupleManager) ListWithFilter(ctx context.Context, filter TupleFilter) ([]v1alpha1.Tuple, error) {
+	if filter == nil {
+		return nil, fmt.Errorf("filter function cannot be nil")
+	}
+
 	var result []v1alpha1.Tuple
 	var continuationToken string
 	for {
