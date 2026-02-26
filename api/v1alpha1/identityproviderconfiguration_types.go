@@ -25,7 +25,8 @@ type IdentityProviderClientConfig struct {
 
 // IdentityProviderConfigurationSpec defines the desired state of IdentityProviderConfiguration
 type IdentityProviderConfigurationSpec struct {
-	Clients []IdentityProviderClientConfig `json:"clients"`
+	RegistrationAllowed bool                           `json:"registrationAllowed,omitempty"`
+	Clients             []IdentityProviderClientConfig `json:"clients"`
 }
 
 // ManagedClient tracks a client that is managed by the operator.

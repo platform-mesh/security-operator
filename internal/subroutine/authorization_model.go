@@ -36,7 +36,7 @@ const (
 
 var (
 	privilegedGroupVersions = []string{"rbac.authorization.k8s.io/v1"}
-	groupVersions           = []string{"authentication.k8s.io/v1", "authorization.k8s.io/v1", "v1", "apis.kcp.io/v1alpha1"}
+	groupVersions           = []string{"authentication.k8s.io/v1", "authorization.k8s.io/v1", "v1", "apis.kcp.io/v1alpha1", "ui.platform-mesh.io/v1alpha1"}
 
 	privilegedTemplate = template.Must(template.New("model").Parse(`module internal_core_types_{{ .Name }}
 
@@ -67,6 +67,8 @@ type {{ .Group }}_{{ .Singular }}
 		define delete: owner
 		define patch: owner
 		define watch: member
+		define bind: owner
+		define escalate: owner
 
 		define manage_iam_roles: owner
 		define get_iam_roles: member

@@ -3,6 +3,14 @@
     "extends": [
       "local>platform-mesh/.github:renovate-config"
     ],
+    "packageRules": [
+      {
+        "matchManagers": ["gomod"],
+        "matchDepTypes": ["replace"],
+        "matchPackageNames": ["k8s.io/api", "k8s.io/apiserver", "k8s.io/client-go", "k8s.io/component-base"],
+        "enabled": false
+      }
+    ],
     "customManagers": [
       {
         "customType": "regex",

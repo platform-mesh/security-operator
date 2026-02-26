@@ -7,7 +7,6 @@ package mocks
 import (
 	"github.com/google/gnostic-models/openapiv2"
 	mock "github.com/stretchr/testify/mock"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/discovery"

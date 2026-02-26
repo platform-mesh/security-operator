@@ -9,9 +9,9 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
-	"github.com/platform-mesh/golang-commons/fga/helpers"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/pkg/fga"
 	ctrl "sigs.k8s.io/controller-runtime"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
@@ -56,27 +56,9 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, instance runtimeobject.R
 		authorizationModelID = store.Status.AuthorizationModelID
 	}
 
-	for _, tuple := range managedTuples {
-		_, err := t.fga.Write(ctx, &openfgav1.WriteRequest{
-			StoreId:              storeID,
-			AuthorizationModelId: authorizationModelID,
-			Deletes: &openfgav1.WriteRequestDeletes{
-				TupleKeys: []*openfgav1.TupleKeyWithoutCondition{
-					{
-						Object:   tuple.Object,
-						Relation: tuple.Relation,
-						User:     tuple.User,
-					},
-				},
-			},
-		})
-		if helpers.IsDuplicateWriteError(err) { // coverage-ignore
-			log.Info().Stringer("tuple", tuple).Msg("tuple already deleted")
-			continue
-		}
-		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, false, true)
-		}
+	tm := fga.NewTupleManager(t.fga, storeID, authorizationModelID, log)
+	if err := tm.Delete(ctx, managedTuples); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(err, false, true)
 	}
 
 	switch obj := instance.(type) {
@@ -134,57 +116,21 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 		authorizationModelID = store.Status.AuthorizationModelID
 	}
 
-	for _, tuple := range specTuples {
-		_, err := t.fga.Write(ctx, &openfgav1.WriteRequest{
-			StoreId:              storeID,
-			AuthorizationModelId: authorizationModelID,
-			Writes: &openfgav1.WriteRequestWrites{
-				TupleKeys: []*openfgav1.TupleKey{
-					{
-						Object:   tuple.Object,
-						Relation: tuple.Relation,
-						User:     tuple.User,
-					},
-				},
-			},
-		})
-		if helpers.IsDuplicateWriteError(err) { // coverage-ignore
-			log.Info().Stringer("tuple", tuple).Msg("tuple already exists")
-			continue
-		}
-		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, false, true)
-		}
+	tm := fga.NewTupleManager(t.fga, storeID, authorizationModelID, log)
+	if err := tm.Apply(ctx, specTuples); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(err, false, true)
 	}
 
+	var tuplesToDelete []securityv1alpha1.Tuple
 	for _, tuple := range managedTuples {
-		if idx := slices.IndexFunc(specTuples, func(t securityv1alpha1.Tuple) bool {
-			return t.Object == tuple.Object && t.Relation == tuple.Relation && t.User == tuple.User
-		}); idx != -1 {
-			continue
+		if slices.IndexFunc(specTuples, func(s securityv1alpha1.Tuple) bool {
+			return s.Object == tuple.Object && s.Relation == tuple.Relation && s.User == tuple.User
+		}) == -1 {
+			tuplesToDelete = append(tuplesToDelete, tuple)
 		}
-
-		_, err := t.fga.Write(ctx, &openfgav1.WriteRequest{
-			StoreId:              storeID,
-			AuthorizationModelId: authorizationModelID,
-			Deletes: &openfgav1.WriteRequestDeletes{
-				TupleKeys: []*openfgav1.TupleKeyWithoutCondition{
-					{
-						Object:   tuple.Object,
-						Relation: tuple.Relation,
-						User:     tuple.User,
-					},
-				},
-			},
-		})
-		if helpers.IsDuplicateWriteError(err) { // coverage-ignore
-			log.Info().Stringer("tuple", tuple).Msg("tuple already deleted")
-			continue
-		}
-		if err != nil { // coverage-ignore
-			return ctrl.Result{}, errors.NewOperatorError(err, false, true)
-		}
-
+	}
+	if err := tm.Delete(ctx, tuplesToDelete); err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(err, false, true)
 	}
 
 	switch obj := instance.(type) {

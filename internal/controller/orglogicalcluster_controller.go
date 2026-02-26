@@ -20,33 +20,43 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-type LogicalClusterInitializer struct {
+type OrgLogicalClusterReconciler struct {
 	log *logger.Logger
 
 	mclifecycle *multicluster.LifecycleManager
 }
 
-func NewLogicalClusterInitializer(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *LogicalClusterInitializer {
-	return &LogicalClusterInitializer{
+func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *OrgLogicalClusterReconciler {
+	var subroutines []lifecyclesubroutine.Subroutine
+
+	if cfg.Initializer.WorkspaceInitializerEnabled {
+		subroutines = append(subroutines, subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr, cfg.FGA.CreatorRelation, cfg.FGA.ObjectType))
+	}
+	if cfg.Initializer.IDPEnabled {
+		subroutines = append(subroutines, subroutine.NewIDPSubroutine(orgClient, mgr, cfg))
+	}
+	if cfg.Initializer.InviteEnabled {
+		subroutines = append(subroutines, subroutine.NewInviteSubroutine(orgClient, mgr))
+	}
+	if cfg.Initializer.WorkspaceAuthEnabled {
+		subroutines = append(subroutines, subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, mgr, cfg))
+	}
+
+	return &OrgLogicalClusterReconciler{
 		log: log,
-		mclifecycle: builder.NewBuilder("logicalcluster", "LogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
-			subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr),
-			subroutine.NewIDPSubroutine(orgClient, mgr, cfg),
-			subroutine.NewInviteSubroutine(orgClient, mgr),
-			subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, mgr, cfg),
-			subroutine.NewRemoveInitializer(mgr, cfg),
-		}, log).
+		mclifecycle: builder.NewBuilder("logicalcluster", "OrgLogicalClusterReconciler", subroutines, log).
 			WithReadOnly().
 			WithStaticThenExponentialRateLimiter().
+			WithInitializer(cfg.InitializerName()).
 			BuildMultiCluster(mgr),
 	}
 }
 
-func (r *LogicalClusterInitializer) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
+func (r *OrgLogicalClusterReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
 	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpcorev1alpha1.LogicalCluster{})
 }
 
-func (r *LogicalClusterInitializer) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
+func (r *OrgLogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
 	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "LogicalCluster", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r, r.log, evp...)
 }
