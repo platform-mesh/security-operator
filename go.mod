@@ -3,14 +3,15 @@ module github.com/platform-mesh/security-operator
 go 1.25.7
 
 replace (
-	k8s.io/api => k8s.io/api v0.35.1
-	k8s.io/apiserver => k8s.io/apiserver v0.35.1
-	k8s.io/client-go => k8s.io/client-go v0.35.1
-	k8s.io/component-base => k8s.io/component-base v0.35.1
+	k8s.io/api => k8s.io/api v0.34.4
+	k8s.io/apiserver => k8s.io/apiserver v0.34.4
+	k8s.io/client-go => k8s.io/client-go v0.34.4
+	k8s.io/component-base => k8s.io/component-base v0.34.4
 )
 
 require (
 	github.com/coreos/go-oidc v2.5.0+incompatible
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 	github.com/fluxcd/helm-controller/api v1.5.0
 	github.com/fluxcd/source-controller/api v1.8.0
 	github.com/go-logr/logr v1.4.3
@@ -45,7 +46,6 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.3.3 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
@@ -73,6 +73,7 @@ require (
 	github.com/go-openapi/swag/typeutils v0.25.4 // indirect
 	github.com/go-openapi/swag/yamlutils v0.25.4 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
+	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
