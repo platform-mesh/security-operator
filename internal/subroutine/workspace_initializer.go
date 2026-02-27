@@ -12,19 +12,16 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
-	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/pkg/fga"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	kcpcore "github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
@@ -87,15 +84,13 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, instance runtimeo
 	if p == "" {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("annotation on LogicalCluster is not set"), true, true)
 	}
-	lcID, _ := mccontext.ClusterFrom(ctx)
-
-	lcClient, err := iclient.NewForLogicalCluster(w.mgr.GetLocalManager().GetConfig(), w.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(lcID))
+	cl, err := w.mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting client: %w", err), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context"), true, true)
 	}
 
 	var ai accountsv1alpha1.AccountInfo
-	if err := lcClient.Get(ctx, client.ObjectKey{
+	if err := cl.GetClient().Get(ctx, client.ObjectKey{
 		Name: "account",
 	}, &ai); err != nil && !kerrors.IsNotFound(err) {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err), true, true)
@@ -103,13 +98,8 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, instance runtimeo
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("AccountInfo not found yet, requeueing"), true, false)
 	}
 
-	orgsClient, err := iclient.NewForLogicalCluster(w.mgr.GetLocalManager().GetConfig(), w.mgr.GetLocalManager().GetScheme(), logicalcluster.Name("root:orgs"))
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent organisation client: %w", err), true, true)
-	}
-
 	var acc accountsv1alpha1.Account
-	if err := orgsClient.Get(ctx, client.ObjectKey{
+	if err := w.orgsClient.Get(ctx, client.ObjectKey{
 		Name: ai.Spec.Account.Name,
 	}, &acc); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Account in platform-mesh-system: %w", err), true, true)

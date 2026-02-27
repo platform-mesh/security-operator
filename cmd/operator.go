@@ -14,6 +14,7 @@ import (
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/controller"
+	"github.com/platform-mesh/security-operator/internal/predicates"
 	internalwebhook "github.com/platform-mesh/security-operator/internal/webhook"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -22,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
@@ -177,7 +179,7 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewStoreReconciler(log, fga, mgr).
+		if err = controller.NewStoreReconciler(ctx, log, fga, mgr).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
 			return err
@@ -197,8 +199,13 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewLogicalClusterReconciler(log, orgClient, operatorCfg, runtimeClient, mgr).SetupWithManager(mgr, defaultCfg, operatorCfg.InitializerName()); err != nil {
+		if err = controller.NewLogicalClusterReconciler(log, orgClient, operatorCfg, runtimeClient, mgr).SetupWithManager(mgr, defaultCfg, operatorCfg.InitializerName(), predicates.LogicalClusterIsAccountTypeOrg()); err != nil {
 			log.Error().Err(err).Str("controller", "logicalcluster").Msg("unable to create controller")
+			return err
+		}
+
+		if err = controller.NewAccountTypeLogicalClusterReconciler(log, operatorCfg, fga, mgr).SetupWithManager(mgr, defaultCfg, operatorCfg.InitializerName(), predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
+			log.Error().Err(err).Str("controller", "accounttypelogicalcluster").Msg("unable to create controller")
 			return err
 		}
 		if err = controller.NewAccountInfoReconciler(log, mgr).SetupWithManager(mgr, defaultCfg); err != nil {

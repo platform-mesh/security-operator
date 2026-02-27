@@ -24,7 +24,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/kcp-dev/logicalcluster/v3"
-	mcclient "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/initializingworkspaces"
 )
 
@@ -106,12 +105,6 @@ var initializerCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		kcpCfg, err := getKubeconfigFromPath(initializerCfg.KCP.Kubeconfig)
-		if err != nil {
-			log.Error().Err(err).Msg("unable to get KCP kubeconfig")
-			return err
-		}
-
 		conn, err := grpc.NewClient(initializerCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Error().Err(err).Msg("unable to create grpc client")
@@ -120,12 +113,7 @@ var initializerCmd = &cobra.Command{
 		defer func() { _ = conn.Close() }()
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-		mcc, err := mcclient.New(kcpCfg, client.Options{Scheme: scheme})
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create multicluster client")
-			os.Exit(1)
-		}
-		if err := controller.NewAccountLogicalClusterReconciler(log, initializerCfg, fga, mcc, mgr).
+		if err := controller.NewAccountLogicalClusterReconciler(log, initializerCfg, fga, mgr).
 			SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "AccountLogicalCluster")
 			os.Exit(1)

@@ -26,7 +26,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/kcp-dev/logicalcluster/v3"
-	mcclient "github.com/kcp-dev/multicluster-provider/client"
 	kcptenancyv1alphav1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
@@ -66,11 +65,6 @@ var terminatorCmd = &cobra.Command{
 			mgrOpts.LeaderElectionConfig = inClusterCfg
 		}
 
-		mcc, err := mcclient.New(kcpCfg, client.Options{Scheme: scheme})
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create multicluster client")
-			os.Exit(1)
-		}
 		rootClient, err := iclient.NewForLogicalCluster(kcpCfg, scheme, logicalcluster.Name("root"))
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed to get root client")
@@ -112,7 +106,7 @@ var terminatorCmd = &cobra.Command{
 		defer func() { _ = conn.Close() }()
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-		if err := controller.NewAccountLogicalClusterReconciler(log, terminatorCfg, fga, mcc, mgr).
+		if err := controller.NewAccountLogicalClusterReconciler(log, terminatorCfg, fga, mgr).
 			SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
 			log.Error().Err(err).Msg("Unable to create AccountLogicalClusterTerminator")
 			os.Exit(1)
