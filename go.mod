@@ -11,8 +11,7 @@ replace (
 
 require (
 	github.com/coreos/go-oidc v2.5.0+incompatible
-	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
-	github.com/fluxcd/helm-controller/api v1.5.0
+	github.com/fluxcd/helm-controller/api v1.5.1
 	github.com/fluxcd/source-controller/api v1.8.0
 	github.com/go-logr/logr v1.4.3
 	github.com/google/gnostic-models v0.7.1
@@ -21,8 +20,8 @@ require (
 	github.com/kcp-dev/sdk v0.30.0
 	github.com/openfga/api/proto v0.0.0-20260217232149-f917ddb000ce
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251027165255-0f8f255e5f6c
-	github.com/platform-mesh/account-operator v0.11.8
-	github.com/platform-mesh/golang-commons v0.12.3
+	github.com/platform-mesh/account-operator v0.11.10
+	github.com/platform-mesh/golang-commons v0.12.4
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
@@ -30,9 +29,9 @@ require (
 	golang.org/x/oauth2 v0.35.0
 	google.golang.org/grpc v1.79.1
 	google.golang.org/protobuf v1.36.11
-	k8s.io/api v0.35.1
-	k8s.io/apiextensions-apiserver v0.35.1
-	k8s.io/apimachinery v0.35.1
+	k8s.io/api v0.35.2
+	k8s.io/apiextensions-apiserver v0.35.2
+	k8s.io/apimachinery v0.35.2
 	k8s.io/client-go v1.5.2
 	k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2
 	sigs.k8s.io/controller-runtime v0.23.1
@@ -46,6 +45,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/emicklei/go-restful/v3 v3.13.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.3.3 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
