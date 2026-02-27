@@ -11,7 +11,7 @@ replace (
 
 require (
 	github.com/coreos/go-oidc v2.5.0+incompatible
-	github.com/fluxcd/helm-controller/api v1.5.0
+	github.com/fluxcd/helm-controller/api v1.5.1
 	github.com/fluxcd/source-controller/api v1.8.0
 	github.com/go-logr/logr v1.4.3
 	github.com/google/gnostic-models v0.7.1
