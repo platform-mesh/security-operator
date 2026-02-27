@@ -21,14 +21,14 @@ import (
 )
 
 // AccountLogicalClusterReconciler acts as an initializer for account workspaces.
-type AccountLogicalClusterReconciler struct {
+type AccountLogicalClusterInitializer struct {
 	log *logger.Logger
 
 	mclifecycle *multicluster.LifecycleManager
 }
 
-func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *AccountLogicalClusterReconciler {
-	return &AccountLogicalClusterReconciler{
+func NewAccountLogicalClusterInitializer(log *logger.Logger, cfg config.Config, fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *AccountLogicalClusterInitializer {
+	return &AccountLogicalClusterInitializer{
 		log: log,
 		mclifecycle: builder.NewBuilder("security", "AccountLogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
 			subroutine.NewAccountTuplesSubroutine(mgr, fga, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType),
@@ -41,11 +41,11 @@ func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, f
 	}
 }
 
-func (r *AccountLogicalClusterReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
+func (r *AccountLogicalClusterInitializer) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
 	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpcorev1alpha1.LogicalCluster{})
 }
 
-func (r *AccountLogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
+func (r *AccountLogicalClusterInitializer) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
 	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "AccountLogicalCluster", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r, r.log, evp...)
 }

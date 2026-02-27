@@ -20,13 +20,13 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-type OrgLogicalClusterReconciler struct {
+type OrgLogicalClusterInitializer struct {
 	log *logger.Logger
 
 	mclifecycle *multicluster.LifecycleManager
 }
 
-func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *OrgLogicalClusterReconciler {
+func NewOrgLogicalClusterInitializer(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *OrgLogicalClusterInitializer {
 	var subroutines []lifecyclesubroutine.Subroutine
 
 	if cfg.Initializer.WorkspaceInitializerEnabled {
@@ -42,7 +42,7 @@ func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client,
 		subroutines = append(subroutines, subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, mgr, cfg))
 	}
 
-	return &OrgLogicalClusterReconciler{
+	return &OrgLogicalClusterInitializer{
 		log: log,
 		mclifecycle: builder.NewBuilder("logicalcluster", "OrgLogicalClusterReconciler", subroutines, log).
 			WithReadOnly().
@@ -52,11 +52,11 @@ func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client,
 	}
 }
 
-func (r *OrgLogicalClusterReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
+func (r *OrgLogicalClusterInitializer) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
 	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpcorev1alpha1.LogicalCluster{})
 }
 
-func (r *OrgLogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
+func (r *OrgLogicalClusterInitializer) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
 	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "LogicalCluster", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r, r.log, evp...)
 }

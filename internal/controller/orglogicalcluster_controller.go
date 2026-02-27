@@ -27,7 +27,7 @@ type LogicalClusterReconciler struct {
 	mclifecycle *multicluster.LifecycleManager
 }
 
-func NewLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *LogicalClusterReconciler {
+func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *LogicalClusterReconciler {
 	var subroutines []lifecyclesubroutine.Subroutine
 
 	if cfg.Initializer.WorkspaceInitializerEnabled {

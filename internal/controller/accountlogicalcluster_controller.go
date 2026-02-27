@@ -25,7 +25,7 @@ type AccountTypeLogicalClusterReconciler struct {
 	mclifecycle *multicluster.LifecycleManager
 }
 
-func NewAccountTypeLogicalClusterReconciler(log *logger.Logger, cfg config.Config, fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *AccountTypeLogicalClusterReconciler {
+func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *AccountTypeLogicalClusterReconciler {
 	return &AccountTypeLogicalClusterReconciler{
 		log: log,
 		mclifecycle: builder.NewBuilder("logicalcluster", "AccountTypeLogicalClusterReconciler", []lifecyclesubroutine.Subroutine{

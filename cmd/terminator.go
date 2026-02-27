@@ -106,7 +106,7 @@ var terminatorCmd = &cobra.Command{
 		defer func() { _ = conn.Close() }()
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-		if err := controller.NewAccountLogicalClusterReconciler(log, terminatorCfg, fga, mgr).
+		if err := controller.NewAccountLogicalClusterInitializer(log, terminatorCfg, fga, mgr).
 			SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
 			log.Error().Err(err).Msg("Unable to create AccountLogicalClusterTerminator")
 			os.Exit(1)

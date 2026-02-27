@@ -199,12 +199,12 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewLogicalClusterReconciler(log, orgClient, operatorCfg, runtimeClient, mgr).SetupWithManager(mgr, defaultCfg, operatorCfg.InitializerName(), predicates.LogicalClusterIsAccountTypeOrg()); err != nil {
+		if err = controller.NewOrgLogicalClusterReconciler(log, orgClient, operatorCfg, runtimeClient, mgr).SetupWithManager(mgr, defaultCfg, operatorCfg.InitializerName(), predicates.LogicalClusterIsAccountTypeOrg()); err != nil {
 			log.Error().Err(err).Str("controller", "logicalcluster").Msg("unable to create controller")
 			return err
 		}
 
-		if err = controller.NewAccountTypeLogicalClusterReconciler(log, operatorCfg, fga, mgr).SetupWithManager(mgr, defaultCfg, operatorCfg.InitializerName(), predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
+		if err = controller.NewAccountLogicalClusterReconciler(log, operatorCfg, fga, mgr).SetupWithManager(mgr, defaultCfg, operatorCfg.InitializerName(), predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
 			log.Error().Err(err).Str("controller", "accounttypelogicalcluster").Msg("unable to create controller")
 			return err
 		}

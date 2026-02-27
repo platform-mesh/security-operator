@@ -99,7 +99,7 @@ var initializerCmd = &cobra.Command{
 			initializerCfg.IDP.AdditionalRedirectURLs = []string{}
 		}
 
-		if err := controller.NewOrgLogicalClusterReconciler(log, orgClient, initializerCfg, runtimeClient, mgr).
+		if err := controller.NewOrgLogicalClusterInitializer(log, orgClient, initializerCfg, runtimeClient, mgr).
 			SetupWithManager(mgr, defaultCfg, predicates.LogicalClusterIsAccountTypeOrg()); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")
 			os.Exit(1)
@@ -113,7 +113,7 @@ var initializerCmd = &cobra.Command{
 		defer func() { _ = conn.Close() }()
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-		if err := controller.NewAccountLogicalClusterReconciler(log, initializerCfg, fga, mgr).
+		if err := controller.NewAccountLogicalClusterInitializer(log, initializerCfg, fga, mgr).
 			SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "AccountLogicalCluster")
 			os.Exit(1)
