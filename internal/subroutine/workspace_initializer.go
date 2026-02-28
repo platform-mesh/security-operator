@@ -22,7 +22,6 @@ import (
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	kcpcore "github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
@@ -80,17 +79,13 @@ func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobje
 // Initialize implements lifecycle.Initializer.
 func (w *workspaceInitializer) Initialize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
-	p := lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey]
-	if p == "" {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("annotation on LogicalCluster is not set"), true, true)
-	}
-	cl, err := w.mgr.ClusterFromContext(ctx)
+	cluster, err := w.mgr.ClusterFromContext(ctx)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context"), true, true)
 	}
 
 	var ai accountsv1alpha1.AccountInfo
-	if err := cl.GetClient().Get(ctx, client.ObjectKey{
+	if err := cluster.GetClient().Get(ctx, client.ObjectKey{
 		Name: "account",
 	}, &ai); err != nil && !kerrors.IsNotFound(err) {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err), true, true)
@@ -102,7 +97,7 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, instance runtimeo
 	if err := w.orgsClient.Get(ctx, client.ObjectKey{
 		Name: ai.Spec.Account.Name,
 	}, &acc); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Account in platform-mesh-system: %w", err), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Account in orgs workspace: %w", err), true, true)
 	}
 
 	store := v1alpha1.Store{
@@ -150,11 +145,6 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, instance runtimeo
 	if store.Status.StoreID == "" {
 		// Store is not ready yet, requeue
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store id is empty"), true, false)
-	}
-
-	cluster, err := w.mgr.ClusterFromContext(ctx)
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
 	}
 
 	accountInfo := accountsv1alpha1.AccountInfo{
