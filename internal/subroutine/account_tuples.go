@@ -170,9 +170,9 @@ func accountAndInfoForLogicalCluster(ctx context.Context, mgr mcmanager.Manager,
 	}
 	cl, err := mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context"), true, true)
+		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context: %w", err), true, true)
 	}
-	
+
 	// The AccountInfo in the logical cluster belongs to the Account the
 	// Workspace was created for
 	var ai accountsv1alpha1.AccountInfo
