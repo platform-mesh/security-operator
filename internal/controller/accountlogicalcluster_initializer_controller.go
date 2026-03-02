@@ -20,7 +20,7 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-// AccountLogicalClusterReconciler acts as an initializer for account workspaces.
+// AccountLogicalClusterInitializer acts as an initializer for account workspaces.
 type AccountLogicalClusterInitializer struct {
 	log *logger.Logger
 
@@ -30,7 +30,7 @@ type AccountLogicalClusterInitializer struct {
 func NewAccountLogicalClusterInitializer(log *logger.Logger, cfg config.Config, fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *AccountLogicalClusterInitializer {
 	return &AccountLogicalClusterInitializer{
 		log: log,
-		mclifecycle: builder.NewBuilder("security", "AccountLogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
+		mclifecycle: builder.NewBuilder("security", "AccountLogicalClusterInitializer", []lifecyclesubroutine.Subroutine{
 			subroutine.NewAccountTuplesSubroutine(mgr, fga, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType),
 		}, log).
 			WithReadOnly().
@@ -47,5 +47,5 @@ func (r *AccountLogicalClusterInitializer) Reconcile(ctx context.Context, req mc
 }
 
 func (r *AccountLogicalClusterInitializer) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
-	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "AccountLogicalCluster", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r, r.log, evp...)
+	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "AccountLogicalClusterInitializer", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r, r.log, evp...)
 }

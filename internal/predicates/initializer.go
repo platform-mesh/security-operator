@@ -15,7 +15,7 @@ func HasInitializerPredicate(initializerName string) predicate.Predicate {
 	return predicate.NewPredicateFuncs(func(object client.Object) bool {
 		lc, ok := object.(*kcpcorev1alpha1.LogicalCluster)
 		if !ok {
-			panic(fmt.Errorf("received non-LogicalCluster resource in LogicalClusterIsAccountTypeOrg predicate"))
+			panic(fmt.Errorf("received non-LogicalCluster resource in HasInitializer predicate"))
 		}
 		return shouldReconcile(lc, initializer)
 	})
