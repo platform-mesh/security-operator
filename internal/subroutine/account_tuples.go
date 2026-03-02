@@ -168,15 +168,22 @@ func accountAndInfoForLogicalCluster(ctx context.Context, mgr mcmanager.Manager,
 	if lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey] == "" {
 		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("annotation on LogicalCluster is not set"), true, true)
 	}
-	cl, err := mgr.ClusterFromContext(ctx)
+	lcID, ok := mccontext.ClusterFrom(ctx)
+	if !ok {
+		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("cluster name not found in context"), true, true)
+	}
+
+	// The AccountInfo in the logical cluster belongs to the Account the
+	// Workspace was created for
+	lcClient, err := iclient.NewForLogicalCluster(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), logicalcluster.Name(lcID))
 	if err != nil {
-		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context: %w", err), true, true)
+		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("getting client: %w", err), true, true)
 	}
 
 	// The AccountInfo in the logical cluster belongs to the Account the
 	// Workspace was created for
 	var ai accountsv1alpha1.AccountInfo
-	if err := cl.GetClient().Get(ctx, client.ObjectKey{
+	if err := lcClient.Get(ctx, client.ObjectKey{
 		Name: "account",
 	}, &ai); err != nil && !kerrors.IsNotFound(err) {
 		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err), true, true)
