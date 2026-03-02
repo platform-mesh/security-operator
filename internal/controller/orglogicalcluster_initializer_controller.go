@@ -44,7 +44,7 @@ func NewOrgLogicalClusterInitializer(log *logger.Logger, orgClient client.Client
 
 	return &OrgLogicalClusterInitializer{
 		log: log,
-		mclifecycle: builder.NewBuilder("logicalcluster", "OrgLogicalClusterReconciler", subroutines, log).
+		mclifecycle: builder.NewBuilder("logicalcluster", "OrgLogicalClusterInitializer", subroutines, log).
 			WithReadOnly().
 			WithStaticThenExponentialRateLimiter().
 			WithInitializer(cfg.InitializerName()).
