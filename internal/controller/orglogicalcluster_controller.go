@@ -21,13 +21,13 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-type LogicalClusterReconciler struct {
+type OrgLogicalClusterReconciler struct {
 	log         *logger.Logger
 	mgr         mcmanager.Manager
 	mclifecycle *multicluster.LifecycleManager
 }
 
-func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *LogicalClusterReconciler {
+func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *OrgLogicalClusterReconciler {
 	var subroutines []lifecyclesubroutine.Subroutine
 
 	if cfg.Initializer.WorkspaceInitializerEnabled {
@@ -43,7 +43,7 @@ func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client,
 		subroutines = append(subroutines, subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, mgr, cfg))
 	}
 
-	return &LogicalClusterReconciler{
+	return &OrgLogicalClusterReconciler{
 		log: log,
 		mgr: mgr,
 		mclifecycle: builder.NewBuilder("logicalcluster", "LogicalClusterReconciler", subroutines, log).
@@ -52,12 +52,12 @@ func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client,
 	}
 }
 
-func (r *LogicalClusterReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
+func (r *OrgLogicalClusterReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
 	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpcorev1alpha1.LogicalCluster{})
 }
 
-func (r *LogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, initializerName string, evp ...predicate.Predicate) error {
+func (r *OrgLogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, initializerName string, evp ...predicate.Predicate) error {
 	allPredicates := append([]predicate.Predicate{predicates.HasInitializerPredicate(initializerName)}, evp...)
 	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "LogicalCluster", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r, r.log, allPredicates...)
 }
