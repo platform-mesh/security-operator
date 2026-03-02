@@ -81,7 +81,7 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, instance runtimeo
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
 	cluster, err := w.mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context"), true, true)
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting cluster from context: %w", err), true, true)
 	}
 
 	var ai accountsv1alpha1.AccountInfo
