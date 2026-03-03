@@ -1,6 +1,10 @@
 package config
 
-import corev1 "k8s.io/api/core/v1"
+import (
+	"github.com/spf13/pflag"
+
+	corev1 "k8s.io/api/core/v1"
+)
 
 type InitContainerClientConfig struct {
 	Name      string                 `mapstructure:"name" yaml:"name"`
@@ -17,4 +21,14 @@ type InitContainerConfiguration struct {
 
 type InitContainerConfig struct {
 	ConfigFile string `mapstructure:"config-file" default:"/config/config.yaml"`
+}
+
+func NewInitContainerConfig() InitContainerConfig {
+	return InitContainerConfig{
+		ConfigFile: "/config/config.yaml",
+	}
+}
+
+func (c *InitContainerConfig) AddFlags(fs *pflag.FlagSet) {
+	fs.StringVar(&c.ConfigFile, "config-file", c.ConfigFile, "Path to init-container YAML configuration")
 }

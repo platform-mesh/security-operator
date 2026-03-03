@@ -3,17 +3,13 @@ package cmd
 import (
 	"crypto/tls"
 	"os"
-	"strings"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
-	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/platform-mesh/security-operator/internal/predicates"
 	"github.com/platform-mesh/security-operator/internal/terminatingworkspaces"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -30,8 +26,6 @@ import (
 	kcptenancyv1alphav1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
-var terminatorCfg config.Config
-
 var terminatorCmd = &cobra.Command{
 	Use:   "terminator",
 	Short: "FGA terminator for account workspaces",
@@ -44,7 +38,7 @@ var terminatorCmd = &cobra.Command{
 
 		mgrOpts := ctrl.Options{
 			Scheme:                 scheme,
-			LeaderElection:         defaultCfg.LeaderElection.Enabled,
+			LeaderElection:         defaultCfg.LeaderElectionEnabled,
 			LeaderElectionID:       "security-operator-terminator.platform-mesh.io",
 			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
 			Metrics: server.Options{
@@ -57,7 +51,7 @@ var terminatorCmd = &cobra.Command{
 				},
 			},
 		}
-		if defaultCfg.LeaderElection.Enabled {
+		if defaultCfg.LeaderElectionEnabled {
 			inClusterCfg, err := rest.InClusterConfig()
 			if err != nil {
 				log.Error().Err(err).Msg("unable to create in-cluster config")
@@ -131,14 +125,4 @@ var terminatorCmd = &cobra.Command{
 
 		return mgr.Start(ctrl.SetupSignalHandler())
 	},
-}
-
-func init() {
-	terminatorV := viper.NewWithOptions(
-		viper.EnvKeyReplacer(strings.NewReplacer("-", "_")),
-	)
-	terminatorV.AutomaticEnv()
-	if err := platformeshconfig.BindConfigToFlags(terminatorV, terminatorCmd, &terminatorCfg); err != nil {
-		panic(err)
-	}
 }

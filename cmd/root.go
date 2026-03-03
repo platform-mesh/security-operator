@@ -3,14 +3,12 @@ package cmd
 import (
 	"errors"
 	"flag"
-	"strings"
 
 	"github.com/go-logr/logr"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"k8s.io/client-go/rest"
@@ -20,6 +18,7 @@ import (
 var (
 	defaultCfg     *platformeshconfig.CommonServiceConfig
 	initializerCfg config.Config
+	terminatorCfg  config.Config
 	operatorCfg    config.Config
 	generatorCfg   config.Config
 	log            *logger.Logger
@@ -39,28 +38,19 @@ func init() {
 
 	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 
-	var err error
-	_, defaultCfg, err = platformeshconfig.NewDefaultConfig(rootCmd)
-	if err != nil {
-		panic(err)
-	}
+	defaultCfg = platformeshconfig.NewDefaultConfig()
+	operatorCfg = config.NewConfig()
+	generatorCfg = config.NewConfig()
+	initializerCfg = config.NewConfig()
+	terminatorCfg = config.NewConfig()
+	initContainerCfg = config.NewInitContainerConfig()
 
-	operatorV := newViper()
-	if err := platformeshconfig.BindConfigToFlags(operatorV, operatorCmd, &operatorCfg); err != nil {
-		panic(err)
-	}
-	generatorV := newViper()
-	if err := platformeshconfig.BindConfigToFlags(generatorV, modelGeneratorCmd, &generatorCfg); err != nil {
-		panic(err)
-	}
-	initializerV := newViper()
-	if err := platformeshconfig.BindConfigToFlags(initializerV, initializerCmd, &initializerCfg); err != nil {
-		panic(err)
-	}
-	initContainerV := newViper()
-	if err := platformeshconfig.BindConfigToFlags(initContainerV, initContainerCmd, &initContainerCfg); err != nil {
-		panic(err)
-	}
+	defaultCfg.AddFlags(rootCmd.PersistentFlags())
+	operatorCfg.AddFlags(operatorCmd.Flags())
+	generatorCfg.AddFlags(modelGeneratorCmd.Flags())
+	initializerCfg.AddFlags(initializerCmd.Flags())
+	terminatorCfg.AddFlags(terminatorCmd.Flags())
+	initContainerCfg.AddFlags(initContainerCmd.Flags())
 
 	cobra.OnInitialize(initLog)
 }
@@ -78,15 +68,6 @@ func getKubeconfigFromPath(kubeconfigPath string) (*rest.Config, error) {
 		return restCfg, err
 	}
 	return restCfg, nil
-}
-
-func newViper() *viper.Viper {
-	v := viper.NewWithOptions(
-		viper.EnvKeyReplacer(strings.NewReplacer("-", "_")),
-	)
-
-	v.AutomaticEnv()
-	return v
 }
 
 func initLog() { // coverage-ignore
