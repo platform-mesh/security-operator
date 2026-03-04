@@ -49,11 +49,11 @@ var modelGeneratorCmd = &cobra.Command{
 				},
 			},
 			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
-			LeaderElection:         defaultCfg.LeaderElection.Enabled,
+			LeaderElection:         defaultCfg.LeaderElectionEnabled,
 			LeaderElectionID:       "security-operator-generator.platform-mesh.io",
 			BaseContext:            func() context.Context { return ctx },
 		}
-		if defaultCfg.LeaderElection.Enabled {
+		if defaultCfg.LeaderElectionEnabled {
 			inClusterCfg, err := rest.InClusterConfig()
 			if err != nil {
 				log.Error().Err(err).Msg("unable to create in-cluster config")
