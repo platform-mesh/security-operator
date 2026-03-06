@@ -508,9 +508,9 @@ func TestSubroutineProcess(t *testing.T) {
 			}
 
 			cfg := &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  srv.URL,
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  srv.URL,
+					ClientID: "security-operator",
 				},
 				BaseDomain: "portal.dev.local:8443",
 			}
@@ -545,9 +545,9 @@ func TestHelperFunctions(t *testing.T) {
 	ctx := context.WithValue(t.Context(), oauth2.HTTPClient, srv.Client())
 
 	s, err := invite.New(ctx, &config.Config{
-		Invite: config.InviteConfig{
-			KeycloakBaseURL:  srv.URL,
-			KeycloakClientID: "security-operator",
+		Keycloak: config.KeycloakConfig{
+			BaseURL:  srv.URL,
+			ClientID: "security-operator",
 		},
 	}, nil)
 	assert.NoError(t, err)

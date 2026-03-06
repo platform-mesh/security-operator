@@ -83,22 +83,22 @@ func (v *identityProviderConfigurationValidator) ValidateDelete(ctx context.Cont
 }
 
 func newKeycloakAdminClient(ctx context.Context, cfg *config.Config) (*keycloak.AdminClient, error) {
-	issuer := fmt.Sprintf("%s/realms/master", cfg.Invite.KeycloakBaseURL)
+	issuer := fmt.Sprintf("%s/realms/master", cfg.Keycloak.BaseURL)
 	provider, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {
 		return nil, err
 	}
 
 	cCfg := clientcredentials.Config{
-		ClientID:     cfg.Invite.KeycloakClientID,
-		ClientSecret: cfg.Invite.KeycloakClientSecret,
+		ClientID:     cfg.Keycloak.ClientID,
+		ClientSecret: cfg.Keycloak.ClientSecret,
 		TokenURL:     provider.Endpoint().TokenURL,
 	}
 
 	adminHTTPClient := cCfg.Client(ctx)
 
 	// Use the master realm for admin endpoint access.
-	adminClient := keycloak.NewAdminClient(adminHTTPClient, cfg.Invite.KeycloakBaseURL, "master")
+	adminClient := keycloak.NewAdminClient(adminHTTPClient, cfg.Keycloak.BaseURL, "master")
 	adminHTTPClient.Transport = clientreg.NewRetryTransport(adminHTTPClient.Transport, adminClient)
 
 	return adminClient, nil

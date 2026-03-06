@@ -59,22 +59,22 @@ type keycloakClient struct {
 
 func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager) (*subroutine, error) {
 
-	issuer := fmt.Sprintf("%s/realms/master", cfg.Invite.KeycloakBaseURL)
+	issuer := fmt.Sprintf("%s/realms/master", cfg.Keycloak.BaseURL)
 	provider, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {
 		return nil, err
 	}
 
 	cCfg := clientcredentials.Config{
-		ClientID:     cfg.Invite.KeycloakClientID,
-		ClientSecret: cfg.Invite.KeycloakClientSecret,
+		ClientID:     cfg.Keycloak.ClientID,
+		ClientSecret: cfg.Keycloak.ClientSecret,
 		TokenURL:     provider.Endpoint().TokenURL,
 	}
 
 	httpClient := cCfg.Client(ctx)
 
 	return &subroutine{
-		keycloakBaseURL:    cfg.Invite.KeycloakBaseURL,
+		keycloakBaseURL:    cfg.Keycloak.BaseURL,
 		baseDomain:         cfg.BaseDomain,
 		mgr:                mgr,
 		keycloak:           httpClient,

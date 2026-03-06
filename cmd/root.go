@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"errors"
-	"flag"
 
 	"github.com/go-logr/logr"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
@@ -35,8 +34,6 @@ func init() {
 	rootCmd.AddCommand(operatorCmd)
 	rootCmd.AddCommand(modelGeneratorCmd)
 	rootCmd.AddCommand(initContainerCmd)
-
-	rootCmd.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 
 	defaultCfg = platformeshconfig.NewDefaultConfig()
 	operatorCfg = config.NewConfig()
