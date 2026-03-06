@@ -35,22 +35,22 @@ type subroutine struct {
 }
 
 func New(ctx context.Context, cfg *config.Config, orgsClient client.Client, mgr mcmanager.Manager) (*subroutine, error) {
-	issuer := fmt.Sprintf("%s/realms/master", cfg.Invite.KeycloakBaseURL)
+	issuer := fmt.Sprintf("%s/realms/master", cfg.Keycloak.BaseURL)
 	provider, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {
 		return nil, err
 	}
 
 	cCfg := clientcredentials.Config{
-		ClientID:     cfg.Invite.KeycloakClientID,
-		ClientSecret: cfg.Invite.KeycloakClientSecret,
+		ClientID:     cfg.Keycloak.ClientID,
+		ClientSecret: cfg.Keycloak.ClientSecret,
 		TokenURL:     provider.Endpoint().TokenURL,
 	}
 
 	adminClient := cCfg.Client(ctx)
 
 	return &subroutine{
-		keycloakBaseURL: cfg.Invite.KeycloakBaseURL,
+		keycloakBaseURL: cfg.Keycloak.BaseURL,
 		adminClient:     adminClient,
 		orgsClient:      orgsClient,
 		mgr:             mgr,

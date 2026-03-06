@@ -1,11 +1,15 @@
 package config
 
-import "github.com/spf13/pflag"
+import (
+	"os"
 
-type InviteConfig struct {
-	KeycloakBaseURL      string
-	KeycloakClientID     string
-	KeycloakClientSecret string
+	"github.com/spf13/pflag"
+)
+
+type KeycloakConfig struct {
+	BaseURL      string
+	ClientID     string
+	ClientSecret string
 }
 
 type WebhooksConfig struct {
@@ -70,7 +74,7 @@ type Config struct {
 	SetDefaultPassword               bool
 	AllowMemberTuplesEnabled         bool
 	IDP                              IDPConfig
-	Invite                           InviteConfig
+	Keycloak                         KeycloakConfig
 	Initializer                      InitializerConfig
 	Webhooks                         WebhooksConfig
 }
@@ -96,8 +100,9 @@ func NewConfig() Config {
 			KubectlClientRedirectURLs: []string{"http://localhost:8000", "http://localhost:18000"},
 			AccessTokenLifespan:       28800,
 		},
-		Invite: InviteConfig{
-			KeycloakClientID: "security-operator",
+		Keycloak: KeycloakConfig{
+			ClientID:     "security-operator",
+			ClientSecret: os.Getenv("KEYCLOAK_CLIENT_SECRET"),
 		},
 		Initializer: InitializerConfig{
 			WorkspaceInitializerEnabled: true,
@@ -143,9 +148,8 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringSliceVar(&c.IDP.KubectlClientRedirectURLs, "idp-kubectl-client-redirect-urls", c.IDP.KubectlClientRedirectURLs, "Redirect URLs for the kubectl Keycloak client")
 	fs.IntVar(&c.IDP.AccessTokenLifespan, "idp-access-token-lifespan", c.IDP.AccessTokenLifespan, "Keycloak access token lifespan in seconds")
 	fs.BoolVar(&c.IDP.RegistrationAllowed, "idp-registration-allowed", c.IDP.RegistrationAllowed, "Enable Keycloak self-registration")
-	fs.StringVar(&c.Invite.KeycloakBaseURL, "invite-keycloak-base-url", c.Invite.KeycloakBaseURL, "Set Keycloak base URL for invite flow")
-	fs.StringVar(&c.Invite.KeycloakClientID, "invite-keycloak-client-id", c.Invite.KeycloakClientID, "Set Keycloak client ID for invite flow")
-	fs.StringVar(&c.Invite.KeycloakClientSecret, "invite-keycloak-client-secret", c.Invite.KeycloakClientSecret, "Set Keycloak client secret for invite flow")
+	fs.StringVar(&c.Keycloak.BaseURL, "keycloak-base-url", c.Keycloak.BaseURL, "Set Keycloak base URL")
+	fs.StringVar(&c.Keycloak.ClientID, "keycloak-client-id", c.Keycloak.ClientID, "Set Keycloak client ID")
 	fs.BoolVar(&c.Initializer.WorkspaceInitializerEnabled, "initializer-workspace-enabled", c.Initializer.WorkspaceInitializerEnabled, "Enable workspace initialization")
 	fs.BoolVar(&c.Initializer.IDPEnabled, "initializer-idp-enabled", c.Initializer.IDPEnabled, "Enable IDP initialization")
 	fs.BoolVar(&c.Initializer.InviteEnabled, "initializer-invite-enabled", c.Initializer.InviteEnabled, "Enable invite initialization")
