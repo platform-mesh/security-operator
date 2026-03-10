@@ -7,7 +7,7 @@ import (
 )
 
 type APIExportRef struct {
-	Name string `json:"name"`
+	Name        string `json:"name"`
 	ClusterPath string `json:"clusterName"`
 }
 

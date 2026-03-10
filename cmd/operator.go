@@ -104,13 +104,13 @@ var operatorCmd = &cobra.Command{
 
 		coreMgr, err := setupCorePlatformMeshManager(ctx, restCfg)
 		if err != nil {
-			log.Error().Err(err).Msg("unable to setup main manager")
+			setupLog.Error(err, "unable to setup core manager")
 			return err
 		}
 
 		authorizationMgr, err := setupAuthorizationPlatformMeshManager(ctx, restCfg)
 		if err != nil {
-			log.Error().Err(err).Msg("unable to setup path-aware manager")
+			setupLog.Error(err, "unable to setup authorization manager")
 			return err
 		}
 
@@ -294,7 +294,7 @@ func setupCorePlatformMeshManager(ctx context.Context, restCfg *rest.Config) (mc
 
 	mgr, err := mcmanager.New(restCfg, provider, opts)
 	if err != nil {
-		return nil, fmt.Errorf("creating main manager: %w", err)
+		return nil, fmt.Errorf("creating core.platform-mesh.io manager: %w", err)
 	}
 
 	return mgr, nil
@@ -318,7 +318,7 @@ func setupAuthorizationPlatformMeshManager(ctx context.Context, restCfg *rest.Co
 
 	mgr, err := mcmanager.New(restCfg, provider, opts)
 	if err != nil {
-		return nil, fmt.Errorf("creating path-aware manager: %w", err)
+		return nil, fmt.Errorf("creating authorization.platform-mesh.io manager: %w", err)
 	}
 
 	return mgr, nil

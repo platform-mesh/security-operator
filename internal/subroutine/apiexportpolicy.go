@@ -6,8 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/kcp-dev/logicalcluster/v3"
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
@@ -21,6 +19,9 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+
+	"github.com/kcp-dev/logicalcluster/v3"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 const (
@@ -52,7 +53,6 @@ func (a *APIExportPolicySubroutine) Finalizers(_ lifecyclecontrollerruntime.Runt
 	return []string{APIExportPolicyFinalizer}
 }
 
-// Process reconciles the APIExportPolicy resource.
 func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 	policy := instance.(*authorizationv1alpha1.APIExportPolicy)
@@ -80,6 +80,8 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecy
 				true, true)
 		}
 
+		// for orgs workspace we need to write 1 tuple in every store
+		// for this we need to get cluster id for every org's workspace
 		if workspacePath == orgsWorkspacePath {
 			allclient, err := iclient.NewForAllPlatformMeshResources(ctx, a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme())
 			if err != nil {
@@ -103,7 +105,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecy
 				}
 
 				tuple := corev1alpha1.Tuple{
-					Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
+					Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.GeneratedClusterId, ai.Spec.Account.Name),
 					Relation: relation,
 					User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, policy.Spec.APIExportRef.Name),
 				}
@@ -163,7 +165,6 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecy
 	return ctrl.Result{}, nil
 }
 
-// Finalize cleans up resources when the APIExportPolicy is deleted.
 func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
 	policy := instance.(*authorizationv1alpha1.APIExportPolicy)
@@ -189,9 +190,6 @@ func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, instance lifec
 }
 
 func (a *APIExportPolicySubroutine) getClusterID(ctx context.Context, clusterPath string) (string, error) {
-	// clusterPath is :root:orgs:A:B
-	// to get client path-aware manager might be used
-	// or direct client creation
 	cluster, err := a.mgr.GetCluster(ctx, clusterPath)
 	if err != nil {
 		return "", fmt.Errorf("getting cluster for pattern %s: %w", clusterPath, err)
