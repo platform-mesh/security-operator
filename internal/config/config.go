@@ -58,25 +58,26 @@ type IDPConfig struct {
 
 // Config struct to hold the app config
 type Config struct {
-	FGA                              FGAConfig
-	KCP                              KCPConfig
-	APIExportEndpointSliceName       string
-	CoreModulePath                   string
-	BaseDomain                       string
-	GroupClaim                       string
-	UserClaim                        string
-	DevelopmentAllowUnverifiedEmails bool
-	WorkspacePath                    string
-	WorkspaceTypeName                string
-	DomainCALookup                   bool
-	MigrateAuthorizationModels       bool
-	HttpClientTimeoutSeconds         int
-	SetDefaultPassword               bool
-	AllowMemberTuplesEnabled         bool
-	IDP                              IDPConfig
-	Keycloak                         KeycloakConfig
-	Initializer                      InitializerConfig
-	Webhooks                         WebhooksConfig
+	FGA                                     FGAConfig
+	KCP                                     KCPConfig
+	CoreAPIExportEndpointSliceName          string
+	AuthorizationAPIExportEndpointSliceName string
+	CoreModulePath                          string
+	BaseDomain                              string
+	GroupClaim                              string
+	UserClaim                               string
+	DevelopmentAllowUnverifiedEmails        bool
+	WorkspacePath                           string
+	WorkspaceTypeName                       string
+	DomainCALookup                          bool
+	MigrateAuthorizationModels              bool
+	HttpClientTimeoutSeconds                int
+	SetDefaultPassword                      bool
+	AllowMemberTuplesEnabled                bool
+	IDP                                     IDPConfig
+	Keycloak                                KeycloakConfig
+	Initializer                             InitializerConfig
+	Webhooks                                WebhooksConfig
 }
 
 func NewConfig() Config {
@@ -89,13 +90,14 @@ func NewConfig() Config {
 		KCP: KCPConfig{
 			Kubeconfig: "/api-kubeconfig/kubeconfig",
 		},
-		APIExportEndpointSliceName: "core.platform-mesh.io",
-		BaseDomain:                 "portal.dev.local:8443",
-		GroupClaim:                 "groups",
-		UserClaim:                  "email",
-		WorkspacePath:              "root",
-		WorkspaceTypeName:          "security",
-		HttpClientTimeoutSeconds:   30,
+		CoreAPIExportEndpointSliceName:          "core.platform-mesh.io",
+		AuthorizationAPIExportEndpointSliceName: "authorization.platform-mesh.io",
+		BaseDomain:                              "portal.dev.local:8443",
+		GroupClaim:                              "groups",
+		UserClaim:                               "email",
+		WorkspacePath:                           "root",
+		WorkspaceTypeName:                       "security",
+		HttpClientTimeoutSeconds:                30,
 		IDP: IDPConfig{
 			KubectlClientRedirectURLs: []string{"http://localhost:8000", "http://localhost:18000"},
 			AccessTokenLifespan:       28800,
@@ -123,7 +125,8 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.FGA.ParentRelation, "fga-parent-relation", c.FGA.ParentRelation, "Set the OpenFGA parent relation name")
 	fs.StringVar(&c.FGA.CreatorRelation, "fga-creator-relation", c.FGA.CreatorRelation, "Set the OpenFGA creator relation name")
 	fs.StringVar(&c.KCP.Kubeconfig, "kcp-kubeconfig", c.KCP.Kubeconfig, "Set the KCP kubeconfig path")
-	fs.StringVar(&c.APIExportEndpointSliceName, "api-export-endpoint-slice-name", c.APIExportEndpointSliceName, "Set the APIExportEndpointSlice name")
+	fs.StringVar(&c.CoreAPIExportEndpointSliceName, "core-api-export-endpoint-slice-name", c.CoreAPIExportEndpointSliceName, "Set the APIExportEndpointSlice name")
+	fs.StringVar(&c.AuthorizationAPIExportEndpointSliceName, "authorization-api-export-endpoint-slice-name", c.AuthorizationAPIExportEndpointSliceName, "Set the Authorization APIExportEndpointSlice name")
 	fs.StringVar(&c.CoreModulePath, "core-module-path", c.CoreModulePath, "Set the path to the core module FGA model file")
 	fs.StringVar(&c.BaseDomain, "base-domain", c.BaseDomain, "Set the base domain used to construct issuer URLs")
 	fs.StringVar(&c.GroupClaim, "group-claim", c.GroupClaim, "Set the ID token group claim")

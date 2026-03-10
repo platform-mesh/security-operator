@@ -11,11 +11,13 @@ import (
 	platformeshcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/golang-commons/sentry"
+	authorizationv1alpha1 "github.com/platform-mesh/security-operator/api/authorization/v1alpha1"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	internalwebhook "github.com/platform-mesh/security-operator/internal/webhook"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -32,6 +34,7 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
+	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
@@ -99,59 +102,15 @@ var operatorCmd = &cobra.Command{
 			defer platformeshcontext.Recover(log)
 		}
 
-		webhookServer := webhook.NewServer(webhook.Options{
-			TLSOpts: []func(*tls.Config){
-				func(c *tls.Config) {
-					log.Info().Msg("disabling http/2")
-					c.NextProtos = []string{"http/1.1"}
-				},
-			},
-			CertDir: operatorCfg.Webhooks.CertDir,
-			Port:    operatorCfg.Webhooks.Port,
-		})
-
-		mgrOpts := ctrl.Options{
-			Scheme: scheme,
-			Metrics: metricsserver.Options{
-				BindAddress: defaultCfg.Metrics.BindAddress,
-				TLSOpts: []func(*tls.Config){
-					func(c *tls.Config) {
-						log.Info().Msg("disabling http/2")
-						c.NextProtos = []string{"http/1.1"}
-					},
-				},
-			},
-			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
-			LeaderElection:         defaultCfg.LeaderElectionEnabled,
-			LeaderElectionID:       "security-operator.platform-mesh.io",
-			BaseContext:            func() context.Context { return ctx },
-			WebhookServer:          webhookServer,
-		}
-		if defaultCfg.LeaderElectionEnabled {
-			inClusterCfg, err := rest.InClusterConfig()
-			if err != nil {
-				log.Error().Err(err).Msg("unable to create in-cluster config")
-				return err
-			}
-			mgrOpts.LeaderElectionConfig = inClusterCfg
-		}
-
-		if mgrOpts.Scheme == nil {
-			log.Error().Err(fmt.Errorf("scheme should not be nil")).Msg("scheme should not be nil")
-			return fmt.Errorf("scheme should not be nil")
-		}
-
-		provider, err := apiexport.New(restCfg, operatorCfg.APIExportEndpointSliceName, apiexport.Options{
-			Scheme: mgrOpts.Scheme,
-		})
+		coreMgr, err := setupCorePlatformMeshManager(ctx, restCfg)
 		if err != nil {
-			setupLog.Error(err, "unable to construct cluster provider")
+			log.Error().Err(err).Msg("unable to setup main manager")
 			return err
 		}
 
-		mgr, err := mcmanager.New(restCfg, provider, mgrOpts)
+		authorizationMgr, err := setupAuthorizationPlatformMeshManager(ctx, restCfg)
 		if err != nil {
-			setupLog.Error(err, "Failed to create manager")
+			log.Error().Err(err).Msg("unable to setup path-aware manager")
 			return err
 		}
 
@@ -161,7 +120,7 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
+		orgClient, err := logicalClusterClientFromKey(coreMgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create org client")
 			return err
@@ -169,51 +128,67 @@ var operatorCmd = &cobra.Command{
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-		if err = controller.NewStoreReconciler(ctx, log, fga, mgr).
-			SetupWithManager(mgr, defaultCfg); err != nil {
+		if err = controller.NewStoreReconciler(ctx, log, fga, coreMgr).
+			SetupWithManager(coreMgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
 			return err
 		}
 		if err = controller.
-			NewAuthorizationModelReconciler(log, fga, mgr).
-			SetupWithManager(mgr, defaultCfg); err != nil {
+			NewAuthorizationModelReconciler(log, fga, coreMgr).
+			SetupWithManager(coreMgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
 			return err
 		}
-		if err = controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, orgClient, &operatorCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {
+		if err = controller.NewIdentityProviderConfigurationReconciler(ctx, coreMgr, orgClient, &operatorCfg, log).SetupWithManager(coreMgr, defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create controller")
 			return err
 		}
-		if err = controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {
+		if err = controller.NewInviteReconciler(ctx, coreMgr, &operatorCfg, log).SetupWithManager(coreMgr, defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
 			return err
 		}
-		if err = controller.NewAccountInfoReconciler(log, mgr).SetupWithManager(mgr, defaultCfg); err != nil {
+		if err = controller.NewAccountInfoReconciler(log, coreMgr).SetupWithManager(coreMgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "accountinfo").Msg("unable to create controller")
+			return err
+		}
+
+		if err = controller.NewAPIExportPolicyReconciler(log, fga, authorizationMgr).SetupWithManager(authorizationMgr, defaultCfg); err != nil {
+			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
 			return err
 		}
 
 		if operatorCfg.Webhooks.Enabled {
 			log.Info().Msg("validating webhooks are enabled")
-			if err := internalwebhook.SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx, mgr.GetLocalManager(), &operatorCfg); err != nil {
+			if err := internalwebhook.SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx, coreMgr.GetLocalManager(), &operatorCfg); err != nil {
 				log.Error().Err(err).Str("webhook", "IdentityProviderConfiguration").Msg("unable to create webhook")
 				return err
 			}
 		}
 		// +kubebuilder:scaffold:builder
 
-		if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		if err := coreMgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 			log.Error().Err(err).Msg("unable to set up health check")
 			return err
 		}
-		if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		if err := coreMgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 			log.Error().Err(err).Msg("unable to set up ready check")
 			return err
 		}
 
-		setupLog.Info("starting manager")
-		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
-			log.Error().Err(err).Msg("problem running manager")
+		g, gctx := errgroup.WithContext(ctx)
+
+		g.Go(func() error {
+			setupLog.Info("starting core manager")
+			return coreMgr.Start(gctx)
+		})
+
+		g.Go(func() error {
+			setupLog.Info("starting authorization manager")
+			return authorizationMgr.Start(gctx)
+		})
+
+		if err := g.Wait(); err != nil {
+			log.Error().Err(err).Msg("failed to run managers")
 			return err
 		}
 		return nil
@@ -266,9 +241,85 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(corev1alpha1.AddToScheme(scheme))
+	utilruntime.Must(authorizationv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme))
 	utilruntime.Must(kcpapisv1alpha2.AddToScheme(scheme))
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(accountsv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
+}
+
+func setupCorePlatformMeshManager(ctx context.Context, restCfg *rest.Config) (mcmanager.Manager, error) {
+	webhookServer := webhook.NewServer(webhook.Options{
+		TLSOpts: []func(*tls.Config){
+			func(c *tls.Config) {
+				c.NextProtos = []string{"http/1.1"}
+			},
+		},
+		CertDir: operatorCfg.Webhooks.CertDir,
+		Port:    operatorCfg.Webhooks.Port,
+	})
+
+	opts := ctrl.Options{
+		Scheme: scheme,
+		Metrics: metricsserver.Options{
+			BindAddress: defaultCfg.Metrics.BindAddress,
+			TLSOpts: []func(*tls.Config){
+				func(c *tls.Config) {
+					c.NextProtos = []string{"http/1.1"}
+				},
+			},
+		},
+		HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
+		LeaderElection:         defaultCfg.LeaderElectionEnabled,
+		LeaderElectionID:       "security-operator.platform-mesh.io",
+		BaseContext:            func() context.Context { return ctx },
+		WebhookServer:          webhookServer,
+	}
+
+	if defaultCfg.LeaderElectionEnabled {
+		inClusterCfg, err := rest.InClusterConfig()
+		if err != nil {
+			return nil, fmt.Errorf("getting in-cluster config for leader election: %w", err)
+		}
+		opts.LeaderElectionConfig = inClusterCfg
+	}
+
+	provider, err := apiexport.New(restCfg, operatorCfg.CoreAPIExportEndpointSliceName, apiexport.Options{
+		Scheme: opts.Scheme,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("creating apiexport provider: %w", err)
+	}
+
+	mgr, err := mcmanager.New(restCfg, provider, opts)
+	if err != nil {
+		return nil, fmt.Errorf("creating main manager: %w", err)
+	}
+
+	return mgr, nil
+}
+
+func setupAuthorizationPlatformMeshManager(ctx context.Context, restCfg *rest.Config) (mcmanager.Manager, error) {
+	provider, err := pathaware.New(restCfg, operatorCfg.AuthorizationAPIExportEndpointSliceName, apiexport.Options{
+		Scheme: scheme,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("creating path-aware provider: %w", err)
+	}
+
+	opts := ctrl.Options{
+		Scheme:                 scheme,
+		Metrics:                metricsserver.Options{BindAddress: "0"},
+		HealthProbeBindAddress: "0",
+		LeaderElection:         false,
+		BaseContext:            func() context.Context { return ctx },
+	}
+
+	mgr, err := mcmanager.New(restCfg, provider, opts)
+	if err != nil {
+		return nil, fmt.Errorf("creating path-aware manager: %w", err)
+	}
+
+	return mgr, nil
 }

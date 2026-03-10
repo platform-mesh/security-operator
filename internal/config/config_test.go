@@ -12,7 +12,7 @@ func TestNewConfig(t *testing.T) {
 
 	assert.Equal(t, "core_platform-mesh_io_account", cfg.FGA.ObjectType)
 	assert.Equal(t, "/api-kubeconfig/kubeconfig", cfg.KCP.Kubeconfig)
-	assert.Equal(t, "core.platform-mesh.io", cfg.APIExportEndpointSliceName)
+	assert.Equal(t, "core.platform-mesh.io", cfg.CoreAPIExportEndpointSliceName)
 	assert.Equal(t, "security-operator", cfg.Keycloak.ClientID)
 	assert.Equal(t, 9443, cfg.Webhooks.Port)
 	assert.Equal(t, []string{"http://localhost:8000", "http://localhost:18000"}, cfg.IDP.KubectlClientRedirectURLs)

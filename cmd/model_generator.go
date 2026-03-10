@@ -70,7 +70,7 @@ var modelGeneratorCmd = &cobra.Command{
 			return fmt.Errorf("scheme should not be nil")
 		}
 
-		provider, err := apiexport.New(restCfg, operatorCfg.APIExportEndpointSliceName, apiexport.Options{
+		provider, err := apiexport.New(restCfg, operatorCfg.CoreAPIExportEndpointSliceName, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
