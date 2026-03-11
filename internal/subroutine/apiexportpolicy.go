@@ -105,7 +105,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecy
 				}
 
 				tuple := corev1alpha1.Tuple{
-					Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.GeneratedClusterId, ai.Spec.Account.Name),
+					Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 					Relation: relation,
 					User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, policy.Spec.APIExportRef.Name),
 				}
@@ -133,7 +133,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecy
 		}
 
 		tuple := corev1alpha1.Tuple{
-			Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.GeneratedClusterId, ai.Spec.Account.Name),
+			Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 			Relation: relation,
 			User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, policy.Spec.APIExportRef.Name),
 		}
@@ -190,13 +190,13 @@ func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, instance lifec
 }
 
 func (a *APIExportPolicySubroutine) getClusterID(ctx context.Context, clusterPath string) (string, error) {
-	cluster, err := a.mgr.GetCluster(ctx, clusterPath)
+	lcClient, err := iclient.NewForLogicalCluster(a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(clusterPath))
 	if err != nil {
-		return "", fmt.Errorf("getting cluster for pattern %s: %w", clusterPath, err)
+		return "", fmt.Errorf("getting client for workspace %s: %w", clusterPath, err)
 	}
 
 	var lc kcpcorev1alpha1.LogicalCluster
-	if err := cluster.GetClient().Get(ctx, client.ObjectKey{Name: "cluster"}, &lc); err != nil {
+	if err := lcClient.Get(ctx, client.ObjectKey{Name: "cluster"}, &lc); err != nil {
 		return "", fmt.Errorf("getting logical cluster for path %s: %w", clusterPath, err)
 	}
 
@@ -270,7 +270,7 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 			}
 
 			tupleToDelete := corev1alpha1.Tuple{
-				Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.GeneratedClusterId, ai.Spec.Account.Name),
+				Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 				Relation: relation,
 				User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, apiExportName),
 			}
@@ -294,7 +294,7 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 	}
 
 	tupleToDelete := corev1alpha1.Tuple{
-		Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.GeneratedClusterId, ai.Spec.Account.Name),
+		Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 		Relation: relation,
 		User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, apiExportName),
 	}
