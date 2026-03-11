@@ -182,7 +182,7 @@ func TestTupleManager_Delete_verifies_tuple_contents(t *testing.T) {
 
 func TestIsTupleOfAccountFilter_returnsFalseForAllTuplesWhenGeneratedClusterIdEmpty(t *testing.T) {
 	_, ai := testAccountAndInfo("test-account", "")
-	filter := IsTupleOfAccountFilter(ai)
+	filter := IsTupleOfAccountFilter(ai.Spec.Account.GeneratedClusterId)
 
 	// Any tuple should be rejected when GeneratedClusterId is empty
 	tuples := []v1alpha1.Tuple{
@@ -198,12 +198,26 @@ func TestIsTupleOfAccountFilter_returnsFalseForAllTuplesWhenGeneratedClusterIdEm
 func TestIsTupleOfAccountFilter_deleteRemovesGeneratedTuples(t *testing.T) {
 	// Use distinct GeneratedClusterIds so the filter matches only one account's tuples
 	acc, ai := testAccountAndInfo("test-account", "1mj722nrt4jo3ggn")
-	accountTuples, err := InitialTuplesForAccount(acc, ai, "creator", "parent", "account")
+	var creator string
+	if acc.Spec.Creator != nil {
+		creator = *acc.Spec.Creator
+	}
+	accountTuples, err := InitialTuplesForAccount(creator,
+		ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name,
+		ai.Spec.ParentAccount.OriginClusterId, ai.Spec.ParentAccount.Name,
+		"creator", "parent", "account")
 	require.NoError(t, err)
 
 	// Tuples for a second account (should NOT be deleted when we delete test-account's tuples)
 	acc2, ai2 := testAccountAndInfo("other-account", "1yrj2fwqtxcxbm1v")
-	otherTuples, err := InitialTuplesForAccount(acc2, ai2, "creator", "parent", "account")
+	var creator2 string
+	if acc2.Spec.Creator != nil {
+		creator2 = *acc2.Spec.Creator
+	}
+	otherTuples, err := InitialTuplesForAccount(creator2,
+		ai2.Spec.Account.OriginClusterId, ai2.Spec.Account.Name,
+		ai2.Spec.ParentAccount.OriginClusterId, ai2.Spec.ParentAccount.Name,
+		"creator", "parent", "account")
 	require.NoError(t, err)
 
 	// allTuples: database managed by mocks (Write appends/deletes, Read returns current state)
@@ -242,7 +256,7 @@ func TestIsTupleOfAccountFilter_deleteRemovesGeneratedTuples(t *testing.T) {
 	require.Len(t, allTuples, len(tuplesToApply), "database should contain all applied tuples")
 
 	// 2. ListWithFilter: should return only account tuples
-	filtered, err := mgr.ListWithFilter(context.Background(), IsTupleOfAccountFilter(ai))
+	filtered, err := mgr.ListWithFilter(context.Background(), IsTupleOfAccountFilter(ai.Spec.Account.GeneratedClusterId))
 	require.NoError(t, err)
 	require.Len(t, filtered, len(accountTuples), "filter should return only account tuples")
 

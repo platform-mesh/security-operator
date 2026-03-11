@@ -73,7 +73,13 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, instance runti
 	}
 
 	// Ensure the necessary tuples in OpenFGA.
-	tuples, err := fga.InitialTuplesForAccount(acc, ai, s.creatorRelation, s.parentRelation, s.objectType)
+	if acc.Spec.Creator == nil || *acc.Spec.Creator == "" {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("account creator is nil or empty"), true, true)
+	}
+	tuples, err := fga.InitialTuplesForAccount(*acc.Spec.Creator,
+		ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name,
+		ai.Spec.ParentAccount.OriginClusterId, ai.Spec.ParentAccount.Name,
+		s.creatorRelation, s.parentRelation, s.objectType)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for account: %w", err), true, true)
 	}
@@ -94,7 +100,7 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtim
 
 	// List tuples that reference the account.
 	tm := fga.NewTupleManager(s.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx))
-	accountReferenceTuples, err := tm.ListWithKey(ctx, fga.ReferencingAccountTupleKey(s.objectType, ai))
+	accountReferenceTuples, err := tm.ListWithKey(ctx, fga.ReferencingAccountTupleKey(s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name))
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("listing tuples referencing Account: %w", err), true, true)
 	}

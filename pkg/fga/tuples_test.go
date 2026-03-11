@@ -3,17 +3,13 @@ package fga
 import (
 	"testing"
 
-	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	accountName        = "one"
-	accountInfoName    = "account"
 	parentAccountName  = "default"
 	generatedClusterID = "1mj722nrt4jo3ggn"
 	originClusterID    = "14uc34987epvgggc"
@@ -24,29 +20,9 @@ const (
 )
 
 func TestInitialTuplesForAccount(t *testing.T) {
-	creatorVal := creator
-	acc := accountv1alpha1.Account{
-		ObjectMeta: metav1.ObjectMeta{Name: accountName},
-		Spec: accountv1alpha1.AccountSpec{
-			Creator: &creatorVal,
-		},
-	}
-	ai := accountv1alpha1.AccountInfo{
-		ObjectMeta: metav1.ObjectMeta{Name: accountInfoName},
-		Spec: accountv1alpha1.AccountInfoSpec{
-			Account: accountv1alpha1.AccountLocation{
-				Name:               accountName,
-				GeneratedClusterId: generatedClusterID,
-				OriginClusterId:    originClusterID,
-			},
-			ParentAccount: &accountv1alpha1.AccountLocation{
-				Name:            parentAccountName,
-				OriginClusterId: originClusterID,
-			},
-		},
-	}
-
-	tuples, err := InitialTuplesForAccount(acc, ai, creatorRelation, parentRelation, objectType)
+	tuples, err := InitialTuplesForAccount(creator,
+		originClusterID, accountName, originClusterID, parentAccountName,
+		creatorRelation, parentRelation, objectType)
 	require.NoError(t, err)
 	require.Len(t, tuples, 3)
 
@@ -74,28 +50,9 @@ func TestInitialTuplesForAccount(t *testing.T) {
 
 func TestInitialTuplesForAccount_formatUser(t *testing.T) {
 	creator := "system:serviceaccount:ns:name"
-	acc := accountv1alpha1.Account{
-		ObjectMeta: metav1.ObjectMeta{Name: accountName},
-		Spec: accountv1alpha1.AccountSpec{
-			Creator: &creator,
-		},
-	}
-	ai := accountv1alpha1.AccountInfo{
-		ObjectMeta: metav1.ObjectMeta{Name: accountInfoName},
-		Spec: accountv1alpha1.AccountInfoSpec{
-			Account: accountv1alpha1.AccountLocation{
-				Name:               accountName,
-				GeneratedClusterId: generatedClusterID,
-				OriginClusterId:    originClusterID,
-			},
-			ParentAccount: &accountv1alpha1.AccountLocation{
-				Name:            parentAccountName,
-				OriginClusterId: originClusterID,
-			},
-		},
-	}
-
-	tuples, err := InitialTuplesForAccount(acc, ai, creatorRelation, parentRelation, objectType)
+	tuples, err := InitialTuplesForAccount(creator,
+		originClusterID, accountName, originClusterID, parentAccountName,
+		creatorRelation, parentRelation, objectType)
 	require.NoError(t, err)
 	require.Len(t, tuples, 3)
 
@@ -103,26 +60,9 @@ func TestInitialTuplesForAccount_formatUser(t *testing.T) {
 }
 
 func TestInitialTuplesForAccount_nilCreator(t *testing.T) {
-	acc := accountv1alpha1.Account{
-		ObjectMeta: metav1.ObjectMeta{Name: accountName},
-		Spec:       accountv1alpha1.AccountSpec{},
-	}
-	ai := accountv1alpha1.AccountInfo{
-		ObjectMeta: metav1.ObjectMeta{Name: accountInfoName},
-		Spec: accountv1alpha1.AccountInfoSpec{
-			Account: accountv1alpha1.AccountLocation{
-				Name:               accountName,
-				GeneratedClusterId: generatedClusterID,
-				OriginClusterId:    originClusterID,
-			},
-			ParentAccount: &accountv1alpha1.AccountLocation{
-				Name:            parentAccountName,
-				OriginClusterId: originClusterID,
-			},
-		},
-	}
-
-	_, err := InitialTuplesForAccount(acc, ai, creatorRelation, parentRelation, objectType)
+	_, err := InitialTuplesForAccount("",
+		originClusterID, accountName, originClusterID, parentAccountName,
+		creatorRelation, parentRelation, objectType)
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "creator is nil")
+	assert.Contains(t, err.Error(), "creator is empty")
 }

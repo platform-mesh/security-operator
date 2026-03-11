@@ -119,7 +119,10 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, instance runtimeo
 		ObjectMeta: metav1.ObjectMeta{Name: generateStoreName(lc)},
 	}
 
-	tuples, err := fga.TuplesForOrganization(acc, ai, w.creatorRelation, w.objectType)
+	if acc.Spec.Creator == nil || *acc.Spec.Creator == "" {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("account creator is nil or empty"), true, true)
+	}
+	tuples, err := fga.TuplesForOrganization(*acc.Spec.Creator, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name, w.creatorRelation, w.objectType)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for organization: %w", err), true, true)
 	}
