@@ -102,6 +102,7 @@ var operatorCmd = &cobra.Command{
 		webhookServer := webhook.NewServer(webhook.Options{
 			TLSOpts: []func(*tls.Config){
 				func(c *tls.Config) {
+					log.Info().Msg("disabling http/2")
 					c.NextProtos = []string{"http/1.1"}
 				},
 			},
@@ -109,12 +110,13 @@ var operatorCmd = &cobra.Command{
 			Port:    operatorCfg.Webhooks.Port,
 		})
 
-		opts := ctrl.Options{
+		mgrOpts := ctrl.Options{
 			Scheme: scheme,
 			Metrics: metricsserver.Options{
 				BindAddress: defaultCfg.Metrics.BindAddress,
 				TLSOpts: []func(*tls.Config){
 					func(c *tls.Config) {
+						log.Info().Msg("disabling http/2")
 						c.NextProtos = []string{"http/1.1"}
 					},
 				},
@@ -125,27 +127,31 @@ var operatorCmd = &cobra.Command{
 			BaseContext:            func() context.Context { return ctx },
 			WebhookServer:          webhookServer,
 		}
-
 		if defaultCfg.LeaderElectionEnabled {
 			inClusterCfg, err := rest.InClusterConfig()
 			if err != nil {
-				setupLog.Error(err, "unable to get in-cluster config for leader election")
+				log.Error().Err(err).Msg("unable to create in-cluster config")
 				return err
 			}
-			opts.LeaderElectionConfig = inClusterCfg
+			mgrOpts.LeaderElectionConfig = inClusterCfg
+		}
+
+		if mgrOpts.Scheme == nil {
+			log.Error().Err(fmt.Errorf("scheme should not be nil")).Msg("scheme should not be nil")
+			return fmt.Errorf("scheme should not be nil")
 		}
 
 		provider, err := apiexport.New(restCfg, operatorCfg.CoreAPIExportEndpointSliceName, apiexport.Options{
-			Scheme: opts.Scheme,
+			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
-			setupLog.Error(err, "unable to create apiexport provider")
+			setupLog.Error(err, "unable to construct cluster provider")
 			return err
 		}
 
-		coreMgr, err := mcmanager.New(restCfg, provider, opts)
+		mgr, err := mcmanager.New(restCfg, provider, mgrOpts)
 		if err != nil {
-			setupLog.Error(err, "unable to create core manager")
+			setupLog.Error(err, "Failed to create manager")
 			return err
 		}
 
@@ -155,7 +161,7 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		orgClient, err := logicalClusterClientFromKey(coreMgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
+		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create org client")
 			return err
@@ -163,51 +169,54 @@ var operatorCmd = &cobra.Command{
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-		if err = controller.NewStoreReconciler(ctx, log, fga, coreMgr).
-			SetupWithManager(coreMgr, defaultCfg); err != nil {
+		if err = controller.NewStoreReconciler(ctx, log, fga, mgr).
+			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
 			return err
 		}
 		if err = controller.
-			NewAuthorizationModelReconciler(log, fga, coreMgr).
-			SetupWithManager(coreMgr, defaultCfg); err != nil {
+			NewAuthorizationModelReconciler(log, fga, mgr).
+			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
 			return err
 		}
-		if err = controller.NewIdentityProviderConfigurationReconciler(ctx, coreMgr, orgClient, &operatorCfg, log).SetupWithManager(coreMgr, defaultCfg, log); err != nil {
+		if err = controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, orgClient, &operatorCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create controller")
 			return err
 		}
-		if err = controller.NewInviteReconciler(ctx, coreMgr, &operatorCfg, log).SetupWithManager(coreMgr, defaultCfg, log); err != nil {
+		if err = controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
 			return err
 		}
-		if err = controller.NewAccountInfoReconciler(log, coreMgr).SetupWithManager(coreMgr, defaultCfg); err != nil {
+		if err = controller.NewAccountInfoReconciler(log, mgr).SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "accountinfo").Msg("unable to create controller")
 			return err
 		}
 
 		if operatorCfg.Webhooks.Enabled {
 			log.Info().Msg("validating webhooks are enabled")
-			if err := internalwebhook.SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx, coreMgr.GetLocalManager(), &operatorCfg); err != nil {
+			if err := internalwebhook.SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx, mgr.GetLocalManager(), &operatorCfg); err != nil {
 				log.Error().Err(err).Str("webhook", "IdentityProviderConfiguration").Msg("unable to create webhook")
 				return err
 			}
 		}
 		// +kubebuilder:scaffold:builder
 
-		if err := coreMgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
+		if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 			log.Error().Err(err).Msg("unable to set up health check")
 			return err
 		}
-		if err := coreMgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
+		if err := mgr.AddReadyzCheck("readyz", healthz.Ping); err != nil {
 			log.Error().Err(err).Msg("unable to set up ready check")
 			return err
 		}
 
-		setupLog.Info("starting core manager")
-
-		return coreMgr.Start(ctx)
+		setupLog.Info("starting manager")
+		if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+			log.Error().Err(err).Msg("problem running manager")
+			return err
+		}
+		return nil
 	},
 }
 

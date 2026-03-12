@@ -97,7 +97,7 @@ var apiExportPolicyCmd = &cobra.Command{
 			return err
 		}
 
-		setupLog.Info("starting apiexportpolicy manager")
+		setupLog.Info("starting authorization manager")
 
 		return mgr.Start(ctx)
 	},
