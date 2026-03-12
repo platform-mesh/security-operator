@@ -17,19 +17,12 @@ import (
 	platformmeshpath "github.com/platform-mesh/security-operator/internal/platformmesh"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-
-	kerrors "k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	mcclient "github.com/kcp-dev/multicluster-provider/client"
-	kcpcore "github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
-
-const accountTuplesTerminatorFinalizer = "core.platform-mesh.io/account-tuples-terminator"
 
 // AccountTuplesSubroutine creates FGA tuples for Accounts not of the
 // "org"-type when initializing, and deletes them when terminating.
@@ -52,26 +45,6 @@ func (s *AccountTuplesSubroutine) Process(ctx context.Context, instance runtimeo
 // Initialize implements lifecycle.Initializer.
 func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
-	acc, ai, opErr := AccountAndInfoForLogicalCluster(ctx, s.mgr, lc)
-	if opErr != nil {
-		return ctrl.Result{}, opErr
-	}
-
-	if updated := controllerutil.AddFinalizer(&ai, accountTuplesTerminatorFinalizer); updated {
-		lcID, ok := mccontext.ClusterFrom(ctx)
-		if !ok {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("cluster name not found in context"), true, true)
-		}
-
-		lcClient, err := iclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(lcID))
-		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting client: %w", err), true, true)
-		}
-
-		if err := lcClient.Update(ctx, &ai); err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating AccountInfo to set finalizer: %w", err), true, true)
-		}
-	}
 
 	accountPath, err := platformmeshpath.NewAccountPathFromLogicalCluster(lc)
 	if err != nil {
@@ -84,13 +57,11 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, instance runti
 	}
 
 	// Ensure the necessary tuples in OpenFGA.
-	if acc.Spec.Creator == nil || *acc.Spec.Creator == "" {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("account creator is nil or empty"), true, true)
+	creator, accountOriginClusterID, accountName, parentOriginClusterID, parentName, err := TupleInformationForAccountPath(ctx, s.mgr, accountPath)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("rendering tuple information for Account: %w", err), true, true)
 	}
-	tuples, err := fga.InitialTuplesForAccount(*acc.Spec.Creator,
-		ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name,
-		ai.Spec.ParentAccount.OriginClusterId, ai.Spec.ParentAccount.Name,
-		s.creatorRelation, s.parentRelation, s.objectType)
+	tuples, err := fga.InitialTuplesForAccount(creator, accountOriginClusterID, accountName, parentOriginClusterID, parentName, s.creatorRelation, s.parentRelation, s.objectType)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for account: %w", err), true, true)
 	}
@@ -104,14 +75,22 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, instance runti
 // Terminate implements lifecycle.Terminator.
 func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
-	_, ai, opErr := AccountAndInfoForLogicalCluster(ctx, s.mgr, lc)
-	if opErr != nil {
-		return ctrl.Result{}, opErr
-	}
 
 	accountPath, err := platformmeshpath.NewAccountPathFromLogicalCluster(lc)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting AccountPath from LogicalCluster: %w", err), true, true)
+	}
+	parentPath, _ := accountPath.Parent()
+
+	// Retrieve parent LogicalCluster to determine its cluster ID
+	parentLC, err := LogicalClusterForPath(ctx, s.mgr, parentPath)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent account's LogicalCluster %w", err), true, true)
+	}
+	parentClusterID, ok := parentLC.Annotations["kcp.io/cluster"]
+	if !ok || parentClusterID == "" {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("cluster-annotation on parent account's LogicalCluster is not set"), true, true)
+
 	}
 
 	storeID, err := s.storeIDGetter.Get(ctx, storeNameFromAccountPath(accountPath))
@@ -121,7 +100,7 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtim
 
 	// List tuples that reference the account.
 	tm := fga.NewTupleManager(s.fga, storeID, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx))
-	accountReferenceTuples, err := tm.ListWithKey(ctx, fga.ReferencingAccountTupleKey(s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name))
+	accountReferenceTuples, err := tm.ListWithKey(ctx, fga.ReferencingAccountTupleKey(s.objectType, parentClusterID, accountPath.Base()))
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("listing tuples referencing Account: %w", err), true, true)
 	}
@@ -129,7 +108,7 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtim
 	accountTuples = append(accountTuples, accountReferenceTuples...)
 
 	// From tuples referencing the account, parse potential roles specific to the account.
-	rolePrefix := fga.RenderRolePrefix(s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name)
+	rolePrefix := fga.RenderRolePrefix(s.objectType, parentClusterID, accountPath.Base())
 	for _, t := range accountReferenceTuples {
 		if strings.HasPrefix(t.User, rolePrefix) {
 			role := strings.TrimSuffix(t.User, "#assignee")
@@ -144,23 +123,6 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtim
 	// Delete all collected tuples.
 	if err := tm.Delete(ctx, accountTuples); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("deleting tuples for Account: %w", err), true, true)
-	}
-
-	// Remove finalizer from AccountInfo.
-	if updated := controllerutil.RemoveFinalizer(&ai, accountTuplesTerminatorFinalizer); updated {
-		lcID, ok := mccontext.ClusterFrom(ctx)
-		if !ok {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("cluster name not found in context"), true, true)
-		}
-
-		lcClient, err := iclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(lcID))
-		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting client: %w", err), true, true)
-		}
-
-		if err := lcClient.Update(ctx, &ai); err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("updating AccountInfo to remove finalizer: %w", err), true, true)
-		}
 	}
 
 	return ctrl.Result{}, nil
@@ -201,45 +163,58 @@ func storeNameFromAccountPath(ap platformmeshpath.AccountPath) string {
 	return ap.Org().Base()
 }
 
-// AccountAndInfoForLogicalCluster fetches the AccountInfo from the
-// LogicalCluster and the corresponding Account from the parent account's
-// workspace.
-func AccountAndInfoForLogicalCluster(ctx context.Context, mgr mcmanager.Manager, lc *kcpcorev1alpha1.LogicalCluster) (accountsv1alpha1.Account, accountsv1alpha1.AccountInfo, errors.OperatorError) {
-	if lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey] == "" {
-		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("annotation on LogicalCluster is not set"), true, true)
+// returns creator, accountOriginClusterID, accountName, parentOriginClusterID, parentName,
+func TupleInformationForAccountPath(ctx context.Context, mgr mcmanager.Manager, ap platformmeshpath.AccountPath) (string, string, string, string, string, error) {
+	// Retrieve the parent's LogicalCluster to determine its cluster ID
+	parentPath, _ := ap.Parent()
+	parentAccountLC, err := LogicalClusterForPath(ctx, mgr, parentPath)
+	if err != nil {
+		return "", "", "", "", "", fmt.Errorf("getting parent account's LogicalCluster%w", err)
 	}
-	lcID, ok := mccontext.ClusterFrom(ctx)
-	if !ok {
-		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("cluster name not found in context"), true, true)
+	parentAccountClusterID, ok := parentAccountLC.Annotations["kcp.io/cluster"]
+	if !ok || parentAccountClusterID == "" {
+		return "", "", "", "", "", fmt.Errorf("cluster-annotation on parent account's LogicalCluster is not set")
 	}
 
-	// The AccountInfo in the logical cluster belongs to the Account the
-	// Workspace was created for
-	lcClient, err := iclient.NewForLogicalCluster(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), logicalcluster.Name(lcID))
+	// Retrieve the grandparent's LogicalCluster to determine its clusterID
+	grandParentPath, _ := parentPath.Parent()
+	grandParentAccountLC, err := LogicalClusterForPath(ctx, mgr, grandParentPath)
 	if err != nil {
-		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("getting client: %w", err), true, true)
+		return "", "", "", "", "", fmt.Errorf("getting parent account's LogicalCluster%w", err)
 	}
-	var ai accountsv1alpha1.AccountInfo
-	if err := lcClient.Get(ctx, client.ObjectKey{
-		Name: "account",
-	}, &ai); err != nil && !kerrors.IsNotFound(err) {
-		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err), true, true)
-	} else if kerrors.IsNotFound(err) {
-		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("AccountInfo not found"), true, true)
+	grandParentAccountClusterID, ok := grandParentAccountLC.Annotations["kcp.io/cluster"]
+	if !ok || grandParentAccountClusterID == "" {
+		return "", "", "", "", "", fmt.Errorf("cluster-annotation on grandparent account's LogicalCluster is not set")
 	}
 
-	// The actual Account resource belonging to the Workspace needs to be
-	// fetched from the parent Account's Workspace
-	parentAccountClient, err := iclient.NewForLogicalCluster(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), logicalcluster.Name(ai.Spec.ParentAccount.Path))
-	if err != nil {
-		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("getting parent account cluster client: %w", err), true, true)
-	}
+	// Retrieve the Account resource out of the parent workspace to determine
+	// the creator
+	parentAccountClient, err := iclient.NewForLogicalCluster(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), logicalcluster.Name(parentPath.String()))
 	var acc accountsv1alpha1.Account
 	if err := parentAccountClient.Get(ctx, client.ObjectKey{
-		Name: ai.Spec.Account.Name,
+		Name: ap.Base(),
 	}, &acc); err != nil {
-		return accountsv1alpha1.Account{}, accountsv1alpha1.AccountInfo{}, errors.NewOperatorError(fmt.Errorf("getting Account in parent account cluster: %w", err), true, true)
+		return "", "", "", "", "", fmt.Errorf("getting Account in parent account cluster: %w", err)
+	}
+	if acc.Spec.Creator == nil || *acc.Spec.Creator == "" {
+		return "", "", "", "", "", fmt.Errorf("account creator is nil or empty")
 	}
 
-	return acc, ai, nil
+	return *acc.Spec.Creator, parentAccountClusterID, ap.Base(), grandParentAccountClusterID, parentPath.Base(), nil
+}
+
+func LogicalClusterForPath(ctx context.Context, mgr mcmanager.Manager, p logicalcluster.Path) (kcpcorev1alpha1.LogicalCluster, error) {
+	var lc kcpcorev1alpha1.LogicalCluster
+
+	clusterClient, err := iclient.NewForLogicalCluster(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), logicalcluster.Name(p.String()))
+	if err != nil {
+		return lc, fmt.Errorf("getting account cluster client: %w", err)
+	}
+	if err := clusterClient.Get(ctx, client.ObjectKey{
+		Name: "cluster",
+	}, &lc); err != nil {
+		return lc, fmt.Errorf("getting account's LogicalCluster: %w", err)
+	}
+
+	return lc, nil
 }
