@@ -5,7 +5,7 @@ go 1.25.7
 require (
 	github.com/coreos/go-oidc v2.5.0+incompatible
 	github.com/fluxcd/helm-controller/api v1.5.2
-	github.com/fluxcd/source-controller/api v1.8.0
+	github.com/fluxcd/source-controller/api v1.8.1
 	github.com/go-logr/logr v1.4.3
 	github.com/google/gnostic-models v0.7.1
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
