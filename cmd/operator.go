@@ -16,7 +16,6 @@ import (
 	"github.com/platform-mesh/security-operator/internal/controller"
 	internalwebhook "github.com/platform-mesh/security-operator/internal/webhook"
 	"github.com/spf13/cobra"
-	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,7 +32,6 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
-	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
@@ -101,15 +99,53 @@ var operatorCmd = &cobra.Command{
 			defer platformeshcontext.Recover(log)
 		}
 
-		coreMgr, err := setupCorePlatformMeshManager(ctx, restCfg)
+		webhookServer := webhook.NewServer(webhook.Options{
+			TLSOpts: []func(*tls.Config){
+				func(c *tls.Config) {
+					c.NextProtos = []string{"http/1.1"}
+				},
+			},
+			CertDir: operatorCfg.Webhooks.CertDir,
+			Port:    operatorCfg.Webhooks.Port,
+		})
+
+		opts := ctrl.Options{
+			Scheme: scheme,
+			Metrics: metricsserver.Options{
+				BindAddress: defaultCfg.Metrics.BindAddress,
+				TLSOpts: []func(*tls.Config){
+					func(c *tls.Config) {
+						c.NextProtos = []string{"http/1.1"}
+					},
+				},
+			},
+			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
+			LeaderElection:         defaultCfg.LeaderElectionEnabled,
+			LeaderElectionID:       "security-operator.platform-mesh.io",
+			BaseContext:            func() context.Context { return ctx },
+			WebhookServer:          webhookServer,
+		}
+
+		if defaultCfg.LeaderElectionEnabled {
+			inClusterCfg, err := rest.InClusterConfig()
+			if err != nil {
+				setupLog.Error(err, "unable to get in-cluster config for leader election")
+				return err
+			}
+			opts.LeaderElectionConfig = inClusterCfg
+		}
+
+		provider, err := apiexport.New(restCfg, operatorCfg.CoreAPIExportEndpointSliceName, apiexport.Options{
+			Scheme: opts.Scheme,
+		})
 		if err != nil {
-			setupLog.Error(err, "unable to setup core manager")
+			setupLog.Error(err, "unable to create apiexport provider")
 			return err
 		}
 
-		authorizationMgr, err := setupAuthorizationPlatformMeshManager(ctx, restCfg)
+		coreMgr, err := mcmanager.New(restCfg, provider, opts)
 		if err != nil {
-			setupLog.Error(err, "unable to setup authorization manager")
+			setupLog.Error(err, "unable to create core manager")
 			return err
 		}
 
@@ -151,11 +187,6 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewAPIExportPolicyReconciler(log, fga, authorizationMgr).SetupWithManager(authorizationMgr, defaultCfg); err != nil {
-			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
-			return err
-		}
-
 		if operatorCfg.Webhooks.Enabled {
 			log.Info().Msg("validating webhooks are enabled")
 			if err := internalwebhook.SetupIdentityProviderConfigurationValidatingWebhookWithManager(ctx, coreMgr.GetLocalManager(), &operatorCfg); err != nil {
@@ -174,23 +205,9 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		g, gctx := errgroup.WithContext(ctx)
+		setupLog.Info("starting core manager")
 
-		g.Go(func() error {
-			setupLog.Info("starting core manager")
-			return coreMgr.Start(gctx)
-		})
-
-		g.Go(func() error {
-			setupLog.Info("starting authorization manager")
-			return authorizationMgr.Start(gctx)
-		})
-
-		if err := g.Wait(); err != nil {
-			log.Error().Err(err).Msg("failed to run managers")
-			return err
-		}
-		return nil
+		return coreMgr.Start(ctx)
 	},
 }
 
@@ -245,79 +262,4 @@ func init() {
 	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme))
 	utilruntime.Must(accountsv1alpha1.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
-}
-
-func setupCorePlatformMeshManager(ctx context.Context, restCfg *rest.Config) (mcmanager.Manager, error) {
-	webhookServer := webhook.NewServer(webhook.Options{
-		TLSOpts: []func(*tls.Config){
-			func(c *tls.Config) {
-				c.NextProtos = []string{"http/1.1"}
-			},
-		},
-		CertDir: operatorCfg.Webhooks.CertDir,
-		Port:    operatorCfg.Webhooks.Port,
-	})
-
-	opts := ctrl.Options{
-		Scheme: scheme,
-		Metrics: metricsserver.Options{
-			BindAddress: defaultCfg.Metrics.BindAddress,
-			TLSOpts: []func(*tls.Config){
-				func(c *tls.Config) {
-					c.NextProtos = []string{"http/1.1"}
-				},
-			},
-		},
-		HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
-		LeaderElection:         defaultCfg.LeaderElectionEnabled,
-		LeaderElectionID:       "security-operator.platform-mesh.io",
-		BaseContext:            func() context.Context { return ctx },
-		WebhookServer:          webhookServer,
-	}
-
-	if defaultCfg.LeaderElectionEnabled {
-		inClusterCfg, err := rest.InClusterConfig()
-		if err != nil {
-			return nil, fmt.Errorf("getting in-cluster config for leader election: %w", err)
-		}
-		opts.LeaderElectionConfig = inClusterCfg
-	}
-
-	provider, err := apiexport.New(restCfg, operatorCfg.CoreAPIExportEndpointSliceName, apiexport.Options{
-		Scheme: opts.Scheme,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("creating apiexport provider: %w", err)
-	}
-
-	mgr, err := mcmanager.New(restCfg, provider, opts)
-	if err != nil {
-		return nil, fmt.Errorf("creating core.platform-mesh.io manager: %w", err)
-	}
-
-	return mgr, nil
-}
-
-func setupAuthorizationPlatformMeshManager(ctx context.Context, restCfg *rest.Config) (mcmanager.Manager, error) {
-	provider, err := pathaware.New(restCfg, operatorCfg.AuthorizationAPIExportEndpointSliceName, apiexport.Options{
-		Scheme: scheme,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("creating path-aware provider: %w", err)
-	}
-
-	opts := ctrl.Options{
-		Scheme:                 scheme,
-		Metrics:                metricsserver.Options{BindAddress: "0"},
-		HealthProbeBindAddress: "0",
-		LeaderElection:         false,
-		BaseContext:            func() context.Context { return ctx },
-	}
-
-	mgr, err := mcmanager.New(restCfg, provider, opts)
-	if err != nil {
-		return nil, fmt.Errorf("creating authorization.platform-mesh.io manager: %w", err)
-	}
-
-	return mgr, nil
 }
