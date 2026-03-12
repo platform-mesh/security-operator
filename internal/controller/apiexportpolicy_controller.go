@@ -9,7 +9,7 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
-	authorizationv1alpha1 "github.com/platform-mesh/security-operator/api/authorization/v1alpha1"
+	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -36,9 +36,9 @@ func NewAPIExportPolicyReconciler(log *logger.Logger, fga openfgav1.OpenFGAServi
 
 func (r *APIExportPolicyReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.mclifecycle.Reconcile(ctxWithCluster, req, &authorizationv1alpha1.APIExportPolicy{})
+	return r.mclifecycle.Reconcile(ctxWithCluster, req, &corev1alpha1.APIExportPolicy{})
 }
 
 func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
-	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "apiexportpolicy", &authorizationv1alpha1.APIExportPolicy{}, cfg.DebugLabelValue, r, r.log, evp...)
+	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "apiexportpolicy", &corev1alpha1.APIExportPolicy{}, cfg.DebugLabelValue, r, r.log, evp...)
 }

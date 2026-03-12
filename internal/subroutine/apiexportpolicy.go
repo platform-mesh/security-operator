@@ -12,7 +12,6 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
-	authorizationv1alpha1 "github.com/platform-mesh/security-operator/api/authorization/v1alpha1"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/pkg/fga"
@@ -55,7 +54,7 @@ func (a *APIExportPolicySubroutine) Finalizers(_ lifecyclecontrollerruntime.Runt
 
 func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
-	policy := instance.(*authorizationv1alpha1.APIExportPolicy)
+	policy := instance.(*corev1alpha1.APIExportPolicy)
 
 	providerClusterID, err := a.getClusterID(ctx, policy.Spec.APIExportRef.ClusterPath)
 	if err != nil {
@@ -167,7 +166,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecy
 
 func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	log := logger.LoadLoggerFromContext(ctx)
-	policy := instance.(*authorizationv1alpha1.APIExportPolicy)
+	policy := instance.(*corev1alpha1.APIExportPolicy)
 
 	providerClusterID, err := a.getClusterID(ctx, policy.Spec.APIExportRef.ClusterPath)
 	if err != nil {
@@ -224,7 +223,7 @@ func parseAllowExpression(expr string) (workspacePath string, relation string, e
 	return expr, bindRelation, nil
 }
 
-func (a *APIExportPolicySubroutine) deleteRemovedExpressions(ctx context.Context, policy *authorizationv1alpha1.APIExportPolicy) error {
+func (a *APIExportPolicySubroutine) deleteRemovedExpressions(ctx context.Context, policy *corev1alpha1.APIExportPolicy) error {
 	providerClusterID, err := a.getClusterID(ctx, policy.Spec.APIExportRef.ClusterPath)
 	if err != nil {
 		return fmt.Errorf("getting provider cluster ID for %s: %w", policy.Spec.APIExportRef.ClusterPath, err)
