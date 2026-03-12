@@ -202,10 +202,18 @@ func TestIsTupleOfAccountFilter_deleteRemovesGeneratedTuples(t *testing.T) {
 	if acc.Spec.Creator != nil {
 		creator = *acc.Spec.Creator
 	}
-	accountTuples, err := InitialTuplesForAccount(creator,
-		ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name,
-		ai.Spec.ParentAccount.OriginClusterId, ai.Spec.ParentAccount.Name,
-		"creator", "parent", "account")
+	accountTuples, err := InitialTuplesForAccount(InitialTuplesForAccountInput{
+		BaseTuplesInput: BaseTuplesInput{
+			Creator:                creator,
+			AccountOriginClusterID: ai.Spec.Account.OriginClusterId,
+			AccountName:            ai.Spec.Account.Name,
+			CreatorRelation:        "creator",
+			ObjectType:             "account",
+		},
+		ParentOriginClusterID: ai.Spec.ParentAccount.OriginClusterId,
+		ParentName:            ai.Spec.ParentAccount.Name,
+		ParentRelation:        "parent",
+	})
 	require.NoError(t, err)
 
 	// Tuples for a second account (should NOT be deleted when we delete test-account's tuples)
@@ -214,10 +222,18 @@ func TestIsTupleOfAccountFilter_deleteRemovesGeneratedTuples(t *testing.T) {
 	if acc2.Spec.Creator != nil {
 		creator2 = *acc2.Spec.Creator
 	}
-	otherTuples, err := InitialTuplesForAccount(creator2,
-		ai2.Spec.Account.OriginClusterId, ai2.Spec.Account.Name,
-		ai2.Spec.ParentAccount.OriginClusterId, ai2.Spec.ParentAccount.Name,
-		"creator", "parent", "account")
+	otherTuples, err := InitialTuplesForAccount(InitialTuplesForAccountInput{
+		BaseTuplesInput: BaseTuplesInput{
+			Creator:                creator2,
+			AccountOriginClusterID: ai2.Spec.Account.OriginClusterId,
+			AccountName:            ai2.Spec.Account.Name,
+			CreatorRelation:        "creator",
+			ObjectType:             "account",
+		},
+		ParentOriginClusterID: ai2.Spec.ParentAccount.OriginClusterId,
+		ParentName:            ai2.Spec.ParentAccount.Name,
+		ParentRelation:        "parent",
+	})
 	require.NoError(t, err)
 
 	// allTuples: database managed by mocks (Write appends/deletes, Read returns current state)

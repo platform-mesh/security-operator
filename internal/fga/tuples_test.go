@@ -20,9 +20,19 @@ const (
 )
 
 func TestInitialTuplesForAccount(t *testing.T) {
-	tuples, err := InitialTuplesForAccount(creator,
-		originClusterID, accountName, originClusterID, parentAccountName,
-		creatorRelation, parentRelation, objectType)
+	in := InitialTuplesForAccountInput{
+		BaseTuplesInput: BaseTuplesInput{
+			Creator:                creator,
+			AccountOriginClusterID: originClusterID,
+			AccountName:            accountName,
+			CreatorRelation:        creatorRelation,
+			ObjectType:             objectType,
+		},
+		ParentOriginClusterID: originClusterID,
+		ParentName:            parentAccountName,
+		ParentRelation:       parentRelation,
+	}
+	tuples, err := InitialTuplesForAccount(in)
 	require.NoError(t, err)
 	require.Len(t, tuples, 3)
 
@@ -49,10 +59,19 @@ func TestInitialTuplesForAccount(t *testing.T) {
 }
 
 func TestInitialTuplesForAccount_formatUser(t *testing.T) {
-	creator := "system:serviceaccount:ns:name"
-	tuples, err := InitialTuplesForAccount(creator,
-		originClusterID, accountName, originClusterID, parentAccountName,
-		creatorRelation, parentRelation, objectType)
+	in := InitialTuplesForAccountInput{
+		BaseTuplesInput: BaseTuplesInput{
+			Creator:                "system:serviceaccount:ns:name",
+			AccountOriginClusterID: originClusterID,
+			AccountName:            accountName,
+			CreatorRelation:        creatorRelation,
+			ObjectType:             objectType,
+		},
+		ParentOriginClusterID: originClusterID,
+		ParentName:            parentAccountName,
+		ParentRelation:       parentRelation,
+	}
+	tuples, err := InitialTuplesForAccount(in)
 	require.NoError(t, err)
 	require.Len(t, tuples, 3)
 
@@ -60,9 +79,19 @@ func TestInitialTuplesForAccount_formatUser(t *testing.T) {
 }
 
 func TestInitialTuplesForAccount_nilCreator(t *testing.T) {
-	_, err := InitialTuplesForAccount("",
-		originClusterID, accountName, originClusterID, parentAccountName,
-		creatorRelation, parentRelation, objectType)
+	in := InitialTuplesForAccountInput{
+		BaseTuplesInput: BaseTuplesInput{
+			Creator:                "",
+			AccountOriginClusterID: originClusterID,
+			AccountName:            accountName,
+			CreatorRelation:        creatorRelation,
+			ObjectType:             objectType,
+		},
+		ParentOriginClusterID: originClusterID,
+		ParentName:            parentAccountName,
+		ParentRelation:       parentRelation,
+	}
+	_, err := InitialTuplesForAccount(in)
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "creator is empty")
 }

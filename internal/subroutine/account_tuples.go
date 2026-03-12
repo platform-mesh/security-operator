@@ -57,11 +57,11 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, instance runti
 	}
 
 	// Ensure the necessary tuples in OpenFGA.
-	creator, accountOriginClusterID, accountName, parentOriginClusterID, parentName, err := TupleInformationForAccountPath(ctx, s.mgr, accountPath)
+	in, err := TupleInformationForAccountPath(ctx, s.mgr, accountPath, s.creatorRelation, s.parentRelation, s.objectType)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("rendering tuple information for Account: %w", err), true, true)
 	}
-	tuples, err := fga.InitialTuplesForAccount(creator, accountOriginClusterID, accountName, parentOriginClusterID, parentName, s.creatorRelation, s.parentRelation, s.objectType)
+	tuples, err := fga.InitialTuplesForAccount(in)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for account: %w", err), true, true)
 	}
@@ -163,44 +163,59 @@ func storeNameFromAccountPath(ap platformmeshpath.AccountPath) string {
 	return ap.Org().Base()
 }
 
-// returns creator, accountOriginClusterID, accountName, parentOriginClusterID, parentName,
-func TupleInformationForAccountPath(ctx context.Context, mgr mcmanager.Manager, ap platformmeshpath.AccountPath) (string, string, string, string, string, error) {
+// TupleInformationForAccountPath gathers information needed to render FGA
+// tuples for a given account and returns a complete InitialTuplesForAccountInput.
+func TupleInformationForAccountPath(ctx context.Context, mgr mcmanager.Manager, ap platformmeshpath.AccountPath, creatorRelation, parentRelation, objectType string) (fga.InitialTuplesForAccountInput, error) {
 	// Retrieve the parent's LogicalCluster to determine its cluster ID
 	parentPath, _ := ap.Parent()
 	parentAccountLC, err := LogicalClusterForPath(ctx, mgr, parentPath)
 	if err != nil {
-		return "", "", "", "", "", fmt.Errorf("getting parent account's LogicalCluster%w", err)
+		return fga.InitialTuplesForAccountInput{}, fmt.Errorf("getting parent account's LogicalCluster: %w", err)
 	}
 	parentAccountClusterID, ok := parentAccountLC.Annotations["kcp.io/cluster"]
 	if !ok || parentAccountClusterID == "" {
-		return "", "", "", "", "", fmt.Errorf("cluster-annotation on parent account's LogicalCluster is not set")
+		return fga.InitialTuplesForAccountInput{}, fmt.Errorf("cluster-annotation on parent account's LogicalCluster is not set")
 	}
 
 	// Retrieve the grandparent's LogicalCluster to determine its clusterID
 	grandParentPath, _ := parentPath.Parent()
 	grandParentAccountLC, err := LogicalClusterForPath(ctx, mgr, grandParentPath)
 	if err != nil {
-		return "", "", "", "", "", fmt.Errorf("getting parent account's LogicalCluster%w", err)
+		return fga.InitialTuplesForAccountInput{}, fmt.Errorf("getting parent account's LogicalCluster: %w", err)
 	}
 	grandParentAccountClusterID, ok := grandParentAccountLC.Annotations["kcp.io/cluster"]
 	if !ok || grandParentAccountClusterID == "" {
-		return "", "", "", "", "", fmt.Errorf("cluster-annotation on grandparent account's LogicalCluster is not set")
+		return fga.InitialTuplesForAccountInput{}, fmt.Errorf("cluster-annotation on grandparent account's LogicalCluster is not set")
 	}
 
 	// Retrieve the Account resource out of the parent workspace to determine
 	// the creator
 	parentAccountClient, err := iclient.NewForLogicalCluster(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), logicalcluster.Name(parentPath.String()))
+	if err != nil {
+		return fga.InitialTuplesForAccountInput{}, fmt.Errorf("getting client for parent account cluster: %w", err)
+	}
 	var acc accountsv1alpha1.Account
 	if err := parentAccountClient.Get(ctx, client.ObjectKey{
 		Name: ap.Base(),
 	}, &acc); err != nil {
-		return "", "", "", "", "", fmt.Errorf("getting Account in parent account cluster: %w", err)
+		return fga.InitialTuplesForAccountInput{}, fmt.Errorf("getting Account in parent account cluster: %w", err)
 	}
 	if acc.Spec.Creator == nil || *acc.Spec.Creator == "" {
-		return "", "", "", "", "", fmt.Errorf("account creator is nil or empty")
+		return fga.InitialTuplesForAccountInput{}, fmt.Errorf("account creator is nil or empty")
 	}
 
-	return *acc.Spec.Creator, parentAccountClusterID, ap.Base(), grandParentAccountClusterID, parentPath.Base(), nil
+	return fga.InitialTuplesForAccountInput{
+		BaseTuplesInput: fga.BaseTuplesInput{
+			Creator:                *acc.Spec.Creator,
+			AccountOriginClusterID: parentAccountClusterID,
+			AccountName:            ap.Base(),
+			CreatorRelation:        creatorRelation,
+			ObjectType:             objectType,
+		},
+		ParentOriginClusterID: grandParentAccountClusterID,
+		ParentName:            parentPath.Base(),
+		ParentRelation:        parentRelation,
+	}, nil
 }
 
 func LogicalClusterForPath(ctx context.Context, mgr mcmanager.Manager, p logicalcluster.Path) (kcpcorev1alpha1.LogicalCluster, error) {

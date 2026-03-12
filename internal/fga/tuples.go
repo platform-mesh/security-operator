@@ -9,24 +9,43 @@ import (
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 )
 
+type BaseTuplesInput struct {
+	Creator                string
+	AccountOriginClusterID string
+	AccountName            string
+	CreatorRelation        string
+	ObjectType             string
+}
+
+type TuplesForOrganizationInput struct {
+	BaseTuplesInput
+}
+
+type InitialTuplesForAccountInput struct {
+	BaseTuplesInput
+	ParentOriginClusterID string
+	ParentName            string
+	ParentRelation        string
+}
+
 // InitialTuplesForAccount returns FGA tuples for an account not of type
 // organization.
-func InitialTuplesForAccount(creator, accountOriginClusterID, accountName, parentOriginClusterID, parentName, creatorRelation, parentRelation, objectType string) ([]v1alpha1.Tuple, error) {
-	base, err := baseTuples(creator, accountOriginClusterID, accountName, creatorRelation, objectType)
+func InitialTuplesForAccount(in InitialTuplesForAccountInput) ([]v1alpha1.Tuple, error) {
+	base, err := baseTuples(in.BaseTuplesInput)
 	if err != nil {
 		return nil, err
 	}
 	tuples := append(base, v1alpha1.Tuple{
-		User:     renderAccountEntity(objectType, parentOriginClusterID, parentName),
-		Relation: parentRelation,
-		Object:   renderAccountEntity(objectType, accountOriginClusterID, accountName),
+		User:     renderAccountEntity(in.ObjectType, in.ParentOriginClusterID, in.ParentName),
+		Relation: in.ParentRelation,
+		Object:   renderAccountEntity(in.ObjectType, in.AccountOriginClusterID, in.AccountName),
 	})
 	return tuples, nil
 }
 
 // TuplesForOrganization returns FGA tuples for an Account of type organization.
-func TuplesForOrganization(creator, accountOriginClusterID, accountName, creatorRelation, objectType string) ([]v1alpha1.Tuple, error) {
-	return baseTuples(creator, accountOriginClusterID, accountName, creatorRelation, objectType)
+func TuplesForOrganization(in TuplesForOrganizationInput) ([]v1alpha1.Tuple, error) {
+	return baseTuples(in.BaseTuplesInput)
 }
 
 // IsTupleOfAccountFilter returns a filter determining whether a tuple is tied
@@ -53,21 +72,21 @@ func ReferencingOwnerRoleTupleKey(objectType, accountOriginClusterID, accountNam
 	}
 }
 
-func baseTuples(creator, accountOriginClusterID, accountName, creatorRelation, objectType string) ([]v1alpha1.Tuple, error) {
-	if creator == "" {
+func baseTuples(in BaseTuplesInput) ([]v1alpha1.Tuple, error) {
+	if in.Creator == "" {
 		return nil, errors.New("account creator is empty")
 	}
 
 	return []v1alpha1.Tuple{
 		{
-			User:     renderCreatorUser(creator),
+			User:     renderCreatorUser(in.Creator),
 			Relation: "assignee",
-			Object:   renderOwnerRole(objectType, accountOriginClusterID, accountName),
+			Object:   renderOwnerRole(in.ObjectType, in.AccountOriginClusterID, in.AccountName),
 		},
 		{
-			User:     renderOwnerRoleAssigneeGroup(objectType, accountOriginClusterID, accountName),
-			Relation: creatorRelation,
-			Object:   renderAccountEntity(objectType, accountOriginClusterID, accountName),
+			User:     renderOwnerRoleAssigneeGroup(in.ObjectType, in.AccountOriginClusterID, in.AccountName),
+			Relation: in.CreatorRelation,
+			Object:   renderAccountEntity(in.ObjectType, in.AccountOriginClusterID, in.AccountName),
 		},
 	}, nil
 }

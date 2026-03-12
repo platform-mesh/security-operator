@@ -122,7 +122,15 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, instance runtimeo
 	if acc.Spec.Creator == nil || *acc.Spec.Creator == "" {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("account creator is nil or empty"), true, true)
 	}
-	tuples, err := fga.TuplesForOrganization(*acc.Spec.Creator, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name, w.creatorRelation, w.objectType)
+	tuples, err := fga.TuplesForOrganization(fga.TuplesForOrganizationInput{
+		BaseTuplesInput: fga.BaseTuplesInput{
+			Creator:                *acc.Spec.Creator,
+			AccountOriginClusterID: ai.Spec.Account.OriginClusterId,
+			AccountName:            ai.Spec.Account.Name,
+			CreatorRelation:        w.creatorRelation,
+			ObjectType:             w.objectType,
+		},
+	})
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for organization: %w", err), true, true)
 	}
