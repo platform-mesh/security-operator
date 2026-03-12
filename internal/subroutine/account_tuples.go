@@ -14,6 +14,7 @@ import (
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/fga"
+	platformmeshpath "github.com/platform-mesh/security-operator/internal/platformmesh"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -72,6 +73,16 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, instance runti
 		}
 	}
 
+	accountPath, err := platformmeshpath.NewAccountPathFromLogicalCluster(lc)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting AccountPath from LogicalCluster: %w", err), true, true)
+	}
+
+	storeID, err := s.storeIDGetter.Get(ctx, storeNameFromAccountPath(accountPath))
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting store ID: %w", err), true, true)
+	}
+
 	// Ensure the necessary tuples in OpenFGA.
 	if acc.Spec.Creator == nil || *acc.Spec.Creator == "" {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("account creator is nil or empty"), true, true)
@@ -82,14 +93,6 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, instance runti
 		s.creatorRelation, s.parentRelation, s.objectType)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for account: %w", err), true, true)
-	}
-	storeName := storeNameFromLogicalCluster(lc)
-	if storeName == "" {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("logical cluster path annotation not set"), true, true)
-	}
-	storeID, err := s.storeIDGetter.Get(ctx, storeName)
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting store ID: %w", err), true, true)
 	}
 	if err := fga.NewTupleManager(s.fga, storeID, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx)).Apply(ctx, tuples); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("applying tuples for Account: %w", err), true, true)
@@ -106,11 +109,12 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtim
 		return ctrl.Result{}, opErr
 	}
 
-	storeName := storeNameFromLogicalCluster(lc)
-	if storeName == "" {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("logical cluster path annotation not set"), true, true)
+	accountPath, err := platformmeshpath.NewAccountPathFromLogicalCluster(lc)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting AccountPath from LogicalCluster: %w", err), true, true)
 	}
-	storeID, err := s.storeIDGetter.Get(ctx, storeName)
+
+	storeID, err := s.storeIDGetter.Get(ctx, storeNameFromAccountPath(accountPath))
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting store ID: %w", err), true, true)
 	}
@@ -193,12 +197,8 @@ var (
 	_ lifecyclesubroutine.Terminator  = &AccountTuplesSubroutine{}
 )
 
-func storeNameFromLogicalCluster(lc *kcpcorev1alpha1.LogicalCluster) string {
-	if path, ok := lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey]; ok {
-		pathElements := strings.Split(path, ":")
-		return pathElements[len(pathElements)-1]
-	}
-	return ""
+func storeNameFromAccountPath(ap platformmeshpath.AccountPath) string {
+	return ap.Org().Base()
 }
 
 // AccountAndInfoForLogicalCluster fetches the AccountInfo from the

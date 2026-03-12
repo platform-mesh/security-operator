@@ -165,22 +165,6 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, instance runtimeo
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store id is empty"), true, false)
 	}
 
-	cluster, err := w.mgr.ClusterFromContext(ctx)
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
-	}
-
-	accountInfo := accountsv1alpha1.AccountInfo{
-		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-	}
-	_, err = controllerutil.CreateOrUpdate(ctx, cluster.GetClient(), &accountInfo, func() error {
-		accountInfo.Spec.FGA.Store.Id = store.Status.StoreID
-		return nil
-	})
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to create/update accountInfo: %w", err), true, true)
-	}
-
 	return ctrl.Result{}, nil
 }
 
