@@ -105,23 +105,3 @@ func TestIsPlatformMeshAccountPath(t *testing.T) {
 		})
 	}
 }
-
-func TestStoreNameFromAccountPath(t *testing.T) {
-	t.Run("returns name of org for account path", func(t *testing.T) {
-		path, err := NewAccountPath("root:orgs:default:testaccount")
-		require.NoError(t, err)
-		assert.Equal(t, "default", StoreNameFromAccountPath(path))
-	})
-
-	t.Run("returns name of org for subaccount path", func(t *testing.T) {
-		path, err := NewAccountPath("root:orgs:default:testaccount:sub")
-		require.NoError(t, err)
-		assert.Equal(t, "default", StoreNameFromAccountPath(path))
-	})
-
-	t.Run("returns name of org name for org path", func(t *testing.T) {
-		path, err := NewAccountPath("root:orgs:default")
-		require.NoError(t, err)
-		assert.Equal(t, "default", StoreNameFromAccountPath(path))
-	})
-}
