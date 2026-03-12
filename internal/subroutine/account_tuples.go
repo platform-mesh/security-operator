@@ -33,10 +33,10 @@ const accountTuplesTerminatorFinalizer = "core.platform-mesh.io/account-tuples-t
 // AccountTuplesSubroutine creates FGA tuples for Accounts not of the
 // "org"-type when initializing, and deletes them when terminating.
 type AccountTuplesSubroutine struct {
-	mgr mcmanager.Manager
-	mcc mcclient.ClusterClient
-	fga openfgav1.OpenFGAServiceClient
-
+	mgr             mcmanager.Manager
+	mcc             mcclient.ClusterClient
+	fga             openfgav1.OpenFGAServiceClient
+	storeIDGetter   fga.StoreIDGetter
 	objectType      string
 	parentRelation  string
 	creatorRelation string
@@ -83,7 +83,15 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, instance runti
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for account: %w", err), true, true)
 	}
-	if err := fga.NewTupleManager(s.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx)).Apply(ctx, tuples); err != nil {
+	storeName := storeNameFromLogicalCluster(lc)
+	if storeName == "" {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("logical cluster path annotation not set"), true, true)
+	}
+	storeID, err := s.storeIDGetter.Get(ctx, storeName)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting store ID: %w", err), true, true)
+	}
+	if err := fga.NewTupleManager(s.fga, storeID, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx)).Apply(ctx, tuples); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("applying tuples for Account: %w", err), true, true)
 	}
 
@@ -98,8 +106,17 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtim
 		return ctrl.Result{}, opErr
 	}
 
+	storeName := storeNameFromLogicalCluster(lc)
+	if storeName == "" {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("logical cluster path annotation not set"), true, true)
+	}
+	storeID, err := s.storeIDGetter.Get(ctx, storeName)
+	if err != nil {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting store ID: %w", err), true, true)
+	}
+
 	// List tuples that reference the account.
-	tm := fga.NewTupleManager(s.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx))
+	tm := fga.NewTupleManager(s.fga, storeID, fga.AuthorizationModelIDLatest, logger.LoadLoggerFromContext(ctx))
 	accountReferenceTuples, err := tm.ListWithKey(ctx, fga.ReferencingAccountTupleKey(s.objectType, ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name))
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("listing tuples referencing Account: %w", err), true, true)
@@ -158,11 +175,12 @@ func (s *AccountTuplesSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []st
 // GetName implements lifecycle.Subroutine.
 func (s *AccountTuplesSubroutine) GetName() string { return "AccountTuplesSubroutine" }
 
-func NewAccountTuplesSubroutine(mcc mcclient.ClusterClient, mgr mcmanager.Manager, fga openfgav1.OpenFGAServiceClient, creatorRelation, parentRelation, objectType string) *AccountTuplesSubroutine {
+func NewAccountTuplesSubroutine(mcc mcclient.ClusterClient, mgr mcmanager.Manager, fga openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, creatorRelation, parentRelation, objectType string) *AccountTuplesSubroutine {
 	return &AccountTuplesSubroutine{
 		mgr:             mgr,
 		mcc:             mcc,
 		fga:             fga,
+		storeIDGetter:   storeIDGetter,
 		creatorRelation: creatorRelation,
 		parentRelation:  parentRelation,
 		objectType:      objectType,
@@ -174,6 +192,14 @@ var (
 	_ lifecyclesubroutine.Initializer = &AccountTuplesSubroutine{}
 	_ lifecyclesubroutine.Terminator  = &AccountTuplesSubroutine{}
 )
+
+func storeNameFromLogicalCluster(lc *kcpcorev1alpha1.LogicalCluster) string {
+	if path, ok := lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey]; ok {
+		pathElements := strings.Split(path, ":")
+		return pathElements[len(pathElements)-1]
+	}
+	return ""
+}
 
 // AccountAndInfoForLogicalCluster fetches the AccountInfo from the
 // LogicalCluster and the corresponding Account from the parent account's

@@ -10,6 +10,7 @@ import (
 	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -28,11 +29,11 @@ type AccountLogicalClusterReconciler struct {
 	mclifecycle *multicluster.LifecycleManager
 }
 
-func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, fga openfgav1.OpenFGAServiceClient, mcc mcclient.ClusterClient, mgr mcmanager.Manager) *AccountLogicalClusterReconciler {
+func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, fgaClient openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, mcc mcclient.ClusterClient, mgr mcmanager.Manager) *AccountLogicalClusterReconciler {
 	return &AccountLogicalClusterReconciler{
 		log: log,
 		mclifecycle: builder.NewBuilder("security", "AccountLogicalClusterReconciler", []lifecyclesubroutine.Subroutine{
-			subroutine.NewAccountTuplesSubroutine(mcc, mgr, fga, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType),
+			subroutine.NewAccountTuplesSubroutine(mcc, mgr, fgaClient, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType),
 		}, log).
 			WithReadOnly().
 			WithStaticThenExponentialRateLimiter().
