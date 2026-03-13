@@ -12,9 +12,9 @@ require (
 	github.com/kcp-dev/multicluster-provider v0.5.1
 	github.com/kcp-dev/sdk v0.30.0
 	github.com/openfga/api/proto v0.0.0-20260217232149-f917ddb000ce
-	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251027165255-0f8f255e5f6c
+	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251202173232-1e8bf16f1dce
 	github.com/platform-mesh/account-operator v0.12.14
-	github.com/platform-mesh/golang-commons v0.13.12
+	github.com/platform-mesh/golang-commons v0.13.13
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
