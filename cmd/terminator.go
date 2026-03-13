@@ -110,6 +110,7 @@ var terminatorCmd = &cobra.Command{
 			fgaClient,
 			terminatorCfg.FGA.StoreIDCacheTTL,
 			cmd.Context(),
+			log,
 		)
 
 		if err := controller.NewAccountLogicalClusterReconciler(log, terminatorCfg, fgaClient, storeIDGetter, mcc, mgr).

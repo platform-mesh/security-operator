@@ -7,6 +7,7 @@ import (
 	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
+	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -22,7 +23,8 @@ func TestCachingStoreIDGetter_Get(t *testing.T) {
 			},
 		}, nil).Once()
 
-		getter := NewCachingStoreIDGetter(client, 5*time.Minute, context.Background())
+		log := testlogger.New()
+		getter := NewCachingStoreIDGetter(client, 5*time.Minute, context.Background(), log.Logger)
 
 		id, err := getter.Get(context.Background(), "foo")
 		require.NoError(t, err)
@@ -38,7 +40,8 @@ func TestCachingStoreIDGetter_Get(t *testing.T) {
 		}, nil).Once()
 
 		loadCtx := context.Background()
-		getter := NewCachingStoreIDGetter(client, 5*time.Minute, loadCtx)
+		log := testlogger.New()
+		getter := NewCachingStoreIDGetter(client, 5*time.Minute, loadCtx, log.Logger)
 
 		id1, err := getter.Get(context.Background(), "foo")
 		require.NoError(t, err)
@@ -60,7 +63,8 @@ func TestCachingStoreIDGetter_Get(t *testing.T) {
 		}, nil).Once()
 
 		loadCtx := context.Background()
-		getter := NewCachingStoreIDGetter(client, 5*time.Minute, loadCtx)
+		log := testlogger.New()
+		getter := NewCachingStoreIDGetter(client, 5*time.Minute, loadCtx, log.Logger)
 
 		id, err := getter.Get(context.Background(), "missing-store")
 		assert.Error(t, err)
@@ -73,7 +77,8 @@ func TestCachingStoreIDGetter_Get(t *testing.T) {
 		client.EXPECT().ListStores(mock.Anything, mock.Anything).Return(nil, errors.New("connection refused")).Once()
 
 		loadCtx := context.Background()
-		getter := NewCachingStoreIDGetter(client, 5*time.Minute, loadCtx)
+		log := testlogger.New()
+		getter := NewCachingStoreIDGetter(client, 5*time.Minute, loadCtx, log.Logger)
 
 		id, err := getter.Get(context.Background(), "foo")
 		assert.Error(t, err)

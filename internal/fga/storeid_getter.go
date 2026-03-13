@@ -7,6 +7,7 @@ import (
 
 	"github.com/jellydator/ttlcache/v3"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
+	"github.com/platform-mesh/golang-commons/logger"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -20,16 +21,40 @@ type StoreIDGetter interface {
 type CachingStoreIDGetter struct {
 	cache  *ttlcache.Cache[string, string]
 	loader *storeIDLoader
+	logger *logger.Logger
 }
 
-func NewCachingStoreIDGetter(fga openfgav1.OpenFGAServiceClient, ttl time.Duration, loadCtx context.Context) *CachingStoreIDGetter {
+func NewCachingStoreIDGetter(fga openfgav1.OpenFGAServiceClient, ttl time.Duration, loadCtx context.Context, log *logger.Logger) *CachingStoreIDGetter {
 	loader := &storeIDLoader{fga: fga, loadCtx: loadCtx}
+
+	cache := ttlcache.New(
+		ttlcache.WithTTL[string, string](ttl),
+		ttlcache.WithLoader(loader),
+	)
+	cache.OnInsertion(func(_ context.Context, item *ttlcache.Item[string, string]) {
+		log.Debug().
+			Str("store", item.Key()).
+			Str("id", item.Value()).
+			Msg("StoreID cache inserted item")
+	})
+	cache.OnUpdate(func(_ context.Context, item *ttlcache.Item[string, string]) {
+		log.Debug().
+			Str("store", item.Key()).
+			Str("id", item.Value()).
+			Msg("StoreID cache updated item")
+	})
+	cache.OnEviction(func(_ context.Context, reason ttlcache.EvictionReason, item *ttlcache.Item[string, string]) {
+		log.Debug().
+			Str("store", item.Key()).
+			Str("id", item.Value()).
+			Str("reason", fmt.Sprint(reason)).
+			Msg("StoreID cache evicted item")
+	})
+
 	return &CachingStoreIDGetter{
-		cache: ttlcache.New(
-			ttlcache.WithTTL[string, string](ttl),
-			ttlcache.WithLoader(loader),
-		),
+		cache:  cache,
 		loader: loader,
+		logger: log,
 	}
 }
 

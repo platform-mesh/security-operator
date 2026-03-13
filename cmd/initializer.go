@@ -124,6 +124,7 @@ var initializerCmd = &cobra.Command{
 			fgaClient,
 			initializerCfg.FGA.StoreIDCacheTTL,
 			cmd.Context(),
+			log,
 		)
 
 		mcc, err := mcclient.New(kcpCfg, client.Options{Scheme: scheme})
