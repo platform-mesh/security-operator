@@ -16,6 +16,19 @@ const (
 	kcpWorkpaceSeparator = ":"
 )
 
+// IsPlatformMeshAccountPath returns whether a value is a platform-mesh account
+// path, i.e. a canonical KCP workspace path child to the platform-mesh account
+// workspace tree "root:orgs".
+func IsPlatformMeshAccountPath(value string) bool {
+	_, valid := logicalcluster.NewValidatedPath(value)
+	parts := strings.Split(value, kcpWorkpaceSeparator)
+
+	return valid && len(parts) > 2 && parts[0] == rootWorkspace && parts[1] == orgsWorkspace
+}
+
+// AccountPath represents a logicalcluster.Path that is assumed to be the path
+// of a platform-mesh Account, i.e. conforms to the conditions of the
+// IsPlatformMeshAccountPath function.
 type AccountPath struct {
 	logicalcluster.Path
 }
@@ -51,14 +64,4 @@ func (a AccountPath) Org() AccountPath {
 	return AccountPath{
 		Path: logicalcluster.NewPath(strings.Join(parts[:3], kcpWorkpaceSeparator)),
 	}
-}
-
-// IsPlatformMeshAccountPath returns whether a value is a platform-mesh account
-// path, i.e. a canonical KCP workspace path within the platform-mesh account
-// workspace tree "root:orgs".
-func IsPlatformMeshAccountPath(value string) bool {
-	_, valid := logicalcluster.NewValidatedPath(value)
-	parts := strings.Split(value, kcpWorkpaceSeparator)
-
-	return valid && len(parts) > 2 && parts[0] == rootWorkspace && parts[1] == orgsWorkspace
 }

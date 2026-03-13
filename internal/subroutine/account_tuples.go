@@ -51,7 +51,7 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, instance runti
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting AccountPath from LogicalCluster: %w", err), true, true)
 	}
 
-	storeID, err := s.storeIDGetter.Get(ctx, storeNameFromAccountPath(accountPath))
+	storeID, err := s.storeIDGetter.Get(ctx, accountPath.Org().Base())
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting store ID: %w", err), true, true)
 	}
@@ -124,7 +124,7 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtim
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent account's LogicalCluster: %w", err), true, true)
 	}
 
-	storeID, err := s.storeIDGetter.Get(ctx, storeNameFromAccountPath(accountPath))
+	storeID, err := s.storeIDGetter.Get(ctx, accountPath.Org().Base())
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting store ID: %w", err), true, true)
 	}
@@ -190,10 +190,8 @@ var (
 	_ lifecyclesubroutine.Terminator  = &AccountTuplesSubroutine{}
 )
 
-func storeNameFromAccountPath(ap platformmeshpath.AccountPath) string {
-	return ap.Org().Base()
-}
-
+// clusterIDFromLogicalClusterForPath retrieves the LogicalCluster of a given
+// path and returns its cluster ID.
 func clusterIDFromLogicalClusterForPath(ctx context.Context, mgr mcmanager.Manager, p logicalcluster.Path) (string, error) {
 	var lc kcpcorev1alpha1.LogicalCluster
 
