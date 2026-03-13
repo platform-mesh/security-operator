@@ -44,12 +44,12 @@ spec:
                 type: array
               apiExportRef:
                 properties:
-                  clusterName:
+                  clusterPath:
                     type: string
                   name:
                     type: string
                 required:
-                - clusterName
+                - clusterPath
                 - name
                 type: object
             required:

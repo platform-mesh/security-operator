@@ -24,10 +24,9 @@ import (
 )
 
 const (
-	APIExportPolicyFinalizer = "authorization.platform-mesh.io/apiexportpolicy-finalizer"
-	orgsWorkspacePath        = "root:orgs"
-	bindRelation             = "bind"
-	bindInheritedRelation    = "bind_inherited"
+	orgsWorkspacePath     = "root:orgs"
+	bindRelation          = "bind"
+	bindInheritedRelation = "bind_inherited"
 )
 
 type APIExportPolicySubroutine struct {
@@ -49,7 +48,7 @@ func (a *APIExportPolicySubroutine) GetName() string {
 }
 
 func (a *APIExportPolicySubroutine) Finalizers(_ lifecyclecontrollerruntime.RuntimeObject) []string {
-	return []string{APIExportPolicyFinalizer}
+	return []string{"authorization.platform-mesh.io/apiexportpolicy-finalizer"}
 }
 
 func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
@@ -65,7 +64,6 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecy
 
 	// Delete tuples for expressions that were removed from the spec
 	if err := a.deleteRemovedExpressions(ctx, policy); err != nil {
-		log.Error().Err(err).Msg("Failed to delete some removed expressions, continuing")
 		return ctrl.Result{}, errors.NewOperatorError(
 			fmt.Errorf("removing tuples for policy %s: %w", policy.Name, err),
 			true, true)
@@ -255,7 +253,7 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 	if workspacePath == orgsWorkspacePath {
 		allclient, err := iclient.NewForAllPlatformMeshResources(ctx, a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme())
 		if err != nil {
-			return fmt.Errorf("creating all-resources client: %w", err)
+			return fmt.Errorf("creating all client: %w", err)
 		}
 
 		var accountInfoList accountsv1alpha1.AccountInfoList

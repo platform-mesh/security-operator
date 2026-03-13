@@ -7,7 +7,7 @@ spec:
   resources:
   - group: core.platform-mesh.io
     name: apiexportpolicies
-    schema: v260312-dba9d8d.apiexportpolicies.core.platform-mesh.io
+    schema: v260313-c8b198d.apiexportpolicies.core.platform-mesh.io
     storage:
       crd: {}
   - group: core.platform-mesh.io

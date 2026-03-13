@@ -18,7 +18,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
-	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 )
 
 var apiExportPolicyCmd = &cobra.Command{
@@ -61,7 +60,7 @@ var apiExportPolicyCmd = &cobra.Command{
 			opts.LeaderElectionConfig = inClusterCfg
 		}
 
-		provider, err := pathaware.New(restCfg, authorizationCfg.AuthorizationAPIExportEndpointSliceName, apiexport.Options{
+		provider, err := apiexport.New(restCfg, authorizationCfg.AuthorizationAPIExportEndpointSliceName, apiexport.Options{
 			Scheme: scheme,
 		})
 		if err != nil {
