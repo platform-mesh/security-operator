@@ -106,7 +106,11 @@ var terminatorCmd = &cobra.Command{
 		}
 		defer func() { _ = conn.Close() }()
 		fgaClient := openfgav1.NewOpenFGAServiceClient(conn)
-		storeIDGetter := fga.NewCachingStoreIDGetter(fgaClient)
+		storeIDGetter := fga.NewCachingStoreIDGetter(
+			fgaClient,
+			terminatorCfg.FGA.StoreIDCacheTTL,
+			cmd.Context(),
+		)
 
 		if err := controller.NewAccountLogicalClusterReconciler(log, terminatorCfg, fgaClient, storeIDGetter, mcc, mgr).
 			SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
