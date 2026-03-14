@@ -50,3 +50,31 @@ func NewForAllPlatformMeshResources(ctx context.Context, config *rest.Config, sc
 
 	return clientForPath(config, scheme, path)
 }
+
+func NewForAllAuthorizationResources(ctx context.Context, config *rest.Config, scheme *runtime.Scheme) (client.Client, error) {
+	platformMeshClient, err := NewForLogicalCluster(config, scheme, logicalcluster.Name(platformMeshSystemWorkspace))
+	if err != nil {
+		return nil, fmt.Errorf("creating %s client: %w", platformMeshSystemWorkspace, err)
+	}
+
+	var apiExportEndpointSlice kcpapisv1alpha1.APIExportEndpointSlice
+	if err := platformMeshClient.Get(ctx, types.NamespacedName{Name: "authorization.platform-mesh.io"}, &apiExportEndpointSlice); err != nil {
+		return nil, fmt.Errorf("getting %s APIExportEndpointSlice: %w", "authorization.platform-mesh.io", err)
+	}
+
+	if len(apiExportEndpointSlice.Status.APIExportEndpoints) == 0 {
+		return nil, fmt.Errorf("no endpoints found in %s APIExportEndpointSlice", "authorization.platform-mesh.io")
+	}
+
+	virtualWorkspaceUrl, err := url.Parse(apiExportEndpointSlice.Status.APIExportEndpoints[0].URL)
+	if err != nil {
+		return nil, fmt.Errorf("parsing virtual workspace URL: %w", err)
+	}
+
+	path, err := url.JoinPath(virtualWorkspaceUrl.Path, "clusters", logicalcluster.Wildcard.String())
+	if err != nil {
+		return nil, fmt.Errorf("joining path: %w", err)
+	}
+
+	return clientForPath(config, scheme, path)
+}

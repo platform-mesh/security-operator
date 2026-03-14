@@ -153,6 +153,7 @@ tasks:
       - kubectl rollout restart deployment/security-operator-generator -n {{.DEPLOYMENT_NAMESPACE}}
       - kubectl rollout restart deployment/security-operator-initializer -n {{.DEPLOYMENT_NAMESPACE}}
       - kubectl rollout restart deployment/security-operator-terminator -n {{.DEPLOYMENT_NAMESPACE}}
+      - kubectl rollout restart deployment/security-operator-authorization -n {{.DEPLOYMENT_NAMESPACE}}
       - echo "All deployments restarted"
   docker:kind:
     desc: "Build container image, load it into kind cluster, and restart deployments"

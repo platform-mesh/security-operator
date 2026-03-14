@@ -59,8 +59,12 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 			&corev1alpha1.Store{},
 			func(clusterName string, c cluster.Cluster) ctrhandler.TypedEventHandler[client.Object, mcreconcile.Request] {
 				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
-					_, ok := obj.(*corev1alpha1.Store)
+					store, ok := obj.(*corev1alpha1.Store)
 					if !ok {
+						return nil
+					}
+
+					if store.Status.StoreID == ""{
 						return nil
 					}
 
@@ -72,7 +76,7 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 }
 
 func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Context, mgr mcmanager.Manager) []mcreconcile.Request {
-	allClient, err := iclient.NewForAllPlatformMeshResources(ctx, mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
+	allClient, err := iclient.NewForAllAuthorizationResources(ctx, mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
 	if err != nil {
 		r.log.Error().Err(err).Msg("failed to create all-cluster client for APIExportPolicy listing")
 		return nil
