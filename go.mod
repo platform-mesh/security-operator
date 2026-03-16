@@ -1,13 +1,6 @@
 module github.com/platform-mesh/security-operator
 
-go 1.25.7
-
-replace (
-	k8s.io/api => k8s.io/api v0.34.4
-	k8s.io/apiserver => k8s.io/apiserver v0.34.4
-	k8s.io/client-go => k8s.io/client-go v0.34.4
-	k8s.io/component-base => k8s.io/component-base v0.34.4
-)
+go 1.26
 
 require (
 	github.com/coreos/go-oidc v2.5.0+incompatible
@@ -75,7 +68,6 @@ require (
 	github.com/go-openapi/swag/typeutils v0.25.4 // indirect
 	github.com/go-openapi/swag/yamlutils v0.25.4 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
