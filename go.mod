@@ -1,6 +1,6 @@
 module github.com/platform-mesh/security-operator
 
-go 1.25.7
+go 1.26
 
 require (
 	github.com/coreos/go-oidc v2.5.0+incompatible
