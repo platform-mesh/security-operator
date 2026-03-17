@@ -173,8 +173,8 @@ github.com/onsi/ginkgo/v2 v2.28.0 h1:Rrf+lVLmtlBIKv6KrIGJCjyY8N36vDVcutbGJkyqjJc
 github.com/onsi/ginkgo/v2 v2.28.0/go.mod h1:ArE1D/XhNXBXCBkKOLkbsb2c81dQHCRcF5zwn/ykDRo=
 github.com/onsi/gomega v1.39.1 h1:1IJLAad4zjPn2PsnhH70V4DKRFlrCzGBNrNaru+Vf28=
 github.com/onsi/gomega v1.39.1/go.mod h1:hL6yVALoTOxeWudERyfppUcZXjMwIMLnuSfruD2lcfg=
-github.com/openfga/api/proto v0.0.0-20260217232149-f917ddb000ce h1:c9wvVBWpq+y4j9TUaCBsbX2Im3XSEm7YotAQZO5UT4k=
-github.com/openfga/api/proto v0.0.0-20260217232149-f917ddb000ce/go.mod h1:XDX4qYNBUM2Rsa2AbKPh+oocZc2zgme+EF2fFC6amVU=
+github.com/openfga/api/proto v0.0.0-20260317093832-8c6ab4372be3 h1:WqvnFm2y6tOKhLe82LPcJ7+ggMdI3QJ14c+5qI1Wi1Y=
+github.com/openfga/api/proto v0.0.0-20260317093832-8c6ab4372be3/go.mod h1:XDX4qYNBUM2Rsa2AbKPh+oocZc2zgme+EF2fFC6amVU=
 github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251202173232-1e8bf16f1dce h1:9ufUx4ZNLTbk1/VYb7dPGvHyjoAicm4imeVF8OEv3YE=
 github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251202173232-1e8bf16f1dce/go.mod h1:EbSJVzbk2+UyLx4i1t7Fi1yZEg+2pk2ZdnVg3jas1JA=
 github.com/pelletier/go-toml/v2 v2.2.4 h1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=
