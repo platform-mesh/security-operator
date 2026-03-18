@@ -3,8 +3,7 @@ package v1alpha1
 import (
 	"fmt"
 
-	lifecycleapi "github.com/platform-mesh/golang-commons/controller/lifecycle/api"
-
+	"github.com/platform-mesh/subroutines/conditions"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -50,17 +49,17 @@ type Store struct {
 	Status StoreStatus `json:"status,omitempty"`
 }
 
-// GetConditions implements lifecycle.RuntimeObjectConditions.
+// GetConditions implements conditions.ConditionAccessor.
 func (in *Store) GetConditions() []metav1.Condition {
 	return in.Status.Conditions
 }
 
-// SetConditions implements lifecycle.RuntimeObjectConditions.
+// SetConditions implements conditions.ConditionAccessor.
 func (in *Store) SetConditions(conditions []metav1.Condition) {
 	in.Status.Conditions = conditions
 }
 
-var _ lifecycleapi.RuntimeObjectConditions = &Store{}
+var _ conditions.ConditionAccessor = &Store{}
 
 // +kubebuilder:object:root=true
 

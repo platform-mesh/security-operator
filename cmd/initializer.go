@@ -100,8 +100,12 @@ var initializerCmd = &cobra.Command{
 			initializerCfg.IDP.AdditionalRedirectURLs = []string{}
 		}
 
-		if err := controller.NewOrgLogicalClusterReconciler(log, orgClient, initializerCfg, runtimeClient, mgr).
-			SetupWithManager(mgr, defaultCfg, predicates.LogicalClusterIsAccountTypeOrg()); err != nil {
+		orgReconciler, err := controller.NewOrgLogicalClusterReconciler(log, orgClient, initializerCfg, runtimeClient, mgr)
+		if err != nil {
+			setupLog.Error(err, "unable to create LogicalCluster reconciler")
+			os.Exit(1)
+		}
+		if err := orgReconciler.SetupWithManager(mgr, defaultCfg, predicates.LogicalClusterIsAccountTypeOrg()); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")
 			os.Exit(1)
 		}
@@ -125,8 +129,12 @@ var initializerCmd = &cobra.Command{
 			log.Error().Err(err).Msg("Failed to create multicluster client")
 			os.Exit(1)
 		}
-		if err := controller.NewAccountLogicalClusterReconciler(log, initializerCfg, fga, mcc, mgr).
-			SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
+		alcReconciler, err := controller.NewAccountLogicalClusterReconciler(log, initializerCfg, fga, mcc, mgr)
+		if err != nil {
+			setupLog.Error(err, "unable to create AccountLogicalCluster reconciler")
+			os.Exit(1)
+		}
+		if err := alcReconciler.SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "AccountLogicalCluster")
 			os.Exit(1)
 		}

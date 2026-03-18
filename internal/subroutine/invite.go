@@ -5,12 +5,9 @@ import (
 	"fmt"
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-	"github.com/platform-mesh/golang-commons/errors"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
-	"github.com/rs/zerolog/log"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"github.com/platform-mesh/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -20,71 +17,63 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
+	"k8s.io/client-go/util/workqueue"
 
+	"github.com/rs/zerolog/log"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-func NewInviteSubroutine(orgsClient client.Client, mgr mcmanager.Manager) *inviteSubroutine {
+func NewInviteSubroutine(orgsClient client.Client, mgr mcmanager.Manager) (*inviteSubroutine, error) {
+	lim, err := ratelimiter.NewStaticThenExponentialRateLimiter[*kcpcorev1alpha1.LogicalCluster](
+		ratelimiter.NewConfig())
+	if err != nil {
+		return nil, fmt.Errorf("creating RateLimiter: %w", err)
+	}
 	return &inviteSubroutine{
 		orgsClient: orgsClient,
 		mgr:        mgr,
-	}
+		limiter:    lim,
+	}, nil
 }
 
-var (
-	_ lifecyclesubroutine.Subroutine  = &inviteSubroutine{}
-	_ lifecyclesubroutine.Initializer = &inviteSubroutine{}
-)
+var _ subroutines.Initializer = &inviteSubroutine{}
 
 type inviteSubroutine struct {
 	orgsClient client.Client
 	mgr        mcmanager.Manager
-}
-
-func (w *inviteSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	return ctrl.Result{}, nil
-}
-
-func (w *inviteSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
-	return nil
+	limiter    workqueue.TypedRateLimiter[*kcpcorev1alpha1.LogicalCluster]
 }
 
 func (w *inviteSubroutine) GetName() string { return "InviteInitializationSubroutine" }
 
-// Process implements lifecycle.Subroutine as no-op since Initialize handles the
-// work.
-func (w *inviteSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	return ctrl.Result{}, nil
-}
-
-// Initialize implements lifecycle.Initializer.
-func (w *inviteSubroutine) Initialize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
+// Initialize implements subroutines.Initializer.
+func (w *inviteSubroutine) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	wsName := getWorkspaceName(lc)
 	if wsName == "" {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace name"), true, false)
+		return subroutines.OK(), fmt.Errorf("failed to get workspace name")
 	}
 
 	cl, err := w.mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to get cluster from context %w", err)
 	}
 
 	var account accountv1alpha1.Account
 	err = w.orgsClient.Get(ctx, types.NamespacedName{Name: wsName}, &account)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get account resource %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to get account resource %w", err)
 	}
 
 	if account.Spec.Type != accountv1alpha1.AccountTypeOrg {
 		log.Info().Str("workspace", wsName).Msg("account is not of type organization, skipping invite creation")
-		return ctrl.Result{}, nil
+		return subroutines.OK(), nil
 	}
 
 	if account.Spec.Creator == nil {
 		log.Info().Str("workspace", wsName).Msg("account creator is nil, skipping invite creation")
-		return ctrl.Result{}, nil
+		return subroutines.OK(), nil
 	}
 
 	// the Invite resource is created in :root:orgs:<new org> workspace
@@ -95,7 +84,7 @@ func (w *inviteSubroutine) Initialize(ctx context.Context, instance runtimeobjec
 		return nil
 	})
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create invite resource %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to create invite resource %w", err)
 	}
 
 	log.Info().Str("workspace", wsName).Msg("invite resource is created")
@@ -110,9 +99,11 @@ func (w *inviteSubroutine) Initialize(ctx context.Context, instance runtimeobjec
 		})
 	if err != nil {
 		log.Info().Str("workspace", wsName).Msg("invite resource not ready yet")
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("invite resource is not ready yet"), true, false)
+		return subroutines.StopWithRequeue(w.limiter.When(lc),
+			"invite resource is not ready yet"), nil
 	}
 
 	log.Info().Str("workspace", wsName).Msg("invite resource is ready")
-	return ctrl.Result{}, nil
+	w.limiter.Forget(lc)
+	return subroutines.OK(), nil
 }

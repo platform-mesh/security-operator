@@ -5,19 +5,16 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/subroutines"
 	"github.com/rs/zerolog/log"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	corev1 "k8s.io/api/core/v1"
@@ -35,8 +32,11 @@ const (
 	secretNamespace   = "default"
 )
 
-func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg config.Config) *IDPSubroutine {
-	limiter, _ := ratelimiter.NewStaticThenExponentialRateLimiter[*v1alpha1.IdentityProviderConfiguration](ratelimiter.NewConfig()) //nolint:errcheck
+func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg config.Config) (*IDPSubroutine, error) {
+	limiter, err := ratelimiter.NewStaticThenExponentialRateLimiter[*v1alpha1.IdentityProviderConfiguration](ratelimiter.NewConfig(ratelimiter.WithExponentialMaxBackoff(time.Second * 10)))
+	if err != nil {
+		return nil, fmt.Errorf("creating RateLimiter: %w", err)
+	}
 	return &IDPSubroutine{
 		orgsClient:                orgsClient,
 		mgr:                       mgr,
@@ -45,13 +45,10 @@ func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg confi
 		baseDomain:                cfg.BaseDomain,
 		registrationAllowed:       cfg.IDP.RegistrationAllowed,
 		limiter:                   limiter,
-	}
+	}, nil
 }
 
-var (
-	_ lifecyclesubroutine.Subroutine  = &IDPSubroutine{}
-	_ lifecyclesubroutine.Initializer = &IDPSubroutine{}
-)
+var _ subroutines.Initializer = &IDPSubroutine{}
 
 type IDPSubroutine struct {
 	orgsClient                client.Client
@@ -63,45 +60,31 @@ type IDPSubroutine struct {
 	limiter                   workqueue.TypedRateLimiter[*v1alpha1.IdentityProviderConfiguration]
 }
 
-func (i *IDPSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	return ctrl.Result{}, nil
-}
-
-func (i *IDPSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
-	return nil
-}
-
 func (i *IDPSubroutine) GetName() string { return "IDPSubroutine" }
 
-// Process implements lifecycle.Subroutine as no-op since Initialize handles the
-// work.
-func (i *IDPSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	return ctrl.Result{}, nil
-}
-
-// Initialize implements lifecycle.Initializer.
-func (i *IDPSubroutine) Initialize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
+// Initialize implements subroutines.Initializer.
+func (i *IDPSubroutine) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)
 	if workspaceName == "" {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace name"), true, false)
+		return subroutines.OK(), fmt.Errorf("failed to get workspace name")
 	}
 
 	cl, err := i.mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to get cluster from context %w", err)
 	}
 
 	var account accountv1alpha1.Account
 	err = i.orgsClient.Get(ctx, types.NamespacedName{Name: workspaceName}, &account)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get account resource %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to get account resource %w", err)
 	}
 
 	if account.Spec.Type != accountv1alpha1.AccountTypeOrg {
 		log.Debug().Str("workspace", workspaceName).Msg("account is not of type organization, skipping idp creation")
-		return ctrl.Result{}, nil
+		return subroutines.OK(), nil
 	}
 
 	clients := []v1alpha1.IdentityProviderClientConfig{
@@ -136,42 +119,42 @@ func (i *IDPSubroutine) Initialize(ctx context.Context, instance runtimeobject.R
 		return nil
 	})
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create idp resource %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to create idp resource %w", err)
 	}
 
 	log.Info().Str("workspace", workspaceName).Msg("idp configuration resource is created")
 
 	if err := cl.GetClient().Get(ctx, types.NamespacedName{Name: workspaceName}, idp); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get idp resource %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to get idp resource %w", err)
 	}
 
 	if !meta.IsStatusConditionTrue(idp.GetConditions(), "Ready") {
 		log.Debug().Str("workspace", workspaceName).Msg("idp resource is not ready yet, requeuing")
-		return ctrl.Result{RequeueAfter: i.limiter.When(idp)}, nil
+		return subroutines.StopWithRequeue(i.limiter.When(idp), "idp resource is not ready yet"), nil
 	}
 
 	if len(idp.Spec.Clients) == 0 || len(idp.Status.ManagedClients) == 0 {
-		return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("IdentityProviderConfiguration %s has no clients in spec or status", workspaceName), true, false)
+		return subroutines.OK(), fmt.Errorf("IdentityProviderConfiguration %s has no clients in spec or status", workspaceName)
 	}
 
 	for _, specClient := range idp.Spec.Clients {
 		managedClient, ok := idp.Status.ManagedClients[specClient.ClientName]
 		if !ok {
-			return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("managed client %s not found in IdentityProviderConfiguration status", specClient.ClientName), true, false)
+			return subroutines.OK(), fmt.Errorf("managed client %s not found in IdentityProviderConfiguration status", specClient.ClientName)
 		}
 		if managedClient.ClientID == "" {
-			return reconcile.Result{}, errors.NewOperatorError(fmt.Errorf("managed client %s has empty ClientID in IdentityProviderConfiguration status", specClient.ClientName), true, false)
+			return subroutines.OK(), fmt.Errorf("managed client %s has empty ClientID in IdentityProviderConfiguration status", specClient.ClientName)
 		}
 	}
 
 	i.limiter.Forget(idp)
 
 	if err := i.patchAccountInfo(ctx, cl.GetClient(), workspaceName, idp); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to update accountInfo: %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("unable to update accountInfo: %w", err)
 	}
 
 	log.Info().Str("workspace", workspaceName).Msg("idp resource is ready")
-	return ctrl.Result{}, nil
+	return subroutines.OK(), nil
 }
 
 func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl client.Client, workspaceName string, idp *v1alpha1.IdentityProviderConfiguration) error {

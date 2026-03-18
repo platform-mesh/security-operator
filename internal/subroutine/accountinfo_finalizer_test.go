@@ -8,9 +8,9 @@ import (
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
+	"github.com/platform-mesh/subroutines"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,19 +29,12 @@ func TestAccountInfoFinalizerSubroutine_Finalizers(t *testing.T) {
 	assert.Equal(t, []string{"security.platform-mesh.io/accountinfo-finalizer"}, finalizers)
 }
 
-func TestAccountInfoFinalizerSubroutine_Process(t *testing.T) {
-	sub := subroutine.NewAccountInfoFinalizerSubroutine(nil)
-	result, err := sub.Process(context.Background(), &accountv1alpha1.AccountInfo{})
-	assert.Nil(t, err)
-	assert.Equal(t, ctrl.Result{}, result)
-}
-
 func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 	tests := []struct {
 		name           string
 		mockSetup      func(*mocks.MockManager, *mocks.MockCluster, *mocks.MockClient)
 		expectError    bool
-		expectedResult ctrl.Result
+		expectedResult subroutines.Result
 	}{
 		{
 			name: "error on ClusterFromContext",
@@ -71,7 +64,7 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 				})
 			},
 			expectError:    false,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "APIBindings exist without finalizer - allow deletion",
@@ -92,7 +85,7 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 				})
 			},
 			expectError:    false,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "APIBinding exists with apibinding-finalizer - requeue",
@@ -113,7 +106,8 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 				})
 			},
 			expectError:    false,
-			expectedResult: ctrl.Result{RequeueAfter: 5 * time.Second},
+			expectedResult: subroutines.StopWithRequeue(5*time.Second,
+				"APIBinding still has finalizer, requeuing AccountInfo deletion"),
 		},
 		{
 			name: "multiple APIBindings - one with finalizer - requeue",
@@ -140,7 +134,8 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 				})
 			},
 			expectError:    false,
-			expectedResult: ctrl.Result{RequeueAfter: 5 * time.Second},
+			expectedResult: subroutines.StopWithRequeue(5*time.Second,
+				"APIBinding still has finalizer, requeuing AccountInfo deletion"),
 		},
 		{
 			name: "multiple APIBindings - none with target finalizer - allow deletion",
@@ -167,7 +162,7 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 				})
 			},
 			expectError:    false,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 	}
 

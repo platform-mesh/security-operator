@@ -6,13 +6,11 @@ import (
 	"slices"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/pkg/fga"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"github.com/platform-mesh/subroutines"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -23,33 +21,33 @@ type tupleSubroutine struct {
 	mgr mcmanager.Manager
 }
 
-// Finalize implements lifecycle.Subroutine.
-func (t *tupleSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+// Finalize implements subroutines.Finalizer.
+func (t *tupleSubroutine) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	var storeID string
 	var authorizationModelID string
 	var managedTuples []securityv1alpha1.Tuple
 
-	switch obj := instance.(type) {
+	switch o := obj.(type) {
 	case *securityv1alpha1.Store:
-		storeID = obj.Status.StoreID
-		authorizationModelID = obj.Status.AuthorizationModelID
-		managedTuples = obj.Status.ManagedTuples
+		storeID = o.Status.StoreID
+		authorizationModelID = o.Status.AuthorizationModelID
+		managedTuples = o.Status.ManagedTuples
 	case *securityv1alpha1.AuthorizationModel:
-		managedTuples = obj.Status.ManagedTuples
+		managedTuples = o.Status.ManagedTuples
 
-		storeCluster, err := t.mgr.GetCluster(ctx, obj.Spec.StoreRef.Cluster)
+		storeCluster, err := t.mgr.GetCluster(ctx, o.Spec.StoreRef.Cluster)
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get store cluster: %w", err), true, false)
+			return subroutines.OK(), fmt.Errorf("unable to get store cluster: %w", err)
 		}
 
 		var store securityv1alpha1.Store
 		err = storeCluster.GetClient().Get(ctx, types.NamespacedName{
-			Name: obj.Spec.StoreRef.Name,
+			Name: o.Spec.StoreRef.Name,
 		}, &store)
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+			return subroutines.OK(), err
 		}
 
 		storeID = store.Status.StoreID
@@ -58,29 +56,29 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, instance runtimeobject.R
 
 	tm := fga.NewTupleManager(t.fga, storeID, authorizationModelID, log)
 	if err := tm.Delete(ctx, managedTuples); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(err, false, true)
+		return subroutines.OK(), err
 	}
 
-	switch obj := instance.(type) {
+	switch o := obj.(type) {
 	case *securityv1alpha1.Store:
-		obj.Status.ManagedTuples = nil
+		o.Status.ManagedTuples = nil
 	case *securityv1alpha1.AuthorizationModel:
-		obj.Status.ManagedTuples = nil
+		o.Status.ManagedTuples = nil
 	}
 
-	return ctrl.Result{}, nil
+	return subroutines.OK(), nil
 }
 
-// Finalizers implements lifecycle.Subroutine.
-func (t *tupleSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
+// Finalizers implements subroutines.Finalizer.
+func (t *tupleSubroutine) Finalizers(_ client.Object) []string {
 	return []string{"core.platform-mesh.io/fga-tuples"}
 }
 
-// GetName implements lifecycle.Subroutine.
+// GetName implements subroutines.Subroutine.
 func (t *tupleSubroutine) GetName() string { return "TupleSubroutine" }
 
-// Process implements lifecycle.Subroutine.
-func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+// Process implements subroutines.Processor.
+func (t *tupleSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
 	var storeID string
@@ -88,28 +86,28 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 	var specTuples []securityv1alpha1.Tuple
 	var managedTuples []securityv1alpha1.Tuple
 
-	switch obj := instance.(type) {
+	switch o := obj.(type) {
 	case *securityv1alpha1.Store:
-		storeID = obj.Status.StoreID
-		authorizationModelID = obj.Status.AuthorizationModelID
+		storeID = o.Status.StoreID
+		authorizationModelID = o.Status.AuthorizationModelID
 
-		specTuples = obj.Spec.Tuples
-		managedTuples = obj.Status.ManagedTuples
+		specTuples = o.Spec.Tuples
+		managedTuples = o.Status.ManagedTuples
 	case *securityv1alpha1.AuthorizationModel:
-		specTuples = obj.Spec.Tuples
-		managedTuples = obj.Status.ManagedTuples
+		specTuples = o.Spec.Tuples
+		managedTuples = o.Status.ManagedTuples
 
-		storeCluster, err := t.mgr.GetCluster(ctx, obj.Spec.StoreRef.Cluster)
+		storeCluster, err := t.mgr.GetCluster(ctx, o.Spec.StoreRef.Cluster)
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get store cluster: %w", err), true, false)
+			return subroutines.OK(), fmt.Errorf("unable to get store cluster: %w", err)
 		}
 
 		var store securityv1alpha1.Store
 		err = storeCluster.GetClient().Get(ctx, types.NamespacedName{
-			Name: obj.Spec.StoreRef.Name,
+			Name: o.Spec.StoreRef.Name,
 		}, &store)
-		if err != nil { // coverage-ignore
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		if err != nil {
+			return subroutines.OK(), err
 		}
 
 		storeID = store.Status.StoreID
@@ -118,7 +116,7 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 
 	tm := fga.NewTupleManager(t.fga, storeID, authorizationModelID, log)
 	if err := tm.Apply(ctx, specTuples); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(err, false, true)
+		return subroutines.OK(), err
 	}
 
 	var tuplesToDelete []securityv1alpha1.Tuple
@@ -130,17 +128,17 @@ func (t *tupleSubroutine) Process(ctx context.Context, instance runtimeobject.Ru
 		}
 	}
 	if err := tm.Delete(ctx, tuplesToDelete); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(err, false, true)
+		return subroutines.OK(), err
 	}
 
-	switch obj := instance.(type) {
+	switch o := obj.(type) {
 	case *securityv1alpha1.Store:
-		obj.Status.ManagedTuples = specTuples
+		o.Status.ManagedTuples = specTuples
 	case *securityv1alpha1.AuthorizationModel:
-		obj.Status.ManagedTuples = specTuples
+		o.Status.ManagedTuples = specTuples
 	}
 
-	return ctrl.Result{}, nil
+	return subroutines.OK(), nil
 }
 
 func NewTupleSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *tupleSubroutine {
@@ -150,4 +148,4 @@ func NewTupleSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manage
 	}
 }
 
-var _ lifecyclesubroutine.Subroutine = &tupleSubroutine{}
+var _ subroutines.Subroutine = &tupleSubroutine{}

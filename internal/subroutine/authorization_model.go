@@ -10,16 +10,12 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	language "github.com/openfga/language/pkg/go/transformer"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/util"
+	"github.com/platform-mesh/subroutines"
 	"google.golang.org/protobuf/encoding/protojson"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
@@ -94,15 +90,9 @@ func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcm
 	}
 }
 
-var _ subroutine.Subroutine = &authorizationModelSubroutine{}
-
-func (a *authorizationModelSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string { return nil }
+var _ subroutines.Processor = &authorizationModelSubroutine{}
 
 func (a *authorizationModelSubroutine) GetName() string { return "AuthorizationModel" }
-
-func (a *authorizationModelSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
-	return ctrl.Result{}, nil
-}
 
 func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store *securityv1alpha1.Store) (securityv1alpha1.AuthorizationModelList, error) {
 
@@ -130,14 +120,14 @@ func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store
 	return extendingModules, nil
 }
 
-func (a *authorizationModelSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (reconcile.Result, errors.OperatorError) {
+func (a *authorizationModelSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	store := instance.(*securityv1alpha1.Store)
+	store := obj.(*securityv1alpha1.Store)
 
 	extendingModules, err := getRelatedAuthorizationModels(ctx, a.allClient, store)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to get related authorization models")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		return subroutines.OK(), err
 	}
 
 	moduleFiles := []language.ModuleFile{{
@@ -157,13 +147,13 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 		parsed, err := url.Parse(cfg.Host)
 		if err != nil {
 			log.Error().Err(err).Msg("unable to parse host from config")
-			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+			return subroutines.OK(), err
 		}
 
 		parsed.Path, err = url.JoinPath("clusters", fmt.Sprintf("root:orgs:%s", store.Name))
 		if err != nil {
 			log.Error().Err(err).Msg("unable to join path")
-			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+			return subroutines.OK(), err
 		}
 
 		cfg.Host = parsed.String()
@@ -172,13 +162,13 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 
 		coreModules, err := discoverAndRender(discoveryClient, modelTpl, groupVersions)
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+			return subroutines.OK(), err
 		}
 		moduleFiles = append(moduleFiles, coreModules...)
 
 		privilegedModules, err := discoverAndRender(discoveryClient, privilegedTemplate, privilegedGroupVersions)
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+			return subroutines.OK(), err
 		}
 		moduleFiles = append(moduleFiles, privilegedModules...)
 	}
@@ -186,7 +176,7 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 	authorizationModel, err := language.TransformModuleFilesToModel(moduleFiles, schemaVersion)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to transform module files to model")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		return subroutines.OK(), err
 	}
 
 	if store.Status.AuthorizationModelID != "" {
@@ -195,28 +185,26 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 			Id:      store.Status.AuthorizationModelID,
 		})
 		if err != nil {
-			// TODO: if its not found we could continue with just writing the model again
 			log.Error().Err(err).Msg("unable to read authorization model")
-			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+			return subroutines.OK(), err
 		}
 
 		res.AuthorizationModel.Id = ""
 
 		currentRaw, err := protojson.Marshal(res.AuthorizationModel)
-		if err != nil { // coverage-ignore
+		if err != nil {
 			log.Error().Err(err).Msg("unable to marshal current model")
-			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+			return subroutines.OK(), err
 		}
 
 		desiredRaw, err := protojson.Marshal(authorizationModel)
-		if err != nil { // coverage-ignore
+		if err != nil {
 			log.Error().Err(err).Msg("unable to marshal desired model")
-			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+			return subroutines.OK(), err
 		}
 
-		// Compare JSON representations instead of DSL strings
 		if string(currentRaw) == string(desiredRaw) {
-			return ctrl.Result{}, nil
+			return subroutines.OK(), nil
 		}
 
 	}
@@ -229,12 +217,12 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, instance run
 	})
 	if err != nil {
 		log.Error().Err(err).Msg("unable to write authorization model")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		return subroutines.OK(), err
 	}
 
 	store.Status.AuthorizationModelID = res.AuthorizationModelId
 
-	return ctrl.Result{}, nil
+	return subroutines.OK(), nil
 }
 
 func processAPIResourceIntoModel(resource metav1.APIResource, tpl *template.Template) (bytes.Buffer, error) {
