@@ -6,7 +6,7 @@ domain: platform-mesh.io
 layout:
 - go.kubebuilder.io/v4
 plugins:
-  helm.kubebuilder.io/v1-alpha: {}
+  helm.kubebuilder.io/v2-alpha: {}
 projectName: security-operator
 repo: github.com/platform-mesh/security-operator
 resources:

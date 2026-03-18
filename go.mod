@@ -1,46 +1,40 @@
 module github.com/platform-mesh/security-operator
 
-go 1.25.7
-
-replace (
-	k8s.io/api => k8s.io/api v0.34.4
-	k8s.io/apiserver => k8s.io/apiserver v0.34.4
-	k8s.io/client-go => k8s.io/client-go v0.34.4
-	k8s.io/component-base => k8s.io/component-base v0.34.4
-)
+go 1.26
 
 require (
 	github.com/coreos/go-oidc v2.5.0+incompatible
-	github.com/fluxcd/helm-controller/api v1.5.1
-	github.com/fluxcd/source-controller/api v1.8.0
+	github.com/fluxcd/helm-controller/api v1.5.3
+	github.com/fluxcd/source-controller/api v1.8.1
 	github.com/go-logr/logr v1.4.3
 	github.com/google/gnostic-models v0.7.1
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
-	github.com/kcp-dev/multicluster-provider v0.5.0
+	github.com/kcp-dev/multicluster-provider v0.5.1
 	github.com/kcp-dev/sdk v0.30.0
-	github.com/openfga/api/proto v0.0.0-20260217232149-f917ddb000ce
-	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251027165255-0f8f255e5f6c
-	github.com/platform-mesh/account-operator v0.11.14
-	github.com/platform-mesh/golang-commons v0.12.6
+	github.com/openfga/api/proto v0.0.0-20260317093832-8c6ab4372be3
+	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251202173232-1e8bf16f1dce
+	github.com/platform-mesh/account-operator v0.12.15
+	github.com/platform-mesh/golang-commons v0.13.13
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.10.2
+	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/oauth2 v0.35.0
-	google.golang.org/grpc v1.79.1
+	golang.org/x/oauth2 v0.36.0
+	google.golang.org/grpc v1.79.3
 	google.golang.org/protobuf v1.36.11
 	k8s.io/api v0.35.2
 	k8s.io/apiextensions-apiserver v0.35.2
 	k8s.io/apimachinery v0.35.2
-	k8s.io/client-go v1.5.2
+	k8s.io/client-go v0.35.2
 	k8s.io/utils v0.0.0-20260210185600-b8788abfbbc2
-	sigs.k8s.io/controller-runtime v0.23.1
+	sigs.k8s.io/controller-runtime v0.23.3
 	sigs.k8s.io/multicluster-runtime v0.23.1
 	sigs.k8s.io/yaml v1.6.0
 )
 
 require (
-	github.com/99designs/gqlgen v0.17.87 // indirect
+	github.com/99designs/gqlgen v0.17.88 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v5 v5.0.3 // indirect
@@ -50,8 +44,8 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v1.3.3 // indirect
 	github.com/evanphx/json-patch/v5 v5.9.11 // indirect
 	github.com/fluxcd/pkg/apis/acl v0.9.0 // indirect
-	github.com/fluxcd/pkg/apis/kustomize v1.15.0 // indirect
-	github.com/fluxcd/pkg/apis/meta v1.25.0 // indirect
+	github.com/fluxcd/pkg/apis/kustomize v1.15.1 // indirect
+	github.com/fluxcd/pkg/apis/meta v1.25.1 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
 	github.com/getsentry/sentry-go v0.43.0 // indirect
@@ -73,7 +67,6 @@ require (
 	github.com/go-openapi/swag/typeutils v0.25.4 // indirect
 	github.com/go-openapi/swag/yamlutils v0.25.4 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
-	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -103,25 +96,24 @@ require (
 	github.com/sosodev/duration v1.4.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
-	github.com/spf13/pflag v1.0.10 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/vektah/gqlparser/v2 v2.5.32 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
-	go.opentelemetry.io/otel v1.40.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.40.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.40.0 // indirect
-	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.40.0 // indirect
-	go.opentelemetry.io/otel/metric v1.40.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.40.0 // indirect
-	go.opentelemetry.io/otel/trace v1.40.0 // indirect
-	go.opentelemetry.io/proto/otlp v1.9.0 // indirect
+	go.opentelemetry.io/otel v1.42.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.42.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.42.0 // indirect
+	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.42.0 // indirect
+	go.opentelemetry.io/otel/metric v1.42.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.42.0 // indirect
+	go.opentelemetry.io/otel/trace v1.42.0 // indirect
+	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.48.0 // indirect
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa // indirect
-	golang.org/x/net v0.50.0 // indirect
+	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sync v0.19.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
 	golang.org/x/term v0.40.0 // indirect

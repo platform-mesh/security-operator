@@ -39,7 +39,7 @@ var initializerCmd = &cobra.Command{
 
 		mgrOpts := ctrl.Options{
 			Scheme:                 scheme,
-			LeaderElection:         defaultCfg.LeaderElection.Enabled,
+			LeaderElection:         defaultCfg.LeaderElectionEnabled,
 			LeaderElectionID:       "security-operator-initializer.platform-mesh.io",
 			HealthProbeBindAddress: defaultCfg.HealthProbeBindAddress,
 			Metrics: server.Options{
@@ -52,7 +52,7 @@ var initializerCmd = &cobra.Command{
 				},
 			},
 		}
-		if defaultCfg.LeaderElection.Enabled {
+		if defaultCfg.LeaderElectionEnabled {
 			inClusterCfg, err := rest.InClusterConfig()
 			if err != nil {
 				log.Error().Err(err).Msg("unable to create in-cluster config")

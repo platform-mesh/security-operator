@@ -13,7 +13,6 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/controller"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -95,11 +94,7 @@ func TestIntegrationSuite(t *testing.T) {
 }
 
 func (suite *IntegrationSuite) SetupSuite() {
-	rootCmd := &cobra.Command{
-		Use: "security-operator",
-	}
-	_, defaultCfg, err := platformeshconfig.NewDefaultConfig(rootCmd)
-	suite.Require().NoError(err)
+	defaultCfg := platformeshconfig.NewDefaultConfig()
 
 	logcfg := logger.DefaultConfig()
 	logcfg.Output = io.Discard
