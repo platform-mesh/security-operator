@@ -34,8 +34,8 @@ github.com/evanphx/json-patch v5.8.0+incompatible h1:1Av9pn2FyxPdvrWNQszj1g6D6Yt
 github.com/evanphx/json-patch v5.8.0+incompatible/go.mod h1:50XU6AFN0ol/bzJsmQLiYLvXMP4fmwYFNcr97nuDLSk=
 github.com/evanphx/json-patch/v5 v5.9.11 h1:/8HVnzMq13/3x9TPvjG08wUGqBTmZBsCWzjTM0wiaDU=
 github.com/evanphx/json-patch/v5 v5.9.11/go.mod h1:3j+LviiESTElxA4p3EMKAB9HXj3/XEtnUf6OZxqIQTM=
-github.com/fluxcd/helm-controller/api v1.5.2 h1:3xeFPcsvibingV32y8MRj040ydZIPOMCTToMXOkhtUo=
-github.com/fluxcd/helm-controller/api v1.5.2/go.mod h1:lTgeUmtVYExMKp7mRDncsr4JwHTz3LFtLjRJZeR98lI=
+github.com/fluxcd/helm-controller/api v1.5.3 h1:ruLzuyTHjjE9A5B/U+Id2q7yHXXqSFTswdZ14xCS5So=
+github.com/fluxcd/helm-controller/api v1.5.3/go.mod h1:lTgeUmtVYExMKp7mRDncsr4JwHTz3LFtLjRJZeR98lI=
 github.com/fluxcd/pkg/apis/acl v0.9.0 h1:wBpgsKT+jcyZEcM//OmZr9RiF8klL3ebrDp2u2ThsnA=
 github.com/fluxcd/pkg/apis/acl v0.9.0/go.mod h1:TttNS+gocsGLwnvmgVi3/Yscwqrjc17+vhgYfqkfrV4=
 github.com/fluxcd/pkg/apis/kustomize v1.15.1 h1:t9QZh+3ZS8EKmlxrnnbcKZcGTrg8FDvMF1T8BHMCuqI=
@@ -173,8 +173,8 @@ github.com/onsi/ginkgo/v2 v2.28.0 h1:Rrf+lVLmtlBIKv6KrIGJCjyY8N36vDVcutbGJkyqjJc
 github.com/onsi/ginkgo/v2 v2.28.0/go.mod h1:ArE1D/XhNXBXCBkKOLkbsb2c81dQHCRcF5zwn/ykDRo=
 github.com/onsi/gomega v1.39.1 h1:1IJLAad4zjPn2PsnhH70V4DKRFlrCzGBNrNaru+Vf28=
 github.com/onsi/gomega v1.39.1/go.mod h1:hL6yVALoTOxeWudERyfppUcZXjMwIMLnuSfruD2lcfg=
-github.com/openfga/api/proto v0.0.0-20260217232149-f917ddb000ce h1:c9wvVBWpq+y4j9TUaCBsbX2Im3XSEm7YotAQZO5UT4k=
-github.com/openfga/api/proto v0.0.0-20260217232149-f917ddb000ce/go.mod h1:XDX4qYNBUM2Rsa2AbKPh+oocZc2zgme+EF2fFC6amVU=
+github.com/openfga/api/proto v0.0.0-20260317093832-8c6ab4372be3 h1:WqvnFm2y6tOKhLe82LPcJ7+ggMdI3QJ14c+5qI1Wi1Y=
+github.com/openfga/api/proto v0.0.0-20260317093832-8c6ab4372be3/go.mod h1:XDX4qYNBUM2Rsa2AbKPh+oocZc2zgme+EF2fFC6amVU=
 github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251202173232-1e8bf16f1dce h1:9ufUx4ZNLTbk1/VYb7dPGvHyjoAicm4imeVF8OEv3YE=
 github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251202173232-1e8bf16f1dce/go.mod h1:EbSJVzbk2+UyLx4i1t7Fi1yZEg+2pk2ZdnVg3jas1JA=
 github.com/pelletier/go-toml/v2 v2.2.4 h1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=
@@ -302,8 +302,8 @@ google.golang.org/genproto/googleapis/api v0.0.0-20260223185530-2f722ef697dc h1:
 google.golang.org/genproto/googleapis/api v0.0.0-20260223185530-2f722ef697dc/go.mod h1:M5krXqk4GhBKvB596udGL3UyjL4I1+cTbK0orROM9ng=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20260223185530-2f722ef697dc h1:51Wupg8spF+5FC6D+iMKbOddFjMckETnNnEiZ+HX37s=
 google.golang.org/genproto/googleapis/rpc v0.0.0-20260223185530-2f722ef697dc/go.mod h1:4Hqkh8ycfw05ld/3BWL7rJOSfebL2Q+DVDeRgYgxUU8=
-google.golang.org/grpc v1.79.2 h1:fRMD94s2tITpyJGtBBn7MkMseNpOZU8ZxgC3MMBaXRU=
-google.golang.org/grpc v1.79.2/go.mod h1:KmT0Kjez+0dde/v2j9vzwoAScgEPx/Bw1CYChhHLrHQ=
+google.golang.org/grpc v1.79.3 h1:sybAEdRIEtvcD68Gx7dmnwjZKlyfuc61Dyo9pGXXkKE=
+google.golang.org/grpc v1.79.3/go.mod h1:KmT0Kjez+0dde/v2j9vzwoAScgEPx/Bw1CYChhHLrHQ=
 google.golang.org/protobuf v1.36.11 h1:fV6ZwhNocDyBLK0dj+fg8ektcVegBBuEolpbTQyBNVE=
 google.golang.org/protobuf v1.36.11/go.mod h1:HTf+CrKn2C3g5S8VImy6tdcUvCska2kB7j23XfzDpco=
 gopkg.in/check.v1 v0.0.0-20161208181325-20d25e280405/go.mod h1:Co6ibVJAznAaIkqp8huTwlJQCZ016jof/cbN4VW5Yz0=
