@@ -13,7 +13,7 @@ require (
 	github.com/kcp-dev/sdk v0.30.0
 	github.com/openfga/api/proto v0.0.0-20260317093832-8c6ab4372be3
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251202173232-1e8bf16f1dce
-	github.com/platform-mesh/account-operator v0.12.15
+	github.com/platform-mesh/account-operator v0.12.20
 	github.com/platform-mesh/golang-commons v0.13.13
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.10.2
