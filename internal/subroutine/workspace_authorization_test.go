@@ -656,4 +656,3 @@ func TestWorkspaceAuthConfigurationSubroutine_GetName(t *testing.T) {
 	sub := NewWorkspaceAuthConfigurationSubroutine(nil, nil, nil, config.Config{})
 	assert.Equal(t, "workspaceAuthConfiguration", sub.GetName())
 }
-

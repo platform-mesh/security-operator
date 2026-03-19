@@ -105,7 +105,7 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 					return nil
 				})
 			},
-			expectError:    false,
+			expectError: false,
 			expectedResult: subroutines.StopWithRequeue(5*time.Second,
 				"APIBinding still has finalizer, requeuing AccountInfo deletion"),
 		},
@@ -133,7 +133,7 @@ func TestAccountInfoFinalizerSubroutine_Finalize(t *testing.T) {
 					return nil
 				})
 			},
-			expectError:    false,
+			expectError: false,
 			expectedResult: subroutines.StopWithRequeue(5*time.Second,
 				"APIBinding still has finalizer, requeuing AccountInfo deletion"),
 		},

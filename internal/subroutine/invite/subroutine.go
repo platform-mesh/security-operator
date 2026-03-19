@@ -16,10 +16,11 @@ import (
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/subroutines"
 	"golang.org/x/oauth2/clientcredentials"
-	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+
+	"k8s.io/client-go/util/workqueue"
 )
 
 const (
