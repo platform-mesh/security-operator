@@ -12,6 +12,7 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -55,7 +56,7 @@ func (r *APIExportPolicyReconciler) Reconcile(ctx context.Context, req mcreconci
 	return r.mclifecycle.Reconcile(ctxWithCluster, req, &corev1alpha1.APIExportPolicy{})
 }
 
-func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
+func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, operatorCfg *config.Config, evp ...predicate.Predicate) error {
 	bld, err := r.mclifecycle.SetupWithManagerBuilder(mgr, cfg.MaxConcurrentReconciles, "apiexportpolicy", &corev1alpha1.APIExportPolicy{}, cfg.DebugLabelValue, r.log, evp...)
 	if err != nil {
 		return err
@@ -76,14 +77,14 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 					}
 
 					// List all APIExportPolicy resources and enqueue those with root:orgs:* expression
-					return r.enqueueAllAPIExportPolicies(ctx, mgr)
+					return r.enqueueAllAPIExportPolicies(ctx, mgr, operatorCfg)
 				})
 			},
 		).Complete(r)
 }
 
-func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Context, mgr mcmanager.Manager) []mcreconcile.Request {
-	allClient, err := iclient.NewForAllAuthorizationResources(ctx, mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
+func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Context, mgr mcmanager.Manager, cfg *config.Config) []mcreconcile.Request {
+	allClient, err := iclient.GetAllClient(ctx, mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), cfg.AuthorizationAPIExportEndpointSliceName)
 	if err != nil {
 		r.log.Error().Err(err).Msg("failed to create all-cluster client for APIExportPolicy listing")
 		return nil

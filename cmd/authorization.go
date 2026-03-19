@@ -82,7 +82,7 @@ var apiExportPolicyCmd = &cobra.Command{
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
-		if err = controller.NewAPIExportPolicyReconciler(log, fga, mgr).SetupWithManager(mgr, defaultCfg); err != nil {
+		if err = controller.NewAPIExportPolicyReconciler(log, fga, mgr).SetupWithManager(mgr, defaultCfg, &authorizationCfg); err != nil {
 			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
 			return err
 		}

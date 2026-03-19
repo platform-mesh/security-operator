@@ -14,6 +14,7 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/pkg/fga"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -32,6 +33,7 @@ const (
 type APIExportPolicySubroutine struct {
 	fga openfgav1.OpenFGAServiceClient
 	mgr mcmanager.Manager
+	cfg *config.Config
 }
 
 func NewAPIExportPolicySubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *APIExportPolicySubroutine {
@@ -80,7 +82,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecy
 		// for orgs workspace we need to write 1 tuple in every store
 		// for this we need to get cluster id for every org's workspace
 		if workspacePath == orgsWorkspacePath {
-			allclient, err := iclient.NewForAllPlatformMeshResources(ctx, a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme())
+			allclient, err := iclient.GetAllClient(ctx, a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), a.cfg.CoreAPIExportEndpointSliceName)
 			if err != nil {
 				log.Fatal().Err(err).Msg("unable to create all client")
 			}
@@ -251,7 +253,7 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 	}
 
 	if workspacePath == orgsWorkspacePath {
-		allclient, err := iclient.NewForAllPlatformMeshResources(ctx, a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme())
+		allclient, err := iclient.GetAllClient(ctx, a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), a.cfg.CoreAPIExportEndpointSliceName)
 		if err != nil {
 			return fmt.Errorf("creating all client: %w", err)
 		}
