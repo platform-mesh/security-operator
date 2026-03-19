@@ -25,7 +25,13 @@ import (
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
 	"github.com/kcp-dev/logicalcluster/v3"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 	"k8s.io/apimachinery/pkg/types"
+)
+
+const (
+	orgsWorkspacePath = "root:orgs"
+	readyPhase        = "Ready"
 )
 
 type APIExportPolicyReconciler struct {
@@ -56,15 +62,16 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 	}
 	return bld.
 		Watches(
-			&corev1alpha1.Store{},
+			&kcptenancyv1alpha1.Workspace{},
 			func(clusterName string, c cluster.Cluster) ctrhandler.TypedEventHandler[client.Object, mcreconcile.Request] {
 				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
-					store, ok := obj.(*corev1alpha1.Store)
+					ws, ok := obj.(*kcptenancyv1alpha1.Workspace)
 					if !ok {
 						return nil
 					}
 
-					if store.Status.StoreID == ""{
+					// we need to enqueue only when a new org appears
+					if ws.Spec.Type.Path != orgsWorkspacePath || ws.Status.Phase != readyPhase {
 						return nil
 					}
 
