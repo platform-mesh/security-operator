@@ -56,19 +56,13 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, instance runti
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting store ID: %w", err), true, true)
 	}
 
-	// Determine the parent's LogicalCluster ID
+	// Determine the parent's and grandParent's LogicalCluster ID
 	parentPath, _ := accountPath.Parent()
-	parentAccountClusterID, err := clusterIDFromLogicalClusterForPath(ctx, s.mgr, parentPath)
+	parentAccountClusterID, parentAccountLC, err := clusterAndIDFromLogicalClusterForPath(ctx, s.mgr, parentPath)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent account's LogicalCluster: %w", err), true, true)
 	}
-
-	// Determine the grandparent's LogicalClusterID
-	grandParentPath, _ := parentPath.Parent()
-	grandParentAccountClusterID, err := clusterIDFromLogicalClusterForPath(ctx, s.mgr, grandParentPath)
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent account's LogicalCluster: %w", err), true, true)
-	}
+	grandParentAccountClusterID := parentAccountLC.Spec.Owner.Cluster
 
 	// Retrieve the Account resource out of the parent workspace to determine
 	// the creator
@@ -119,7 +113,7 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, instance runtim
 	parentPath, _ := accountPath.Parent()
 
 	// Determine the parent's LogicalClusterID
-	parentClusterID, err := clusterIDFromLogicalClusterForPath(ctx, s.mgr, parentPath)
+	parentClusterID, _, err := clusterAndIDFromLogicalClusterForPath(ctx, s.mgr, parentPath)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting parent account's LogicalCluster: %w", err), true, true)
 	}
@@ -190,25 +184,25 @@ var (
 	_ lifecyclesubroutine.Terminator  = &AccountTuplesSubroutine{}
 )
 
-// clusterIDFromLogicalClusterForPath retrieves the LogicalCluster of a given
-// path and returns its cluster ID.
-func clusterIDFromLogicalClusterForPath(ctx context.Context, mgr mcmanager.Manager, p logicalcluster.Path) (string, error) {
+// clusterAndIDFromLogicalClusterForPath retrieves the LogicalCluster of a given
+// path and returns its cluster ID and the LogicalCluster object.
+func clusterAndIDFromLogicalClusterForPath(ctx context.Context, mgr mcmanager.Manager, p logicalcluster.Path) (string, kcpcorev1alpha1.LogicalCluster, error) {
 	var lc kcpcorev1alpha1.LogicalCluster
 
 	clusterClient, err := iclient.NewForLogicalCluster(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), logicalcluster.Name(p.String()))
 	if err != nil {
-		return "", fmt.Errorf("getting account cluster client: %w", err)
+		return "", lc, fmt.Errorf("getting account cluster client: %w", err)
 	}
 	if err := clusterClient.Get(ctx, client.ObjectKey{
 		Name: "cluster",
 	}, &lc); err != nil {
-		return "", fmt.Errorf("getting account's LogicalCluster: %w", err)
+		return "", lc, fmt.Errorf("getting account's LogicalCluster: %w", err)
 	}
 
 	clusterID, ok := lc.Annotations["kcp.io/cluster"]
 	if !ok || clusterID == "" {
-		return "", fmt.Errorf("cluster-annotation kcp.io/cluster on LogicalCluster is not set")
+		return "", lc, fmt.Errorf("cluster-annotation kcp.io/cluster on LogicalCluster is not set")
 	}
 
-	return clusterID, nil
+	return clusterID, lc, nil
 }
