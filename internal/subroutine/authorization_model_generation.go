@@ -33,6 +33,13 @@ const (
 	apiBindingFinalizer = "core.platform-mesh.io/apibinding-finalizer"
 )
 
+// toK8sName creates a valid Kubernetes metadata.name from the given parts.
+func toK8sName(parts ...string) string {
+	name := strings.ToLower(strings.Join(parts, "-"))
+	name = strings.ReplaceAll(name, ".", "-")
+	return strings.Trim(name, "-")
+}
+
 func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, allClient client.Client) *AuthorizationModelGenerationSubroutine {
 	return &AuthorizationModelGenerationSubroutine{
 		mgr:       mcMgr,
@@ -171,7 +178,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 		}
 
-		authModelName := fmt.Sprintf("%s-%s", resourceSchema.Spec.Names.Plural, toDeleteAccountInfo.Spec.Organization.Name)
+		authModelName := toK8sName(resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural, toDeleteAccountInfo.Spec.Organization.Name)
 		err = apiExportClient.Delete(ctx, &securityv1alpha1.AuthorizationModel{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: authModelName,
@@ -271,7 +278,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 
 		model := securityv1alpha1.AuthorizationModel{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: fmt.Sprintf("%s-%s", resourceSchema.Spec.Names.Plural, accountInfo.Spec.Organization.Name),
+				Name: toK8sName(resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural, accountInfo.Spec.Organization.Name),
 			},
 		}
 
