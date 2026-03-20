@@ -147,6 +147,7 @@ func (s *subroutine) Process(ctx context.Context, obj client.Object) (subroutine
 
 	if len(users) != 0 {
 		log.Info().Str("email", invite.Spec.Email).Msg("User already exists, skipping invite")
+		s.limiter.Forget(invite)
 		return subroutines.OK(), nil
 	}
 
