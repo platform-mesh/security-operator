@@ -58,11 +58,16 @@ type IDPConfig struct {
 	RegistrationAllowed bool
 }
 
+type APIExportEndpointSlices struct {
+	CorePlatformMeshIO   string
+	SystemPlatformMeshIO string
+}
+
 // Config struct to hold the app config
 type Config struct {
 	FGA                              FGAConfig
 	KCP                              KCPConfig
-	APIExportEndpointSliceName       string
+	APIExportEndpointSlices          APIExportEndpointSlices
 	CoreModulePath                   string
 	BaseDomain                       string
 	GroupClaim                       string
@@ -92,13 +97,16 @@ func NewConfig() Config {
 		KCP: KCPConfig{
 			Kubeconfig: "/api-kubeconfig/kubeconfig",
 		},
-		APIExportEndpointSliceName: "core.platform-mesh.io",
-		BaseDomain:                 "portal.dev.local:8443",
-		GroupClaim:                 "groups",
-		UserClaim:                  "email",
-		WorkspacePath:              "root",
-		WorkspaceTypeName:          "security",
-		HttpClientTimeoutSeconds:   30,
+		APIExportEndpointSlices: APIExportEndpointSlices{
+			CorePlatformMeshIO:   "core.platform-mesh.io",
+			SystemPlatformMeshIO: "system.platform-mesh.io",
+		},
+		BaseDomain:               "portal.dev.local:8443",
+		GroupClaim:               "groups",
+		UserClaim:                "email",
+		WorkspacePath:            "root",
+		WorkspaceTypeName:        "security",
+		HttpClientTimeoutSeconds: 30,
 		IDP: IDPConfig{
 			KubectlClientRedirectURLs: []string{"http://localhost:8000", "http://localhost:18000"},
 			AccessTokenLifespan:       28800,
@@ -127,7 +135,8 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.FGA.ParentRelation, "fga-parent-relation", c.FGA.ParentRelation, "Set the OpenFGA parent relation name")
 	fs.StringVar(&c.FGA.CreatorRelation, "fga-creator-relation", c.FGA.CreatorRelation, "Set the OpenFGA creator relation name")
 	fs.StringVar(&c.KCP.Kubeconfig, "kcp-kubeconfig", c.KCP.Kubeconfig, "Set the KCP kubeconfig path")
-	fs.StringVar(&c.APIExportEndpointSliceName, "api-export-endpoint-slice-name", c.APIExportEndpointSliceName, "Set the APIExportEndpointSlice name")
+	fs.StringVar(&c.APIExportEndpointSlices.CorePlatformMeshIO, "api-export-endpoint-slice-name", c.APIExportEndpointSlices.CorePlatformMeshIO, "Set the core.platform-mesh.io APIExportEndpointSlice name")
+	fs.StringVar(&c.APIExportEndpointSlices.SystemPlatformMeshIO, "system-api-export-endpoint-slice-name", c.APIExportEndpointSlices.SystemPlatformMeshIO, "Set the system.platform-mesh.io APIExportEndpointSlice name")
 	fs.StringVar(&c.CoreModulePath, "core-module-path", c.CoreModulePath, "Set the path to the core module FGA model file")
 	fs.StringVar(&c.BaseDomain, "base-domain", c.BaseDomain, "Set the base domain used to construct issuer URLs")
 	fs.StringVar(&c.GroupClaim, "group-claim", c.GroupClaim, "Set the ID token group claim")

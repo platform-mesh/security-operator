@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"text/template"
 
@@ -217,8 +218,10 @@ func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	binding := instance.(*kcpapisv1alpha2.APIBinding)
 
-	if binding.Spec.Reference.Export.Name == "core.platform-mesh.io" || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
-		// If the APIExport is the core.platform-mesh.io, we can skip the model generation.
+	internalAPIBindings := []string{"core.platform-mesh.io", "system.platform-mesh.io"}
+
+	if slices.Contains(internalAPIBindings, binding.Spec.Reference.Export.Name) || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
+		// If the APIExport is the core.platform-mesh.io, system.platform-mesh.io we can skip the model generation.
 		return ctrl.Result{}, nil
 	}
 
