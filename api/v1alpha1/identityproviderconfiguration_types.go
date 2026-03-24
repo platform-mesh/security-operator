@@ -1,7 +1,7 @@
 package v1alpha1
 
 import (
-	lifecycleapi "github.com/platform-mesh/golang-commons/controller/lifecycle/api"
+	"github.com/platform-mesh/subroutines/conditions"
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -63,12 +63,12 @@ type IdentityProviderConfiguration struct {
 	Status IdentityProviderConfigurationStatus `json:"status,omitempty,omitzero"`
 }
 
-// GetConditions implements api.RuntimeObjectConditions.
+// GetConditions implements conditions.ConditionAccessor.
 func (in *IdentityProviderConfiguration) GetConditions() []metav1.Condition {
 	return in.Status.Conditions
 }
 
-// SetConditions implements api.RuntimeObjectConditions.
+// SetConditions implements conditions.ConditionAccessor.
 func (in *IdentityProviderConfiguration) SetConditions(c []metav1.Condition) {
 	in.Status.Conditions = c
 }
@@ -82,7 +82,7 @@ type IdentityProviderConfigurationList struct {
 	Items           []IdentityProviderConfiguration `json:"items"`
 }
 
-var _ lifecycleapi.RuntimeObjectConditions = &IdentityProviderConfiguration{}
+var _ conditions.ConditionAccessor = &IdentityProviderConfiguration{}
 
 func init() {
 	SchemeBuilder.Register(&IdentityProviderConfiguration{}, &IdentityProviderConfigurationList{})

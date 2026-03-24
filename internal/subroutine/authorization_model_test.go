@@ -86,17 +86,6 @@ func TestAuthorizationModelGetName(t *testing.T) {
 	assert.Equal(t, "AuthorizationModel", subroutine.GetName())
 }
 
-func TestAuthorizationModelFinalizers(t *testing.T) {
-	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil, nil, nil)
-	assert.Equal(t, []string(nil), subroutine.Finalizers(nil))
-}
-
-func TestAuthorizationModelFinalize(t *testing.T) {
-	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil, nil, nil)
-	_, err := subroutine.Finalize(t.Context(), nil)
-	assert.Nil(t, err)
-}
-
 func TestAuthorizationModelProcess(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -397,7 +386,7 @@ type core_namespace
 
 			_, err := subroutine.Process(ctx, test.store)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, err)
 			} else {
 				assert.Nil(t, err)
 			}

@@ -162,7 +162,6 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
 		if err = controller.NewStoreReconciler(ctx, log, fga, mgr, &operatorCfg).
@@ -176,7 +175,12 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
 			return err
 		}
-		if err = controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {
+		inviteReconciler, err := controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log)
+		if err != nil {
+			log.Error().Err(err).Str("controller", "invite").Msg("unable to create reconciler")
+			return err
+		}
+		if err = inviteReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
 			return err
 		}

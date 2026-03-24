@@ -5,38 +5,48 @@ import (
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
+	"github.com/platform-mesh/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
 type AccountInfoReconciler struct {
-	log         *logger.Logger
-	mclifecycle *multicluster.LifecycleManager
+	log       *logger.Logger
+	lifecycle *lifecycle.Lifecycle
 }
 
 func NewAccountInfoReconciler(log *logger.Logger, mcMgr mcmanager.Manager) *AccountInfoReconciler {
+	lc := lifecycle.New(mcMgr, "AccountInfoReconciler", func() client.Object {
+		return &accountv1alpha1.AccountInfo{}
+	}, subroutine.NewAccountInfoFinalizerSubroutine(mcMgr))
+
 	return &AccountInfoReconciler{
-		log: log,
-		mclifecycle: builder.NewBuilder("accountinfo", "AccountInfoReconciler", []lifecyclesubroutine.Subroutine{
-			subroutine.NewAccountInfoFinalizerSubroutine(mcMgr),
-		}, log).
-			BuildMultiCluster(mcMgr),
+		log:       log,
+		lifecycle: lc,
 	}
 }
 
 func (r *AccountInfoReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.mclifecycle.Reconcile(ctxWithCluster, req, &accountv1alpha1.AccountInfo{})
+	return r.lifecycle.Reconcile(ctx, req)
 }
 
 func (r *AccountInfoReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
-	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "accountinfo", &accountv1alpha1.AccountInfo{}, cfg.DebugLabelValue, r, r.log, evp...)
+	opts := controller.TypedOptions[mcreconcile.Request]{
+		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
+	}
+	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
+	return mcbuilder.ControllerManagedBy(mgr).
+		Named("accountinfo").
+		For(&accountv1alpha1.AccountInfo{}).
+		WithOptions(opts).
+		WithEventFilter(predicate.And(predicates...)).
+		Complete(r)
 }

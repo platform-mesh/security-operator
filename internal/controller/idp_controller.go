@@ -1,48 +1,72 @@
-package controller // coverage-ignore
+package controller
 
 import (
 	"context"
+	"fmt"
 
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/controller/filter"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/idp"
+	"github.com/platform-mesh/subroutines/conditions"
+	"github.com/platform-mesh/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
+
+	"k8s.io/client-go/util/workqueue"
 )
 
 type IdentityProviderConfigurationReconciler struct {
 	log         *logger.Logger
-	mclifecycle *multicluster.LifecycleManager
+	lifecycle   *lifecycle.Lifecycle
+	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
 }
 
-func NewIdentityProviderConfigurationReconciler(ctx context.Context, mgr mcmanager.Manager, orgsClient client.Client, cfg *config.Config, log *logger.Logger) *IdentityProviderConfigurationReconciler {
+func NewIdentityProviderConfigurationReconciler(ctx context.Context, mgr mcmanager.Manager, orgsClient client.Client, cfg *config.Config, log *logger.Logger) (*IdentityProviderConfigurationReconciler, error) {
 	idpSubroutine, err := idp.New(ctx, cfg, orgsClient, mgr)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create idp subroutine")
+		return nil, fmt.Errorf("creating IDP subroutine: %w", err)
 	}
+
+	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[mcreconcile.Request](ratelimiter.NewConfig())
+	if err != nil {
+		return nil, fmt.Errorf("creating RateLimiter: %w", err)
+	}
+
+	lc := lifecycle.New(mgr, "IdentityProviderConfigurationReconciler", func() client.Object {
+		return &corev1alpha1.IdentityProviderConfiguration{}
+	}, idpSubroutine).
+		WithConditions(conditions.NewManager())
+
 	return &IdentityProviderConfigurationReconciler{
-		log: log,
-		mclifecycle: builder.NewBuilder("identityprovider", "IdentityProviderConfigurationReconciler", []lifecyclesubroutine.Subroutine{
-			idpSubroutine,
-		}, log).WithConditionManagement().WithStaticThenExponentialRateLimiter().
-			BuildMultiCluster(mgr),
-	}
+		log:         log,
+		lifecycle:   lc,
+		rateLimiter: rl,
+	}, nil
 }
 
 func (r *IdentityProviderConfigurationReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.mclifecycle.Reconcile(ctxWithCluster, req, &corev1alpha1.IdentityProviderConfiguration{})
+	return r.lifecycle.Reconcile(ctx, req)
 }
 
-func (r *IdentityProviderConfigurationReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, log *logger.Logger, evp ...predicate.Predicate) error { // coverage-ignore
-	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "identityprovider", &corev1alpha1.IdentityProviderConfiguration{}, cfg.DebugLabelValue, r, r.log, evp...)
+func (r *IdentityProviderConfigurationReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, log *logger.Logger, evp ...predicate.Predicate) error {
+	opts := controller.TypedOptions[mcreconcile.Request]{
+		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
+		RateLimiter:             r.rateLimiter,
+	}
+	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
+	return mcbuilder.ControllerManagedBy(mgr).
+		Named("identityprovider").
+		For(&corev1alpha1.IdentityProviderConfiguration{}).
+		WithOptions(opts).
+		WithEventFilter(predicate.And(predicates...)).
+		Complete(r)
 }

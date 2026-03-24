@@ -168,7 +168,7 @@ func TestProcess(t *testing.T) {
 
 			_, err := subroutine.Process(context.Background(), test.store)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, err)
 			} else {
 				assert.Nil(t, err)
 			}
@@ -317,7 +317,7 @@ func TestFinalize(t *testing.T) {
 
 			_, err := subroutine.Finalize(ctx, test.store)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, err)
 			} else {
 				assert.Nil(t, err)
 			}

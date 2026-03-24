@@ -4,13 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-	"github.com/platform-mesh/golang-commons/errors"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/subroutines"
 	"github.com/rs/zerolog/log"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -41,63 +38,46 @@ func NewWorkspaceAuthConfigurationSubroutine(orgClient, runtimeClient client.Cli
 	}
 }
 
-var (
-	_ lifecyclesubroutine.Subroutine  = &workspaceAuthSubroutine{}
-	_ lifecyclesubroutine.Initializer = &workspaceAuthSubroutine{}
-)
+var _ subroutines.Initializer = &workspaceAuthSubroutine{}
 
 func (r *workspaceAuthSubroutine) GetName() string { return "workspaceAuthConfiguration" }
 
-func (r *workspaceAuthSubroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
-	return []string{}
-}
-
-func (r *workspaceAuthSubroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	return ctrl.Result{}, nil
-}
-
-// Process implements lifecycle.Subroutine as no-op since Initialize handles the
-// work.
-func (r *workspaceAuthSubroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	return ctrl.Result{}, nil
-}
-
-// Initialize implements lifecycle.Initializer.
-func (r *workspaceAuthSubroutine) Initialize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
+// Initialize implements subroutines.Initializer.
+func (r *workspaceAuthSubroutine) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)
 	if workspaceName == "" {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get workspace path"), true, false)
+		return subroutines.OK(), fmt.Errorf("failed to get workspace path")
 	}
 
 	var domainCASecret corev1.Secret
 	if r.cfg.DomainCALookup {
 		err := r.runtimeClient.Get(ctx, client.ObjectKey{Name: "domain-certificate-ca", Namespace: "platform-mesh-system"}, &domainCASecret)
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get domain CA secret: %w", err), true, false)
+			return subroutines.OK(), fmt.Errorf("failed to get domain CA secret: %w", err)
 		}
 	}
 
 	cluster, err := r.mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to get cluster from context %w", err)
 	}
 
 	var accountInfo accountsv1alpha1.AccountInfo
 	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get AccountInfo: %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to get AccountInfo: %w", err)
 	}
 
 	if accountInfo.Spec.OIDC == nil || len(accountInfo.Spec.OIDC.Clients) == 0 {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("AccountInfo %s has no OIDC clients", workspaceName), true, false)
+		return subroutines.OK(), fmt.Errorf("AccountInfo %s has no OIDC clients", workspaceName)
 	}
 
 	audiences := make([]string, 0, len(accountInfo.Spec.OIDC.Clients))
 	for clientName, clientInfo := range accountInfo.Spec.OIDC.Clients {
 		if clientInfo.ClientID == "" {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("OIDC client %s has empty ClientID in AccountInfo", clientName), true, false)
+			return subroutines.OK(), fmt.Errorf("OIDC client %s has empty ClientID in AccountInfo", clientName)
 		}
 		audiences = append(audiences, clientInfo.ClientID)
 	}
@@ -136,30 +116,30 @@ func (r *workspaceAuthSubroutine) Initialize(ctx context.Context, instance runti
 
 	}
 
-	obj := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
-	_, err = controllerutil.CreateOrUpdate(ctx, r.orgClient, obj, func() error {
-		obj.Spec = kcptenancyv1alphav1.WorkspaceAuthenticationConfigurationSpec{
+	authConfig := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
+	_, err = controllerutil.CreateOrUpdate(ctx, r.orgClient, authConfig, func() error {
+		authConfig.Spec = kcptenancyv1alphav1.WorkspaceAuthenticationConfigurationSpec{
 			JWT: []kcptenancyv1alphav1.JWTAuthenticator{
 				jwtAuthenticationConfiguration,
 			},
 		}
 
 		if r.cfg.DomainCALookup {
-			obj.Spec.JWT[0].Issuer.CertificateAuthority = string(domainCASecret.Data["tls.crt"])
+			authConfig.Spec.JWT[0].Issuer.CertificateAuthority = string(domainCASecret.Data["tls.crt"])
 		}
 
 		return nil
 	})
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err)
 	}
 
 	err = r.patchWorkspaceTypes(ctx, r.orgClient, workspaceName)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch workspace types: %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to patch workspace types: %w", err)
 	}
 
-	return ctrl.Result{}, nil
+	return subroutines.OK(), nil
 }
 
 func (r *workspaceAuthSubroutine) patchWorkspaceTypes(ctx context.Context, cl client.Client, workspaceName string) error {
