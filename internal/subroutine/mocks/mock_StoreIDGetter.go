@@ -13,7 +13,7 @@ func NewMockStoreIDGetter(t interface {
 	Cleanup(func())
 }) *MockStoreIDGetter {
 	mock := &MockStoreIDGetter{}
-	mock.Mock.Test(t)
+	mock.Test(t)
 
 	t.Cleanup(func() { mock.AssertExpectations(t) })
 

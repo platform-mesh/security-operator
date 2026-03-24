@@ -30,7 +30,7 @@ func TestInitialTuplesForAccount(t *testing.T) {
 		},
 		ParentOriginClusterID: originClusterID,
 		ParentName:            parentAccountName,
-		ParentRelation:       parentRelation,
+		ParentRelation:        parentRelation,
 	}
 	tuples, err := InitialTuplesForAccount(in)
 	require.NoError(t, err)
@@ -69,7 +69,7 @@ func TestInitialTuplesForAccount_formatUser(t *testing.T) {
 		},
 		ParentOriginClusterID: originClusterID,
 		ParentName:            parentAccountName,
-		ParentRelation:       parentRelation,
+		ParentRelation:        parentRelation,
 	}
 	tuples, err := InitialTuplesForAccount(in)
 	require.NoError(t, err)
@@ -89,7 +89,7 @@ func TestInitialTuplesForAccount_nilCreator(t *testing.T) {
 		},
 		ParentOriginClusterID: originClusterID,
 		ParentName:            parentAccountName,
-		ParentRelation:       parentRelation,
+		ParentRelation:        parentRelation,
 	}
 	_, err := InitialTuplesForAccount(in)
 	assert.Error(t, err)

@@ -64,7 +64,7 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
 	}
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
-	
+
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("apiexportpolicy").
 		For(&corev1alpha1.APIExportPolicy{}).

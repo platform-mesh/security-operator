@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	platformMeshSystemWorkspace              = "root:platform-mesh-system"
+	platformMeshSystemWorkspace = "root:platform-mesh-system"
 )
 
 // NewForAllPlatformMeshResources returns a client that can query all resources
