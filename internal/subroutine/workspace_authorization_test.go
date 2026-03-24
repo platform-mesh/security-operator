@@ -596,7 +596,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					Return(errors.New("accountinfo not found")).Once()
 			},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - AccountInfo has no OIDC clients",
@@ -621,7 +621,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					}).Once()
 			},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - AccountInfo has empty OIDC clients map",
@@ -648,7 +648,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					}).Once()
 			},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - AccountInfo client has empty ClientID",
@@ -677,7 +677,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					}).Once()
 			},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 	}
 
