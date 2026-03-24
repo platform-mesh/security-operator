@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"time"
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
@@ -33,7 +32,7 @@ const (
 )
 
 func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg config.Config) (*IDPSubroutine, error) {
-	limiter, err := ratelimiter.NewStaticThenExponentialRateLimiter[*v1alpha1.IdentityProviderConfiguration](ratelimiter.NewConfig(ratelimiter.WithExponentialMaxBackoff(time.Second * 10)))
+	limiter, err := ratelimiter.NewStaticThenExponentialRateLimiter[*v1alpha1.IdentityProviderConfiguration](ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
