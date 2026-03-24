@@ -4,9 +4,13 @@ import (
 	"context"
 	"crypto/tls"
 
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshcontext "github.com/platform-mesh/golang-commons/context"
 	"github.com/platform-mesh/security-operator/internal/controller"
+	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -71,6 +75,22 @@ var systemCmd = &cobra.Command{
 			setupLog.Error(err, "unable to create manager")
 			return err
 		}
+
+		conn, err := grpc.NewClient(systemCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			log.Error().Err(err).Msg("unable to create grpc client")
+			return err
+		}
+
+		fgaClient := openfgav1.NewOpenFGAServiceClient(conn)
+
+		storeIDGetter := fga.NewCachingStoreIDGetter(
+			fgaClient,
+			systemCfg.FGA.StoreIDCacheTTL,
+			ctx,
+			log,
+		)
+
 		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create org client")
@@ -84,6 +104,11 @@ var systemCmd = &cobra.Command{
 		}
 		if err := idpReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create controller")
+			return err
+		}
+
+		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, &systemCfg, storeIDGetter).SetupWithManager(mgr, defaultCfg, &systemCfg); err != nil {
+			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
 			return err
 		}
 

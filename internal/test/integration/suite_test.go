@@ -237,7 +237,9 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 	suite.Require().NoError(err)
 
 	operatorCfg := &config.Config{
-		CoreAPIExportEndpointSliceName: "core.platform-mesh.io",
+		APIExportEndpointSlices: config.APIExportEndpointSlices{
+			CorePlatformMeshIO: "core.platform-mesh.io",
+		},
 	}
 
 	err = controller.NewAPIBindingReconciler(ctx, testLogger, mgr, operatorCfg).SetupWithManager(mgr, defaultCfg)

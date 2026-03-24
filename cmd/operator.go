@@ -218,7 +218,7 @@ var operatorCmd = &cobra.Command{
 
 // this function can be removed after the operator has migrated the authz models in all environments
 func migrateAuthorizationModels(ctx context.Context, config *rest.Config, operatorCfg *config.Config, scheme *runtime.Scheme, getClusterClient NewLogicalClusterClientFunc) error {
-	allClient, err := iclient.GetAllClient(ctx, config, scheme, operatorCfg.CoreAPIExportEndpointSliceName)
+	allClient, err := iclient.GetAllClient(ctx, config, scheme, operatorCfg.APIExportEndpointSlices.CorePlatformMeshIO)
 	if err != nil {
 		return fmt.Errorf("failed to create all-cluster client: %w", err)
 	}

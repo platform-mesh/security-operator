@@ -13,6 +13,7 @@ import (
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,11 +41,11 @@ type APIExportPolicyReconciler struct {
 	mclifecycle *multicluster.LifecycleManager
 }
 
-func NewAPIExportPolicyReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *APIExportPolicyReconciler {
+func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter) *APIExportPolicyReconciler {
 	return &APIExportPolicyReconciler{
 		log: log,
 		mclifecycle: builder.NewBuilder("apiexportpolicy", "APIExportPolicyReconciler", []lifecyclesubroutine.Subroutine{
-			subroutine.NewAPIExportPolicySubroutine(fga, mcMgr),
+			subroutine.NewAPIExportPolicySubroutine(fgaClient, mcMgr, cfg, storeIDGetter),
 		}, log).
 			WithConditionManagement().
 			BuildMultiCluster(mcMgr),
@@ -84,7 +85,7 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 }
 
 func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Context, mgr mcmanager.Manager, cfg *config.Config) []mcreconcile.Request {
-	allClient, err := iclient.GetAllClient(ctx, mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), cfg.AuthorizationAPIExportEndpointSliceName)
+	allClient, err := iclient.GetAllClient(ctx, mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), cfg.APIExportEndpointSlices.SystemPlatformMeshIO)
 	if err != nil {
 		r.log.Error().Err(err).Msg("failed to create all-cluster client for APIExportPolicy listing")
 		return nil

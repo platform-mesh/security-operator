@@ -15,7 +15,7 @@ import (
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
-	"github.com/platform-mesh/security-operator/pkg/fga"
+	"github.com/platform-mesh/security-operator/internal/fga"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -31,15 +31,18 @@ const (
 )
 
 type APIExportPolicySubroutine struct {
-	fga openfgav1.OpenFGAServiceClient
-	mgr mcmanager.Manager
-	cfg *config.Config
+	fga           openfgav1.OpenFGAServiceClient
+	mgr           mcmanager.Manager
+	cfg           *config.Config
+	storeIDGetter fga.StoreIDGetter
 }
 
-func NewAPIExportPolicySubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *APIExportPolicySubroutine {
+func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter) *APIExportPolicySubroutine {
 	return &APIExportPolicySubroutine{
-		fga: fga,
-		mgr: mgr,
+		fga:           fgaClient,
+		mgr:           mgr,
+		cfg:           cfg,
+		storeIDGetter: storeIDGetter,
 	}
 }
 
@@ -82,7 +85,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecy
 		// for orgs workspace we need to write 1 tuple in every store
 		// for this we need to get cluster id for every org's workspace
 		if workspacePath == orgsWorkspacePath {
-			allclient, err := iclient.GetAllClient(ctx, a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), a.cfg.CoreAPIExportEndpointSliceName)
+			allclient, err := iclient.GetAllClient(ctx, a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), a.cfg.APIExportEndpointSlices.CorePlatformMeshIO)
 			if err != nil {
 				log.Fatal().Err(err).Msg("unable to create all client")
 			}
@@ -99,8 +102,11 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecy
 					continue
 				}
 
-				if ai.Spec.FGA.Store.Id == "" {
-					return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store id is empty in account info %w", err), true, true)
+				storeID, err := a.storeIDGetter.Get(ctx, ai.Spec.Organization.Name)
+				if err != nil {
+					return ctrl.Result{}, errors.NewOperatorError(
+						fmt.Errorf("getting store ID for org %s: %w", ai.Spec.Organization.Name, err),
+						true, true)
 				}
 
 				tuple := corev1alpha1.Tuple{
@@ -109,7 +115,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecy
 					User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, policy.Spec.APIExportRef.Name),
 				}
 
-				tm := fga.NewTupleManager(a.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, log)
+				tm := fga.NewTupleManager(a.fga, storeID, fga.AuthorizationModelIDLatest, log)
 				if err := tm.Apply(ctx, []corev1alpha1.Tuple{tuple}); err != nil {
 					return ctrl.Result{}, errors.NewOperatorError(
 						fmt.Errorf("applying tuple for expression %s: %w", expression, err),
@@ -131,13 +137,20 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecy
 				true, true)
 		}
 
+		storeID, err := a.storeIDGetter.Get(ctx, ai.Spec.Organization.Name)
+		if err != nil {
+			return ctrl.Result{}, errors.NewOperatorError(
+				fmt.Errorf("getting store ID for org %s: %w", ai.Spec.Organization.Name, err),
+				true, true)
+		}
+
 		tuple := corev1alpha1.Tuple{
 			Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 			Relation: relation,
 			User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, policy.Spec.APIExportRef.Name),
 		}
 
-		tm := fga.NewTupleManager(a.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, log)
+		tm := fga.NewTupleManager(a.fga, storeID, fga.AuthorizationModelIDLatest, log)
 		if err := tm.Apply(ctx, []corev1alpha1.Tuple{tuple}); err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(
 				fmt.Errorf("applying tuple for expression %s: %w", expression, err),
@@ -253,7 +266,7 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 	}
 
 	if workspacePath == orgsWorkspacePath {
-		allclient, err := iclient.GetAllClient(ctx, a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), a.cfg.CoreAPIExportEndpointSliceName)
+		allclient, err := iclient.GetAllClient(ctx, a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), a.cfg.APIExportEndpointSlices.CorePlatformMeshIO)
 		if err != nil {
 			return fmt.Errorf("creating all client: %w", err)
 		}
@@ -264,8 +277,9 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 		}
 
 		for _, ai := range accountInfoList.Items {
-			if ai.Spec.FGA.Store.Id == "" {
-				return fmt.Errorf("empty store id in AccountInfo resources %w", err)
+			storeID, err := a.storeIDGetter.Get(ctx, ai.Spec.Organization.Name)
+			if err != nil {
+				return fmt.Errorf("getting store ID for org %s: %w", ai.Spec.Organization.Name, err)
 			}
 
 			tupleToDelete := corev1alpha1.Tuple{
@@ -274,7 +288,7 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 				User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, apiExportName),
 			}
 
-			tm := fga.NewTupleManager(a.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, log)
+			tm := fga.NewTupleManager(a.fga, storeID, fga.AuthorizationModelIDLatest, log)
 			if err := tm.Delete(ctx, []corev1alpha1.Tuple{tupleToDelete}); err != nil {
 				return fmt.Errorf("removing tuple in openFGA: %w", err)
 			}
@@ -292,13 +306,18 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 		return fmt.Errorf("getting AccountInfo for workspace %s: %w", workspacePath, err)
 	}
 
+	storeID, err := a.storeIDGetter.Get(ctx, ai.Spec.Organization.Name)
+	if err != nil {
+		return fmt.Errorf("getting store ID for org %s: %w", ai.Spec.Organization.Name, err)
+	}
+
 	tupleToDelete := corev1alpha1.Tuple{
 		Object:   fmt.Sprintf("core_platform-mesh_io_account:%s/%s", ai.Spec.Account.OriginClusterId, ai.Spec.Account.Name),
 		Relation: relation,
 		User:     fmt.Sprintf("apis_kcp_io_apiexport:%s/%s", providerClusterID, apiExportName),
 	}
 
-	tm := fga.NewTupleManager(a.fga, ai.Spec.FGA.Store.Id, fga.AuthorizationModelIDLatest, log)
+	tm := fga.NewTupleManager(a.fga, storeID, fga.AuthorizationModelIDLatest, log)
 	if err := tm.Delete(ctx, []corev1alpha1.Tuple{tupleToDelete}); err != nil {
 		return fmt.Errorf("removing tuples: %w", err)
 	}
