@@ -15,14 +15,14 @@ import (
 )
 
 var (
-	defaultCfg       *platformeshconfig.CommonServiceConfig
-	initializerCfg   config.Config
-	terminatorCfg    config.Config
-	operatorCfg      config.Config
-	generatorCfg     config.Config
-	authorizationCfg config.Config
-	log              *logger.Logger
-	setupLog         logr.Logger
+	defaultCfg     *platformeshconfig.CommonServiceConfig
+	initializerCfg config.Config
+	terminatorCfg  config.Config
+	operatorCfg    config.Config
+	generatorCfg   config.Config
+	systemCfg      config.Config
+	log            *logger.Logger
+	setupLog       logr.Logger
 )
 
 var rootCmd = &cobra.Command{
@@ -35,14 +35,14 @@ func init() {
 	rootCmd.AddCommand(operatorCmd)
 	rootCmd.AddCommand(modelGeneratorCmd)
 	rootCmd.AddCommand(initContainerCmd)
-	rootCmd.AddCommand(apiExportPolicyCmd)
+	rootCmd.AddCommand(systemCmd)
 
 	defaultCfg = platformeshconfig.NewDefaultConfig()
 	operatorCfg = config.NewConfig()
 	generatorCfg = config.NewConfig()
 	initializerCfg = config.NewConfig()
 	terminatorCfg = config.NewConfig()
-	authorizationCfg = config.NewConfig()
+	systemCfg = config.NewConfig()
 	initContainerCfg = config.NewInitContainerConfig()
 
 	defaultCfg.AddFlags(rootCmd.PersistentFlags())
@@ -50,7 +50,7 @@ func init() {
 	generatorCfg.AddFlags(modelGeneratorCmd.Flags())
 	initializerCfg.AddFlags(initializerCmd.Flags())
 	terminatorCfg.AddFlags(terminatorCmd.Flags())
-	authorizationCfg.AddFlags(apiExportPolicyCmd.Flags())
+	systemCfg.AddFlags(systemCmd.Flags())
 	initContainerCfg.AddFlags(initContainerCmd.Flags())
 
 	cobra.OnInitialize(initLog)

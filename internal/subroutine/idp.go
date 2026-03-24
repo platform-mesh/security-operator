@@ -127,7 +127,7 @@ func (i *IDPSubroutine) Initialize(ctx context.Context, instance runtimeobject.R
 	}
 
 	idp := &v1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
-	_, err = controllerutil.CreateOrPatch(ctx, cl.GetClient(), idp, func() error {
+	_, err = controllerutil.CreateOrPatch(ctx, i.orgsClient, idp, func() error {
 		idp.Spec.RegistrationAllowed = i.registrationAllowed
 
 		for _, desired := range clients {
@@ -141,7 +141,7 @@ func (i *IDPSubroutine) Initialize(ctx context.Context, instance runtimeobject.R
 
 	log.Info().Str("workspace", workspaceName).Msg("idp configuration resource is created")
 
-	if err := cl.GetClient().Get(ctx, types.NamespacedName{Name: workspaceName}, idp); err != nil {
+	if err := i.orgsClient.Get(ctx, types.NamespacedName{Name: workspaceName}, idp); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get idp resource %w", err), true, true)
 	}
 
