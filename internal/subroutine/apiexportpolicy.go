@@ -50,7 +50,7 @@ func (a *APIExportPolicySubroutine) GetName() string {
 }
 
 func (a *APIExportPolicySubroutine) Finalizers(_ client.Object) []string {
-	return []string{"authorization.platform-mesh.io/apiexportpolicy-finalizer"}
+	return []string{"system.platform-mesh.io/apiexportpolicy-finalizer"}
 }
 
 func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
@@ -68,7 +68,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Obje
 	}
 
 	for _, expression := range policy.Spec.AllowPathExpressions {
-		workspacePath, relation, err := parseAllowExpression(expression)
+		workspacePath, relation, err := a.parseAllowExpression(expression)
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("parsing allow expression %s: %w", expression, err)
 		}
@@ -110,6 +110,9 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Obje
 			continue
 		}
 
+		// for all valid expressions except of :root:orgs:*
+		// e.g :root:orgs:A:B, find store id
+		// and clusterID of logical cluster where account B lives (logical cluster A)
 		lcClient, err := iclient.NewForLogicalCluster(a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(workspacePath))
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("getting client: %w", err)
@@ -192,7 +195,7 @@ func (a *APIExportPolicySubroutine) getClusterIDFromPath(ctx context.Context, cl
 	return clusterID, nil
 }
 
-func parseAllowExpression(expr string) (workspacePath string, relation string, err error) {
+func (a *APIExportPolicySubroutine) parseAllowExpression(expr string) (workspacePath string, relation string, err error) {
 	expr = strings.TrimPrefix(expr, ":")
 
 	if !strings.HasPrefix(expr, "root:orgs:") {
@@ -233,7 +236,7 @@ func (a *APIExportPolicySubroutine) deleteRemovedExpressions(ctx context.Context
 func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Context, expression string, providerClusterID string, apiExportName string) error {
 	log := logger.LoadLoggerFromContext(ctx)
 
-	workspacePath, relation, err := parseAllowExpression(expression)
+	workspacePath, relation, err := a.parseAllowExpression(expression)
 	if err != nil {
 		return fmt.Errorf("parsing expression %s: %w", expression, err)
 	}

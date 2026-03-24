@@ -41,7 +41,7 @@ func TestAPIExportPolicySubroutine_GetName(t *testing.T) {
 
 func TestAPIExportPolicySubroutine_Finalizers(t *testing.T) {
 	sub := subroutine.NewAPIExportPolicySubroutine(nil, nil, nil, nil)
-	assert.Equal(t, []string{"authorization.platform-mesh.io/apiexportpolicy-finalizer"}, sub.Finalizers(nil))
+	assert.Equal(t, []string{"system.platform-mesh.io/apiexportpolicy-finalizer"}, sub.Finalizers(nil))
 }
 
 func TestAPIExportPolicySubroutine_Process(t *testing.T) {
