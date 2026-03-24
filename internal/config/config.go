@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"time"
 
 	"github.com/spf13/pflag"
 )
@@ -30,6 +31,7 @@ type FGAConfig struct {
 	ObjectType      string
 	ParentRelation  string
 	CreatorRelation string
+	StoreIDCacheTTL time.Duration
 }
 
 type KCPConfig struct {
@@ -90,6 +92,7 @@ func NewConfig() Config {
 			ObjectType:      "core_platform-mesh_io_account",
 			ParentRelation:  "parent",
 			CreatorRelation: "owner",
+			StoreIDCacheTTL: 24 * time.Hour,
 		},
 		KCP: KCPConfig{
 			Kubeconfig: "/api-kubeconfig/kubeconfig",
@@ -127,6 +130,7 @@ func NewConfig() Config {
 
 func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.StringVar(&c.FGA.Target, "fga-target", c.FGA.Target, "Set the OpenFGA API target")
+	fs.DurationVar(&c.FGA.StoreIDCacheTTL, "fga-store-id-cache-ttl", c.FGA.StoreIDCacheTTL, "TTL for the OpenFGA store ID cache (e.g. 5m, 1h)")
 	fs.StringVar(&c.FGA.ObjectType, "fga-object-type", c.FGA.ObjectType, "Set the OpenFGA object type for account tuples")
 	fs.StringVar(&c.FGA.ParentRelation, "fga-parent-relation", c.FGA.ParentRelation, "Set the OpenFGA parent relation name")
 	fs.StringVar(&c.FGA.CreatorRelation, "fga-creator-relation", c.FGA.CreatorRelation, "Set the OpenFGA creator relation name")

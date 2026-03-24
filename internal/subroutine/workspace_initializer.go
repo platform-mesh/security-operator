@@ -14,7 +14,7 @@ import (
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
-	"github.com/platform-mesh/security-operator/pkg/fga"
+	"github.com/platform-mesh/security-operator/internal/fga"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -119,7 +119,18 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, instance runtimeo
 		ObjectMeta: metav1.ObjectMeta{Name: generateStoreName(lc)},
 	}
 
-	tuples, err := fga.TuplesForOrganization(acc, ai, w.creatorRelation, w.objectType)
+	if acc.Spec.Creator == nil || *acc.Spec.Creator == "" {
+		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("account creator is nil or empty"), true, true)
+	}
+	tuples, err := fga.TuplesForOrganization(fga.TuplesForOrganizationInput{
+		BaseTuplesInput: fga.BaseTuplesInput{
+			Creator:                *acc.Spec.Creator,
+			AccountOriginClusterID: ai.Spec.Account.OriginClusterId,
+			AccountName:            ai.Spec.Account.Name,
+			CreatorRelation:        w.creatorRelation,
+			ObjectType:             w.objectType,
+		},
+	})
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for organization: %w", err), true, true)
 	}
@@ -160,22 +171,6 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, instance runtimeo
 	if store.Status.StoreID == "" {
 		// Store is not ready yet, requeue
 		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store id is empty"), true, false)
-	}
-
-	cluster, err := w.mgr.ClusterFromContext(ctx)
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
-	}
-
-	accountInfo := accountsv1alpha1.AccountInfo{
-		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-	}
-	_, err = controllerutil.CreateOrUpdate(ctx, cluster.GetClient(), &accountInfo, func() error {
-		accountInfo.Spec.FGA.Store.Id = store.Status.StoreID
-		return nil
-	})
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to create/update accountInfo: %w", err), true, true)
 	}
 
 	return ctrl.Result{}, nil
