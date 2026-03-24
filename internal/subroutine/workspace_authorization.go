@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/subroutines"
 	"github.com/rs/zerolog/log"
@@ -64,26 +64,22 @@ func (r *workspaceAuthSubroutine) Initialize(ctx context.Context, obj client.Obj
 		return subroutines.OK(), fmt.Errorf("failed to get cluster from context %w", err)
 	}
 
-	var idpConfig v1alpha1.IdentityProviderConfiguration
-	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: workspaceName}, &idpConfig)
+	var accountInfo accountsv1alpha1.AccountInfo
+	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
 	if err != nil {
-		return subroutines.OK(), fmt.Errorf("failed to get IdentityProviderConfiguration: %w", err)
+		return subroutines.OK(), fmt.Errorf("failed to get AccountInfo: %w", err)
 	}
 
-	if len(idpConfig.Spec.Clients) == 0 || len(idpConfig.Status.ManagedClients) == 0 {
-		return subroutines.OK(), fmt.Errorf("IdentityProviderConfiguration %s has no clients in spec or status", workspaceName)
+	if accountInfo.Spec.OIDC == nil || len(accountInfo.Spec.OIDC.Clients) == 0 {
+		return subroutines.OK(), fmt.Errorf("AccountInfo %s has no OIDC clients", workspaceName)
 	}
 
-	audiences := make([]string, 0, len(idpConfig.Spec.Clients))
-	for _, specClient := range idpConfig.Spec.Clients {
-		managedClient, ok := idpConfig.Status.ManagedClients[specClient.ClientName]
-		if !ok {
-			return subroutines.OK(), fmt.Errorf("managed client %s not found in IdentityProviderConfiguration status", specClient.ClientName)
+	audiences := make([]string, 0, len(accountInfo.Spec.OIDC.Clients))
+	for clientName, clientInfo := range accountInfo.Spec.OIDC.Clients {
+		if clientInfo.ClientID == "" {
+			return subroutines.OK(), fmt.Errorf("OIDC client %s has empty ClientID in AccountInfo", clientName)
 		}
-		if managedClient.ClientID == "" {
-			return subroutines.OK(), fmt.Errorf("managed client %s has empty ClientID in IdentityProviderConfiguration status", specClient.ClientName)
-		}
-		audiences = append(audiences, managedClient.ClientID)
+		audiences = append(audiences, clientInfo.ClientID)
 	}
 
 	jwtAuthenticationConfiguration := kcptenancyv1alphav1.JWTAuthenticator{

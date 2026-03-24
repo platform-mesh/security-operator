@@ -10,6 +10,7 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -33,7 +34,7 @@ type AccountLogicalClusterReconciler struct {
 	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
 }
 
-func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, fga openfgav1.OpenFGAServiceClient, mcc mcclient.ClusterClient, mgr mcmanager.Manager) (*AccountLogicalClusterReconciler, error) {
+func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, fgaClient openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, mcc mcclient.ClusterClient, mgr mcmanager.Manager) (*AccountLogicalClusterReconciler, error) {
 	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[mcreconcile.Request](ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
@@ -41,7 +42,7 @@ func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, f
 
 	lc := lifecycle.New(mgr, "AccountLogicalClusterReconciler", func() client.Object {
 		return &kcpcorev1alpha1.LogicalCluster{}
-	}, subroutine.NewAccountTuplesSubroutine(mcc, mgr, fga, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType)).
+	}, subroutine.NewAccountTuplesSubroutine(mcc, mgr, fgaClient, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType)).
 		// WithReadOnly().
 		WithInitializer(cfg.InitializerName()).
 		WithTerminator(cfg.TerminatorName())

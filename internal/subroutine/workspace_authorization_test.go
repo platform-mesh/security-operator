@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/platform-mesh/subroutines"
@@ -42,20 +42,16 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			},
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
-				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{Name: "test-workspace"},
-							Spec: v1alpha1.IdentityProviderConfigurationSpec{
-								Clients: []v1alpha1.IdentityProviderClientConfig{
-									{ClientName: "test-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
-									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
-								},
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"test-workspace": {ClientID: "test-workspace-client"},
-									"kubectl":        {ClientID: "kubectl-client"},
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"test-workspace": {ClientID: "test-workspace-client"},
+										"kubectl":        {ClientID: "kubectl-client"},
+									},
 								},
 							},
 						}
@@ -104,20 +100,16 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			},
 			cfg: config.Config{BaseDomain: "example.com", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
-				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "existing-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{Name: "existing-workspace"},
-							Spec: v1alpha1.IdentityProviderConfigurationSpec{
-								Clients: []v1alpha1.IdentityProviderClientConfig{
-									{ClientName: "existing-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
-									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
-								},
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"existing-workspace": {ClientID: "existing-workspace-client"},
-									"kubectl":            {ClientID: "kubectl-client"},
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"existing-workspace": {ClientID: "existing-workspace-client"},
+										"kubectl":            {ClientID: "kubectl-client"},
+									},
 								},
 							},
 						}
@@ -202,20 +194,16 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			},
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
-				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{Name: "test-workspace"},
-							Spec: v1alpha1.IdentityProviderConfigurationSpec{
-								Clients: []v1alpha1.IdentityProviderClientConfig{
-									{ClientName: "test-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
-									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
-								},
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"test-workspace": {ClientID: "test-workspace-client"},
-									"kubectl":        {ClientID: "kubectl-client"},
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"test-workspace": {ClientID: "test-workspace-client"},
+										"kubectl":        {ClientID: "kubectl-client"},
+									},
 								},
 							},
 						}
@@ -240,20 +228,16 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			},
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
-				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{Name: "test-workspace"},
-							Spec: v1alpha1.IdentityProviderConfigurationSpec{
-								Clients: []v1alpha1.IdentityProviderClientConfig{
-									{ClientName: "test-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
-									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
-								},
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"test-workspace": {ClientID: "test-workspace-client"},
-									"kubectl":        {ClientID: "kubectl-client"},
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"test-workspace": {ClientID: "test-workspace-client"},
+										"kubectl":        {ClientID: "kubectl-client"},
+									},
 								},
 							},
 						}
@@ -282,20 +266,16 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			},
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
-				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{Name: "test-workspace"},
-							Spec: v1alpha1.IdentityProviderConfigurationSpec{
-								Clients: []v1alpha1.IdentityProviderClientConfig{
-									{ClientName: "test-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
-									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
-								},
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"test-workspace": {ClientID: "test-workspace-client"},
-									"kubectl":        {ClientID: "kubectl-client"},
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"test-workspace": {ClientID: "test-workspace-client"},
+										"kubectl":        {ClientID: "kubectl-client"},
+									},
 								},
 							},
 						}
@@ -318,20 +298,16 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			},
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
-				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{Name: "single-workspace"},
-							Spec: v1alpha1.IdentityProviderConfigurationSpec{
-								Clients: []v1alpha1.IdentityProviderClientConfig{
-									{ClientName: "single-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
-									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
-								},
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"single-workspace": {ClientID: "single-workspace-client"},
-									"kubectl":          {ClientID: "kubectl-client"},
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"single-workspace": {ClientID: "single-workspace-client"},
+										"kubectl":          {ClientID: "kubectl-client"},
+									},
 								},
 							},
 						}
@@ -382,20 +358,16 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 				DomainCALookup: true,
 			},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
-				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "single-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{Name: "single-workspace"},
-							Spec: v1alpha1.IdentityProviderConfigurationSpec{
-								Clients: []v1alpha1.IdentityProviderClientConfig{
-									{ClientName: "single-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
-									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
-								},
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"single-workspace": {ClientID: "single-workspace-client"},
-									"kubectl":          {ClientID: "kubectl-client"},
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"single-workspace": {ClientID: "single-workspace-client"},
+										"kubectl":          {ClientID: "kubectl-client"},
+									},
 								},
 							},
 						}
@@ -450,20 +422,16 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			},
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
-				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{Name: "test-workspace"},
-							Spec: v1alpha1.IdentityProviderConfigurationSpec{
-								Clients: []v1alpha1.IdentityProviderClientConfig{
-									{ClientName: "test-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
-									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
-								},
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"test-workspace": {ClientID: "test-workspace-client"},
-									"kubectl":        {ClientID: "kubectl-client"},
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"test-workspace": {ClientID: "test-workspace-client"},
+										"kubectl":        {ClientID: "kubectl-client"},
+									},
 								},
 							},
 						}
@@ -490,20 +458,16 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			},
 			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
-				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{Name: "test-workspace"},
-							Spec: v1alpha1.IdentityProviderConfigurationSpec{
-								Clients: []v1alpha1.IdentityProviderClientConfig{
-									{ClientName: "test-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
-									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
-								},
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"test-workspace": {ClientID: "test-workspace-client"},
-									"kubectl":        {ClientID: "kubectl-client"},
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"test-workspace": {ClientID: "test-workspace-client"},
+										"kubectl":        {ClientID: "kubectl-client"},
+									},
 								},
 							},
 						}
@@ -565,20 +529,16 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 				DevelopmentAllowUnverifiedEmails: true,
 			},
 			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
-				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "dev-workspace"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
-						*obj.(*v1alpha1.IdentityProviderConfiguration) = v1alpha1.IdentityProviderConfiguration{
-							ObjectMeta: metav1.ObjectMeta{Name: "dev-workspace"},
-							Spec: v1alpha1.IdentityProviderConfigurationSpec{
-								Clients: []v1alpha1.IdentityProviderClientConfig{
-									{ClientName: "dev-workspace", ClientType: v1alpha1.IdentityProviderClientTypeConfidential},
-									{ClientName: "kubectl", ClientType: v1alpha1.IdentityProviderClientTypePublic},
-								},
-							},
-							Status: v1alpha1.IdentityProviderConfigurationStatus{
-								ManagedClients: map[string]v1alpha1.ManagedClient{
-									"dev-workspace": {ClientID: "dev-workspace-client"},
-									"kubectl":       {ClientID: "kubectl-client"},
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"dev-workspace": {ClientID: "dev-workspace-client"},
+										"kubectl":       {ClientID: "kubectl-client"},
+									},
 								},
 							},
 						}
@@ -620,6 +580,104 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			},
 			expectError:    false,
 			expectedResult: subroutines.OK(),
+		},
+		{
+			name: "error - AccountInfo not found",
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kcp.io/path": "root:orgs:test-workspace",
+					},
+				},
+			},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					Return(errors.New("accountinfo not found")).Once()
+			},
+			expectError:    true,
+			expectedResult: ctrl.Result{},
+		},
+		{
+			name: "error - AccountInfo has no OIDC clients",
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kcp.io/path": "root:orgs:test-workspace",
+					},
+				},
+			},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: nil,
+							},
+						}
+						return nil
+					}).Once()
+			},
+			expectError:    true,
+			expectedResult: ctrl.Result{},
+		},
+		{
+			name: "error - AccountInfo has empty OIDC clients map",
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kcp.io/path": "root:orgs:test-workspace",
+					},
+				},
+			},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{},
+								},
+							},
+						}
+						return nil
+					}).Once()
+			},
+			expectError:    true,
+			expectedResult: ctrl.Result{},
+		},
+		{
+			name: "error - AccountInfo client has empty ClientID",
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kcp.io/path": "root:orgs:test-workspace",
+					},
+				},
+			},
+			cfg: config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"test-workspace": {ClientID: ""},
+									},
+								},
+							},
+						}
+						return nil
+					}).Once()
+			},
+			expectError:    true,
+			expectedResult: ctrl.Result{},
 		},
 	}
 

@@ -141,7 +141,7 @@ var operatorCmd = &cobra.Command{
 			return fmt.Errorf("scheme should not be nil")
 		}
 
-		provider, err := apiexport.New(restCfg, operatorCfg.APIExportEndpointSliceName, apiexport.Options{
+		provider, err := apiexport.New(restCfg, operatorCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
@@ -155,17 +155,18 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
+		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
+		if err != nil {
+			setupLog.Error(err, "Failed to create org client")
+			return err
+		}
+
 		conn, err := grpc.NewClient(operatorCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Error().Err(err).Msg("unable to create grpc client")
 			return err
 		}
 
-		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create org client")
-			return err
-		}
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 

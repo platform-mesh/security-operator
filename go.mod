@@ -8,13 +8,14 @@ require (
 	github.com/fluxcd/source-controller/api v1.8.1
 	github.com/go-logr/logr v1.4.3
 	github.com/google/gnostic-models v0.7.1
+	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.5.1
 	github.com/kcp-dev/sdk v0.30.0
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
 	github.com/openfga/language/pkg/go v0.2.0-beta.2.0.20251202173232-1e8bf16f1dce
-	github.com/platform-mesh/account-operator v0.12.21
-	github.com/platform-mesh/golang-commons v0.13.13
+	github.com/platform-mesh/account-operator v0.12.23
+	github.com/platform-mesh/golang-commons v0.13.17
 	github.com/platform-mesh/subroutines v0.2.1
 	github.com/rs/zerolog v1.34.0
 	github.com/spf13/cobra v1.10.2

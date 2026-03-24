@@ -12,7 +12,7 @@ import (
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
-	"github.com/platform-mesh/security-operator/pkg/fga"
+	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -99,7 +99,18 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, obj client.Object
 		ObjectMeta: metav1.ObjectMeta{Name: generateStoreName(lc)},
 	}
 
-	tuples, err := fga.TuplesForOrganization(acc, ai, w.creatorRelation, w.objectType)
+	if acc.Spec.Creator == nil || *acc.Spec.Creator == "" {
+		return subroutines.OK(), fmt.Errorf("account creator is nil or empty")
+	}
+	tuples, err := fga.TuplesForOrganization(fga.TuplesForOrganizationInput{
+		BaseTuplesInput: fga.BaseTuplesInput{
+			Creator:                *acc.Spec.Creator,
+			AccountOriginClusterID: ai.Spec.Account.OriginClusterId,
+			AccountName:            ai.Spec.Account.Name,
+			CreatorRelation:        w.creatorRelation,
+			ObjectType:             w.objectType,
+		},
+	})
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("building tuples for organization: %w", err)
 	}
@@ -140,22 +151,6 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, obj client.Object
 	if store.Status.StoreID == "" {
 		// Store is not ready yet, requeue
 		return subroutines.StopWithRequeue(5*time.Second, "store id is empty"), nil
-	}
-
-	cluster, err := w.mgr.ClusterFromContext(ctx)
-	if err != nil {
-		return subroutines.OK(), fmt.Errorf("unable to get cluster from context: %w", err)
-	}
-
-	accountInfo := accountsv1alpha1.AccountInfo{
-		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-	}
-	_, err = controllerutil.CreateOrUpdate(ctx, cluster.GetClient(), &accountInfo, func() error {
-		accountInfo.Spec.FGA.Store.Id = store.Status.StoreID
-		return nil
-	})
-	if err != nil {
-		return subroutines.OK(), fmt.Errorf("unable to create/update accountInfo: %w", err)
 	}
 
 	return subroutines.OK(), nil

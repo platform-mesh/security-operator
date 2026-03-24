@@ -7,6 +7,7 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/controller"
+	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/security-operator/internal/predicates"
 	"github.com/platform-mesh/security-operator/internal/terminatingworkspaces"
 	"github.com/spf13/cobra"
@@ -104,9 +105,15 @@ var terminatorCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		defer func() { _ = conn.Close() }()
-		fga := openfgav1.NewOpenFGAServiceClient(conn)
+		fgaClient := openfgav1.NewOpenFGAServiceClient(conn)
+		storeIDGetter := fga.NewCachingStoreIDGetter(
+			fgaClient,
+			terminatorCfg.FGA.StoreIDCacheTTL,
+			cmd.Context(),
+			log,
+		)
 
-		alcReconciler, err := controller.NewAccountLogicalClusterReconciler(log, terminatorCfg, fga, mcc, mgr)
+		alcReconciler, err := controller.NewAccountLogicalClusterReconciler(log, terminatorCfg, fgaClient, storeIDGetter, mcc, mgr)
 		if err != nil {
 			log.Error().Err(err).Msg("unable to create AccountLogicalCluster reconciler")
 			os.Exit(1)
