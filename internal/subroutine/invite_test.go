@@ -3,14 +3,16 @@ package subroutine
 import (
 	"context"
 	"testing"
+	"time"
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	secopv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
+	"github.com/platform-mesh/subroutines"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -25,8 +27,8 @@ func TestNewInviteSubroutine(t *testing.T) {
 	orgsClient := mocks.NewMockClient(t)
 	mgr := mocks.NewMockManager(t)
 
-	subroutine := NewInviteSubroutine(orgsClient, mgr)
-
+	subroutine, err := NewInviteSubroutine(orgsClient, mgr)
+	require.NoError(t, err)
 	assert.NotNil(t, subroutine)
 	assert.Equal(t, orgsClient, subroutine.orgsClient)
 	assert.Equal(t, mgr, subroutine.mgr)
@@ -35,42 +37,21 @@ func TestNewInviteSubroutine(t *testing.T) {
 func TestInviteSubroutine_GetName(t *testing.T) {
 	orgsClient := mocks.NewMockClient(t)
 	mgr := mocks.NewMockManager(t)
-	subroutine := NewInviteSubroutine(orgsClient, mgr)
+	subroutine, err := NewInviteSubroutine(orgsClient, mgr)
+	require.NoError(t, err)
 
 	name := subroutine.GetName()
 	assert.Equal(t, "InviteInitializationSubroutine", name)
 }
 
-func TestInviteSubroutine_Finalizers(t *testing.T) {
-	orgsClient := mocks.NewMockClient(t)
-	mgr := mocks.NewMockManager(t)
-	subroutine := NewInviteSubroutine(orgsClient, mgr)
-
-	finalizers := subroutine.Finalizers(nil)
-	assert.Nil(t, finalizers)
-}
-
-func TestInviteSubroutine_Finalize(t *testing.T) {
-	orgsClient := mocks.NewMockClient(t)
-	mgr := mocks.NewMockManager(t)
-	subroutine := NewInviteSubroutine(orgsClient, mgr)
-
-	ctx := context.Background()
-	instance := &kcpcorev1alpha1.LogicalCluster{}
-
-	result, opErr := subroutine.Finalize(ctx, instance)
-
-	assert.Nil(t, opErr)
-	assert.Equal(t, ctrl.Result{}, result)
-}
-
 func TestInviteSubroutine_Initialize(t *testing.T) {
 	tests := []struct {
-		name           string
-		setupMocks     func(*mocks.MockClient, *mocks.MockManager, *mocks.MockCluster)
-		lc             *kcpcorev1alpha1.LogicalCluster
-		expectedErr    bool
-		expectedResult ctrl.Result
+		name                   string
+		setupMocks             func(*mocks.MockClient, *mocks.MockManager, *mocks.MockCluster)
+		lc                     *kcpcorev1alpha1.LogicalCluster
+		expectedErr            bool
+		expectedResult         subroutines.Result
+		expectedRequeueMessage string
 	}{
 		{
 			name:       "Empty workspace name - early return",
@@ -81,7 +62,7 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 				},
 			},
 			expectedErr:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "ClusterFromContext error",
@@ -96,7 +77,7 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 				},
 			},
 			expectedErr:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "Account Get error",
@@ -113,7 +94,7 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 				},
 			},
 			expectedErr:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "Account not of type organization - skip invite creation",
@@ -136,7 +117,7 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 				},
 			},
 			expectedErr:    false,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "CreateOrUpdate Ready",
@@ -176,7 +157,7 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 				},
 			},
 			expectedErr:    false,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "CreateOrUpdate NotReady",
@@ -215,8 +196,8 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 					},
 				},
 			},
-			expectedErr:    true,
-			expectedResult: ctrl.Result{},
+			expectedErr:            false,
+			expectedRequeueMessage: "invite resource is not ready yet",
 		},
 	}
 
@@ -225,21 +206,29 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 			orgsClient := mocks.NewMockClient(t)
 			mgr := mocks.NewMockManager(t)
 			cluster := mocks.NewMockCluster(t)
-			subroutine := NewInviteSubroutine(orgsClient, mgr)
+			subroutine, err := NewInviteSubroutine(orgsClient, mgr)
+			require.NoError(t, err)
 
 			tt.setupMocks(orgsClient, mgr, cluster)
 
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			result, opErr := subroutine.Initialize(ctx, tt.lc)
+			result, err := subroutine.Initialize(ctx, tt.lc)
 
 			if tt.expectedErr {
-				assert.NotNil(t, opErr)
+				assert.NotNil(t, err)
 			} else {
-				assert.Nil(t, opErr)
+				assert.Nil(t, err)
 			}
-			assert.Equal(t, tt.expectedResult, result)
+			if tt.expectedRequeueMessage != "" {
+				assert.True(t, result.IsStopWithRequeue(),
+					"expected StopWithRequeue result")
+				assert.Contains(t, result.Message(), tt.expectedRequeueMessage)
+				assert.Greater(t, result.Requeue(), time.Duration(0))
+			} else {
+				assert.Equal(t, tt.expectedResult, result)
+			}
 		})
 	}
 }

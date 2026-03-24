@@ -1,43 +1,53 @@
-package controller // coverage-ignore
+package controller
 
 import (
 	"context"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
+	"github.com/platform-mesh/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
 type AuthorizationModelReconciler struct {
-	log         *logger.Logger
-	mclifecycle *multicluster.LifecycleManager
+	log       *logger.Logger
+	lifecycle *lifecycle.Lifecycle
 }
 
 func NewAuthorizationModelReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *AuthorizationModelReconciler {
+	lc := lifecycle.New(mcMgr, "AuthorizationModelReconciler", func() client.Object {
+		return &corev1alpha1.AuthorizationModel{}
+	}, subroutine.NewTupleSubroutine(fga, mcMgr))
+
 	return &AuthorizationModelReconciler{
-		log: log,
-		mclifecycle: builder.NewBuilder("authorizationmodel", "AuthorizationModelReconciler", []lifecyclesubroutine.Subroutine{
-			subroutine.NewTupleSubroutine(fga, mcMgr),
-		}, log).
-			BuildMultiCluster(mcMgr),
+		log:       log,
+		lifecycle: lc,
 	}
 }
 
 func (r *AuthorizationModelReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.mclifecycle.Reconcile(ctxWithCluster, req, &corev1alpha1.AuthorizationModel{})
+	return r.lifecycle.Reconcile(ctx, req)
 }
 
-func (r *AuthorizationModelReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error { // coverage-ignore
-	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "authorizationmodel", &corev1alpha1.AuthorizationModel{}, cfg.DebugLabelValue, r, r.log, evp...)
+func (r *AuthorizationModelReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
+	opts := controller.TypedOptions[mcreconcile.Request]{
+		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
+	}
+	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
+	return mcbuilder.ControllerManagedBy(mgr).
+		Named("authorizationmodel").
+		For(&corev1alpha1.AuthorizationModel{}).
+		WithOptions(opts).
+		WithEventFilter(predicate.And(predicates...)).
+		Complete(r)
 }

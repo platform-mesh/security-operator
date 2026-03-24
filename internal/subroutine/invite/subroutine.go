@@ -10,17 +10,17 @@ import (
 
 	"github.com/coreos/go-oidc"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-	"github.com/platform-mesh/golang-commons/errors"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/subroutines"
 	"golang.org/x/oauth2/clientcredentials"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+
+	"k8s.io/client-go/util/workqueue"
 )
 
 const (
@@ -36,6 +36,7 @@ type subroutine struct {
 	keycloak           *http.Client
 	mgr                mcmanager.Manager
 	setDefaultPassword bool
+	limiter            workqueue.TypedRateLimiter[*v1alpha1.Invite]
 }
 
 type keycloakUser struct {
@@ -62,7 +63,7 @@ func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager) (*subro
 	issuer := fmt.Sprintf("%s/realms/master", cfg.Keycloak.BaseURL)
 	provider, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("creating OIDC provider: %w", err)
 	}
 
 	cCfg := clientcredentials.Config{
@@ -73,29 +74,28 @@ func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager) (*subro
 
 	httpClient := cCfg.Client(ctx)
 
+	lim, err := ratelimiter.NewStaticThenExponentialRateLimiter[*v1alpha1.Invite](
+		ratelimiter.NewConfig())
+	if err != nil {
+		return nil, fmt.Errorf("creating RateLimiter: %w", err)
+	}
+
 	return &subroutine{
 		keycloakBaseURL:    cfg.Keycloak.BaseURL,
 		baseDomain:         cfg.BaseDomain,
 		mgr:                mgr,
 		keycloak:           httpClient,
 		setDefaultPassword: cfg.SetDefaultPassword,
+		limiter:            lim,
 	}, nil
 }
 
-// Finalize implements subroutine.Subroutine.
-func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	return ctrl.Result{}, nil
-}
+var _ subroutines.Processor = &subroutine{}
 
-// Finalizers implements subroutine.Subroutine.
-func (s *subroutine) Finalizers(_ runtimeobject.RuntimeObject) []string { return []string{} }
-
-// GetName implements subroutine.Subroutine.
 func (s *subroutine) GetName() string { return "Invite" }
 
-// Process implements subroutine.Subroutine.
-func (s *subroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	invite := instance.(*v1alpha1.Invite)
+func (s *subroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	invite := obj.(*v1alpha1.Invite)
 	log := logger.LoadLoggerFromContext(ctx)
 
 	log.Debug().Str("email", invite.Spec.Email).Msg("Processing invite")
@@ -108,12 +108,12 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 
 	clusterName, ok := mccontext.ClusterFrom(ctx)
 	if !ok {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context"), true, false)
+		return subroutines.OK(), fmt.Errorf("failed to get cluster from context")
 	}
 
 	cluster, err := s.mgr.GetCluster(ctx, clusterName)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster %q: %w", clusterName, err), true, false)
+		return subroutines.OK(), fmt.Errorf("failed to get cluster %q: %w", clusterName, err)
 	}
 
 	cl := cluster.GetClient()
@@ -121,45 +121,45 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	var accountInfo accountsv1alpha1.AccountInfo
 	if err := cl.Get(ctx, client.ObjectKey{Name: "account"}, &accountInfo); err != nil {
 		log.Err(err).Msg("Failed to get AccountInfo")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		return subroutines.OK(), err
 	}
 
 	realm := accountInfo.Spec.Organization.Name
 	if realm == "" {
 		log.Error().Msg("Organization name is empty in AccountInfo")
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("organization name is empty in AccountInfo"), true, false)
+		return subroutines.OK(), fmt.Errorf("organization name is empty in AccountInfo")
 	}
 
 	res, err := s.keycloak.Get(fmt.Sprintf("%s/admin/realms/%s/users?%s", s.keycloakBaseURL, realm, v.Encode()))
-	if err != nil { // coverage-ignore
+	if err != nil {
 		log.Err(err).Msg("Failed to query users")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		return subroutines.OK(), err
 	}
 	defer res.Body.Close() //nolint:errcheck
 	if res.StatusCode != http.StatusOK {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to query users: %s", res.Status), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to query users: %s", res.Status)
 	}
 
 	var users []keycloakUser
-	if err = json.NewDecoder(res.Body).Decode(&users); err != nil { // coverage-ignore
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	if err = json.NewDecoder(res.Body).Decode(&users); err != nil {
+		return subroutines.OK(), err
 	}
 
 	if len(users) != 0 {
 		log.Info().Str("email", invite.Spec.Email).Msg("User already exists, skipping invite")
-		return ctrl.Result{}, nil
+		s.limiter.Forget(invite)
+		return subroutines.OK(), nil
 	}
 
 	log.Info().Str("email", invite.Spec.Email).Msg("User does not exist, creating user and sending invite")
 
 	if accountInfo.Spec.OIDC == nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("AccountInfo OIDC is not configured yet"), true, false)
+		return subroutines.OK(), fmt.Errorf("AccountInfo OIDC is not configured yet")
 	}
 
 	oidcClient, ok := accountInfo.Spec.OIDC.Clients[realm]
 	if !ok {
-		log.Err(err).Msg(fmt.Sprintf("failed to get oidc client for organization %s", realm))
-		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		return subroutines.OK(), fmt.Errorf("failed to get oidc client for organization %s", realm)
 	}
 
 	clientQueryParams := url.Values{
@@ -169,22 +169,22 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	res, err = s.keycloak.Get(fmt.Sprintf("%s/admin/realms/%s/clients?%s", s.keycloakBaseURL, realm, clientQueryParams.Encode()))
 	if err != nil {
 		log.Err(err).Msg("Failed to verify client exists")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		return subroutines.OK(), err
 	}
 	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusOK {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to verify client exists: %s", res.Status), true, false)
+		return subroutines.OK(), fmt.Errorf("failed to verify client exists: %s", res.Status)
 	}
 
 	var clients []keycloakClient
 	if err = json.NewDecoder(res.Body).Decode(&clients); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+		return subroutines.OK(), err
 	}
 
 	if len(clients) == 0 {
 		log.Info().Str("clientId", oidcClient.ClientID).Msg("Client does not exist yet, requeuing")
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("client %s does not exist yet", realm), true, false)
+		return subroutines.StopWithRequeue(s.limiter.When(invite), "client does not exist yet"), nil
 	}
 
 	log.Debug().Str("clientId", oidcClient.ClientID).Msg("Client verified")
@@ -208,33 +208,33 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	}
 
 	var buffer bytes.Buffer
-	if err = json.NewEncoder(&buffer).Encode(&newUser); err != nil { // coverage-ignore
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	if err = json.NewEncoder(&buffer).Encode(&newUser); err != nil {
+		return subroutines.OK(), err
 	}
 
 	res, err = s.keycloak.Post(fmt.Sprintf("%s/admin/realms/%s/users", s.keycloakBaseURL, realm), "application/json", &buffer)
-	if err != nil { // coverage-ignore
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("posting to Keycloak to create user: %w", err), true, true)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("posting to Keycloak to create user: %w", err)
 	}
 	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusCreated {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("keycloak returned non-201 status code: %s", res.Status), true, true)
+		return subroutines.OK(), fmt.Errorf("keycloak returned non-201 status code: %s", res.Status)
 	}
 
 	res, err = s.keycloak.Get(fmt.Sprintf("%s/admin/realms/%s/users?%s", s.keycloakBaseURL, realm, v.Encode()))
-	if err != nil { // coverage-ignore
+	if err != nil {
 		log.Err(err).Msg("Failed to query users")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		return subroutines.OK(), err
 	}
 	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusOK {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to query users: %s", res.Status), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to query users: %s", res.Status)
 	}
 
-	if err = json.NewDecoder(res.Body).Decode(&users); err != nil { // coverage-ignore
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	if err = json.NewDecoder(res.Body).Decode(&users); err != nil {
+		return subroutines.OK(), err
 	}
 
 	newUser = users[0]
@@ -247,24 +247,25 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/admin/realms/%s/users/%s/execute-actions-email?%s", s.keycloakBaseURL, realm, newUser.ID, queryParams.Encode()), http.NoBody)
-	if err != nil { // coverage-ignore
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+	if err != nil {
+		return subroutines.OK(), err
 	}
 
 	res, err = s.keycloak.Do(req)
-	if err != nil { // coverage-ignore
+	if err != nil {
 		log.Err(err).Msg("Failed to send invite email")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		return subroutines.OK(), err
 	}
 	defer res.Body.Close() //nolint:errcheck
 
 	if res.StatusCode != http.StatusNoContent {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to send invite email: %s", res.Status), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to send invite email: %s", res.Status)
 	}
 
 	log.Info().Str("email", invite.Spec.Email).Msg("User created and invite sent")
 
-	return ctrl.Result{}, nil
+	s.limiter.Forget(invite)
+	return subroutines.OK(), nil
 }
 
-var _ lifecyclesubroutine.Subroutine = &subroutine{}
+var _ subroutines.Subroutine = &subroutine{}

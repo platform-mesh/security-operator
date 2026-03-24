@@ -77,7 +77,12 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, orgClient, &systemCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {
+		idpReconciler, err := controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, orgClient, &systemCfg, log)
+		if err != nil {
+			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create reconciler")
+			return err
+		}
+		if err := idpReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create controller")
 			return err
 		}

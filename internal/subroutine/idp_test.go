@@ -10,9 +10,10 @@ import (
 	secopv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
+	"github.com/platform-mesh/subroutines"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,7 +31,8 @@ func TestNewIDPSubroutine(t *testing.T) {
 	cfg.IDP.AdditionalRedirectURLs = []string{"https://example.com/callback"}
 	cfg.BaseDomain = "example.com"
 
-	subroutine := NewIDPSubroutine(orgsClient, mgr, cfg)
+	subroutine, err := NewIDPSubroutine(orgsClient, mgr, cfg)
+	require.NoError(t, err)
 
 	assert.NotNil(t, subroutine)
 	assert.Equal(t, orgsClient, subroutine.orgsClient)
@@ -44,37 +46,11 @@ func TestIDPSubroutine_GetName(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
 	cfg := config.Config{}
 	cfg.BaseDomain = "example.com"
-	subroutine := NewIDPSubroutine(orgsClient, mgr, cfg)
+	subroutine, err := NewIDPSubroutine(orgsClient, mgr, cfg)
+	require.NoError(t, err)
 
 	name := subroutine.GetName()
 	assert.Equal(t, "IDPSubroutine", name)
-}
-
-func TestIDPSubroutine_Finalizers(t *testing.T) {
-	orgsClient := mocks.NewMockClient(t)
-	mgr := mocks.NewMockManager(t)
-	cfg := config.Config{}
-	cfg.BaseDomain = "example.com"
-	subroutine := NewIDPSubroutine(orgsClient, mgr, cfg)
-
-	finalizers := subroutine.Finalizers(nil)
-	assert.Nil(t, finalizers)
-}
-
-func TestIDPSubroutine_Finalize(t *testing.T) {
-	orgsClient := mocks.NewMockClient(t)
-	mgr := mocks.NewMockManager(t)
-	cfg := config.Config{}
-	cfg.BaseDomain = "example.com"
-	subroutine := NewIDPSubroutine(orgsClient, mgr, cfg)
-
-	ctx := context.Background()
-	instance := &kcpv1alpha1.LogicalCluster{}
-
-	result, opErr := subroutine.Finalize(ctx, instance)
-
-	assert.Nil(t, opErr)
-	assert.Equal(t, ctrl.Result{}, result)
 }
 
 func TestIDPSubroutine_Initialize(t *testing.T) {
@@ -83,7 +59,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		setupMocks     func(*mocks.MockClient, *mocks.MockManager, *mocks.MockCluster, config.Config)
 		lc             *kcpv1alpha1.LogicalCluster
 		expectedErr    bool
-		expectedResult ctrl.Result
+		expectedResult subroutines.Result
 	}{
 		{
 			name: "Empty workspace name - early return",
@@ -95,7 +71,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				},
 			},
 			expectedErr:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "ClusterFromContext error",
@@ -110,7 +86,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				},
 			},
 			expectedErr:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "Account Get error",
@@ -127,7 +103,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				},
 			},
 			expectedErr:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "Account not of type organization - skip idp creation",
@@ -148,7 +124,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				},
 			},
 			expectedErr:    false,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "CreateOrUpdate and Ready",
@@ -208,7 +184,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				},
 			},
 			expectedErr:    false,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "CreateOrUpdate NotReady",
@@ -251,7 +227,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				},
 			},
 			expectedErr:    false,
-			expectedResult: ctrl.Result{RequeueAfter: 2 * time.Second},
+			expectedResult: subroutines.StopWithRequeue(2*time.Second, "idp resource is not ready yet"),
 		},
 		{
 			name: "Get IDP resource error",
@@ -279,7 +255,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 				},
 			},
 			expectedErr:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 	}
 
@@ -292,19 +268,20 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 			cfg.IDP.AdditionalRedirectURLs = []string{}
 			cfg.IDP.KubectlClientRedirectURLs = []string{"http://localhost:8000", "http://localhost:18000"}
 			cfg.BaseDomain = "example.com"
-			subroutine := NewIDPSubroutine(orgsClient, mgr, cfg)
+			subroutine, err := NewIDPSubroutine(orgsClient, mgr, cfg)
+			require.NoError(t, err)
 
 			tt.setupMocks(orgsClient, mgr, cluster, cfg)
 
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			result, opErr := subroutine.Initialize(ctx, tt.lc)
+			result, err := subroutine.Initialize(ctx, tt.lc)
 
 			if tt.expectedErr {
-				assert.NotNil(t, opErr)
+				assert.NotNil(t, err)
 			} else {
-				assert.Nil(t, opErr)
+				assert.Nil(t, err)
 			}
 			assert.Equal(t, tt.expectedResult, result)
 		})

@@ -8,11 +8,10 @@ import (
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
+	"github.com/platform-mesh/subroutines"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -30,7 +29,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 		cfg            config.Config
 		setupMocks     func(*mocks.MockClient, *mocks.MockClient)
 		expectError    bool
-		expectedResult ctrl.Result
+		expectedResult subroutines.Result
 	}{
 		{
 			name: "success - create new WorkspaceAuthenticationConfiguration",
@@ -88,7 +87,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					}).Times(2)
 			},
 			expectError:    false,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "success - update existing WorkspaceAuthenticationConfiguration",
@@ -156,7 +155,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					}).Times(2)
 			},
 			expectError:    false,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - missing workspace path annotation",
@@ -168,7 +167,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			cfg:            config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks:     func(m *mocks.MockClient, mgrClient *mocks.MockClient) {},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - empty workspace path annotation",
@@ -182,7 +181,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			cfg:            config.Config{BaseDomain: "test.domain", GroupClaim: "groups", UserClaim: "email"},
 			setupMocks:     func(m *mocks.MockClient, mgrClient *mocks.MockClient) {},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - create fails",
@@ -216,7 +215,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					Return(errors.New("create failed")).Once()
 			},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - update fails",
@@ -254,7 +253,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					Return(errors.New("update failed")).Once()
 			},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - get fails with non-not-found error",
@@ -286,7 +285,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					Return(errors.New("get failed")).Once()
 			},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "success - workspace path with single element",
@@ -341,7 +340,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					}).Times(2)
 			},
 			expectError:    false,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "success - workspace path with single element and domain CA lookup",
@@ -410,7 +409,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					}).Times(2)
 			},
 			expectError:    false,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - patchWorkspaceTypes fails on list",
@@ -446,7 +445,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					Return(errors.New("failed to list workspace types")).Once()
 			},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - patchWorkspaceTypes fails on patch",
@@ -490,7 +489,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					Return(errors.New("failed to patch workspace type")).Once()
 			},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - domain CA secret Get fails",
@@ -512,7 +511,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					Return(errors.New("failed to get domain CA secret")).Once()
 			},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "success - allow unverified emails in development mode",
@@ -580,7 +579,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					}).Times(2)
 			},
 			expectError:    false,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - AccountInfo not found",
@@ -597,7 +596,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					Return(errors.New("accountinfo not found")).Once()
 			},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - AccountInfo has no OIDC clients",
@@ -622,7 +621,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					}).Once()
 			},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - AccountInfo has empty OIDC clients map",
@@ -649,7 +648,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					}).Once()
 			},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 		{
 			name: "error - AccountInfo client has empty ClientID",
@@ -678,7 +677,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 					}).Once()
 			},
 			expectError:    true,
-			expectedResult: ctrl.Result{},
+			expectedResult: subroutines.OK(),
 		},
 	}
 
@@ -698,12 +697,12 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 
 			subroutine := NewWorkspaceAuthConfigurationSubroutine(mockClient, mockClient, mgr, tt.cfg)
 
-			result, opErr := subroutine.Initialize(context.Background(), tt.logicalCluster)
+			result, err := subroutine.Initialize(context.Background(), tt.logicalCluster)
 
 			if tt.expectError {
-				assert.NotNil(t, opErr)
+				assert.NotNil(t, err)
 			} else {
-				assert.Nil(t, opErr)
+				assert.Nil(t, err)
 			}
 
 			assert.Equal(t, tt.expectedResult, result)
@@ -714,16 +713,4 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 func TestWorkspaceAuthConfigurationSubroutine_GetName(t *testing.T) {
 	sub := NewWorkspaceAuthConfigurationSubroutine(nil, nil, nil, config.Config{})
 	assert.Equal(t, "workspaceAuthConfiguration", sub.GetName())
-}
-
-func TestWorkspaceAuthConfigurationSubroutine_Finalizers(t *testing.T) {
-	sub := NewWorkspaceAuthConfigurationSubroutine(nil, nil, nil, config.Config{})
-	assert.Equal(t, []string{}, sub.Finalizers(nil))
-}
-
-func TestWorkspaceAuthConfigurationSubroutine_Finalize(t *testing.T) {
-	sub := NewWorkspaceAuthConfigurationSubroutine(nil, nil, nil, config.Config{})
-	result, err := sub.Finalize(context.Background(), nil)
-	assert.Nil(t, err)
-	assert.Equal(t, reconcile.Result{}, result)
 }
