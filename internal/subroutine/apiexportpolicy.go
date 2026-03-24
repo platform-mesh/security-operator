@@ -60,7 +60,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, instance lifecy
 	log := logger.LoadLoggerFromContext(ctx)
 	policy := instance.(*corev1alpha1.APIExportPolicy)
 
-	providerClusterID, err := a.getClusterID(ctx, policy.Spec.APIExportRef.ClusterPath)
+	providerClusterID, err := a.getClusterIDFromPath(ctx, policy.Spec.APIExportRef.ClusterPath)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(
 			fmt.Errorf("getting provider cluster ID for %s: %w", policy.Spec.APIExportRef.ClusterPath, err),
@@ -181,7 +181,7 @@ func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, instance lifec
 	log := logger.LoadLoggerFromContext(ctx)
 	policy := instance.(*corev1alpha1.APIExportPolicy)
 
-	providerClusterID, err := a.getClusterID(ctx, policy.Spec.APIExportRef.ClusterPath)
+	providerClusterID, err := a.getClusterIDFromPath(ctx, policy.Spec.APIExportRef.ClusterPath)
 	if err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(
 			fmt.Errorf("getting provider cluster ID for %s: %w", policy.Spec.APIExportRef.ClusterPath, err),
@@ -201,7 +201,7 @@ func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, instance lifec
 	return ctrl.Result{}, nil
 }
 
-func (a *APIExportPolicySubroutine) getClusterID(ctx context.Context, clusterPath string) (string, error) {
+func (a *APIExportPolicySubroutine) getClusterIDFromPath(ctx context.Context, clusterPath string) (string, error) {
 	lcClient, err := iclient.NewForLogicalCluster(a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(clusterPath))
 	if err != nil {
 		return "", fmt.Errorf("getting client for workspace %s: %w", clusterPath, err)
@@ -237,7 +237,7 @@ func parseAllowExpression(expr string) (workspacePath string, relation string, e
 }
 
 func (a *APIExportPolicySubroutine) deleteRemovedExpressions(ctx context.Context, policy *corev1alpha1.APIExportPolicy) error {
-	providerClusterID, err := a.getClusterID(ctx, policy.Spec.APIExportRef.ClusterPath)
+	providerClusterID, err := a.getClusterIDFromPath(ctx, policy.Spec.APIExportRef.ClusterPath)
 	if err != nil {
 		return fmt.Errorf("getting provider cluster ID for %s: %w", policy.Spec.APIExportRef.ClusterPath, err)
 	}
