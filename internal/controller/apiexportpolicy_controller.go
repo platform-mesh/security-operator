@@ -6,22 +6,23 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
+	"github.com/platform-mesh/subroutines/conditions"
+	"github.com/platform-mesh/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	ctrhandler "sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	"sigs.k8s.io/multicluster-runtime/pkg/handler"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
@@ -38,32 +39,37 @@ const (
 )
 
 type APIExportPolicyReconciler struct {
-	log         *logger.Logger
-	mclifecycle *multicluster.LifecycleManager
+	log       *logger.Logger
+	lifecycle *lifecycle.Lifecycle
 }
 
 func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter) *APIExportPolicyReconciler {
+	lc := lifecycle.New(mcMgr, "APIExportPolicyReconciler", func() client.Object {
+		return &corev1alpha1.APIExportPolicy{}
+	}, subroutine.NewAPIExportPolicySubroutine(fgaClient, mcMgr, cfg, storeIDGetter)).
+		WithConditions(conditions.NewManager())
+
 	return &APIExportPolicyReconciler{
-		log: log,
-		mclifecycle: builder.NewBuilder("apiexportpolicy", "APIExportPolicyReconciler", []lifecyclesubroutine.Subroutine{
-			subroutine.NewAPIExportPolicySubroutine(fgaClient, mcMgr, cfg, storeIDGetter),
-		}, log).
-			WithConditionManagement().
-			BuildMultiCluster(mcMgr),
+		log:       log,
+		lifecycle: lc,
 	}
 }
 
 func (r *APIExportPolicyReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.mclifecycle.Reconcile(ctxWithCluster, req, &corev1alpha1.APIExportPolicy{})
+	return r.lifecycle.Reconcile(ctx, req)
 }
 
 func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, operatorCfg *config.Config, evp ...predicate.Predicate) error {
-	bld, err := r.mclifecycle.SetupWithManagerBuilder(mgr, cfg.MaxConcurrentReconciles, "apiexportpolicy", &corev1alpha1.APIExportPolicy{}, cfg.DebugLabelValue, r.log, evp...)
-	if err != nil {
-		return err
+	opts := controller.TypedOptions[mcreconcile.Request]{
+		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
 	}
-	return bld.
+	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
+	
+	return mcbuilder.ControllerManagedBy(mgr).
+		Named("apiexportpolicy").
+		For(&corev1alpha1.APIExportPolicy{}).
+		WithOptions(opts).
+		WithEventFilter(predicate.And(predicates...)).
 		Watches(
 			&kcptenancyv1alpha1.Workspace{},
 			func(clusterName string, c cluster.Cluster) ctrhandler.TypedEventHandler[client.Object, mcreconcile.Request] {
