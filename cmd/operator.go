@@ -155,18 +155,11 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
-		if err != nil {
-			setupLog.Error(err, "Failed to create org client")
-			return err
-		}
-
 		conn, err := grpc.NewClient(operatorCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Error().Err(err).Msg("unable to create grpc client")
 			return err
 		}
-
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
 
@@ -179,15 +172,6 @@ var operatorCmd = &cobra.Command{
 			NewAuthorizationModelReconciler(log, fga, mgr).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
-			return err
-		}
-		idpReconciler, err := controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, orgClient, &operatorCfg, log)
-		if err != nil {
-			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create reconciler")
-			return err
-		}
-		if err = idpReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
-			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create controller")
 			return err
 		}
 		inviteReconciler, err := controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log)
