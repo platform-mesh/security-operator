@@ -19,9 +19,9 @@ const (
 	platformMeshSystemWorkspace = "root:platform-mesh-system"
 )
 
-// NewForAllPlatformMeshResources returns a client that can query all resources
-// of the core.platform-mesh.io APIExportEndpoint slice, based on a given KCP
-// base config.
+// GetAllClient returns a client that can query all resources
+// of the APIExportEndpointSlice, based on a given KCP
+// base config and APIExportEndpointSlice name
 func GetAllClient(ctx context.Context, config *rest.Config, scheme *runtime.Scheme, apiexportEndpointSliceName string) (client.Client, error) {
 	platformMeshClient, err := NewForLogicalCluster(config, scheme, logicalcluster.Name(platformMeshSystemWorkspace))
 	if err != nil {
