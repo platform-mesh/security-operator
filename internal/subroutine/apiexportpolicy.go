@@ -78,7 +78,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Obje
 		if workspacePath == orgsWorkspacePath {
 			allclient, err := iclient.GetAllClient(ctx, a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), a.cfg.APIExportEndpointSlices.CorePlatformMeshIO)
 			if err != nil {
-				log.Fatal().Err(err).Msg("unable to create all client")
+				return subroutines.OK(), fmt.Errorf("unable to create all client: %w", err)
 			}
 
 			var accountInfoList accountsv1alpha1.AccountInfoList
