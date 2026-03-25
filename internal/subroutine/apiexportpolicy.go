@@ -166,6 +166,8 @@ func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, obj client.Obj
 		return subroutines.OK(), fmt.Errorf("getting provider cluster ID for %s: %w", policy.Spec.APIExportRef.ClusterPath, err)
 	}
 
+	// iterate over each expression and delete tuples
+	// which were created for this expression
 	for _, expression := range policy.Spec.AllowPathExpressions {
 		err := a.deleteTuplesForExpression(ctx, expression, providerClusterID, policy.Spec.APIExportRef.Name)
 		if err != nil {
@@ -212,6 +214,8 @@ func (a *APIExportPolicySubroutine) parseAllowExpression(expr string) (workspace
 	return expr, bindRelation, nil
 }
 
+// finds expressions which are present in the status but aren't in the spec
+// and do the cleanup of the tupels for removed expressions
 func (a *APIExportPolicySubroutine) deleteRemovedExpressions(ctx context.Context, policy *corev1alpha1.APIExportPolicy) error {
 	providerClusterID, err := a.getClusterIDFromPath(ctx, policy.Spec.APIExportRef.ClusterPath)
 	if err != nil {
@@ -230,9 +234,10 @@ func (a *APIExportPolicySubroutine) deleteRemovedExpressions(ctx context.Context
 		}
 	}
 	return nil
-
 }
 
+// based on the expression and apiexport data
+// removes tuples which were created for this expression
 func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Context, expression string, providerClusterID string, apiExportName string) error {
 	log := logger.LoadLoggerFromContext(ctx)
 

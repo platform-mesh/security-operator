@@ -6,7 +6,7 @@ metadata:
 spec:
   apiExportRef:
     name: orchestrate.platform-mesh.io
-    clusterName: root:providers:httpbin
+    clusterPath: root:providers:httpbin
 
   allowPathExpressions:
     # Allow binding only for specific account and its child accounts
