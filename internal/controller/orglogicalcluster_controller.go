@@ -8,6 +8,7 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/subroutines"
@@ -37,9 +38,10 @@ func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client,
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 
+	kcpClientHelper := iclient.NewKcpHelper(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
 	var subs []subroutines.Subroutine
 	if cfg.Initializer.WorkspaceInitializerEnabled {
-		subs = append(subs, subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr, cfg.FGA.CreatorRelation, cfg.FGA.ObjectType))
+		subs = append(subs, subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr, cfg.FGA.CreatorRelation, cfg.FGA.ObjectType, kcpClientHelper))
 	}
 	if cfg.Initializer.IDPEnabled {
 		idpSub, err := subroutine.NewIDPSubroutine(orgClient, mgr, cfg)

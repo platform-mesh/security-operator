@@ -5,6 +5,9 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/kcp-dev/logicalcluster/v3"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
@@ -13,16 +16,12 @@ import (
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
-
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 func getAPIExportPolicyTestScheme() *runtime.Scheme {
@@ -35,12 +34,12 @@ func getAPIExportPolicyTestScheme() *runtime.Scheme {
 }
 
 func TestAPIExportPolicySubroutine_GetName(t *testing.T) {
-	sub := subroutine.NewAPIExportPolicySubroutine(nil, nil, nil, nil)
+	sub := subroutine.NewAPIExportPolicySubroutine(nil, nil, nil, nil, nil)
 	assert.Equal(t, "APIExportPolicySubroutine", sub.GetName())
 }
 
 func TestAPIExportPolicySubroutine_Finalizers(t *testing.T) {
-	sub := subroutine.NewAPIExportPolicySubroutine(nil, nil, nil, nil)
+	sub := subroutine.NewAPIExportPolicySubroutine(nil, nil, nil, nil, nil)
 	assert.Equal(t, []string{"system.platform-mesh.io/apiexportpolicy-finalizer"}, sub.Finalizers(nil))
 }
 
@@ -48,10 +47,9 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 	tests := []struct {
 		name           string
 		policy         *corev1alpha1.APIExportPolicy
-		setupMocks     func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockManager, *mocks.MockStoreIDGetter, *mocks.MockCluster, client.Client)
+		setupMocks     func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockManager, *mocks.MockStoreIDGetter, *mocks.MockCluster, *mocks.MockKcpHelper)
 		cfg            *config.Config
 		expectError    bool
-		expectedStatus []string
 	}{
 		{
 			name: "should fail when getting provider cluster ID fails - LogicalCluster not found",
@@ -67,60 +65,8 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
-			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, fakeClient client.Client) {
-				ctrlMgr := mocks.NewCTRLManager(t)
-				mgr.EXPECT().GetLocalManager().Return(ctrlMgr).Maybe()
-				ctrlMgr.EXPECT().GetConfig().Return(&rest.Config{Host: "https://localhost:99999"}).Maybe()
-				ctrlMgr.EXPECT().GetScheme().Return(getAPIExportPolicyTestScheme()).Maybe()
-			},
-			cfg:         &config.Config{},
-			expectError: true,
-		},
-		{
-			name: "should fail when deleteRemovedExpressions fails - cannot get cluster ID",
-			policy: &corev1alpha1.APIExportPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-policy",
-				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
-						Name:        "my-export",
-						ClusterPath: "root:providers:my-provider",
-					},
-					AllowPathExpressions: []string{"root:orgs:acme"},
-				},
-				Status: corev1alpha1.APIExportPolicyStatus{
-					ManagedAllowExpressions: []string{"root:orgs:old-expression"},
-				},
-			},
-			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, fakeClient client.Client) {
-				ctrlMgr := mocks.NewCTRLManager(t)
-				mgr.EXPECT().GetLocalManager().Return(ctrlMgr).Maybe()
-				ctrlMgr.EXPECT().GetConfig().Return(&rest.Config{Host: "https://localhost:99999"}).Maybe()
-				ctrlMgr.EXPECT().GetScheme().Return(getAPIExportPolicyTestScheme()).Maybe()
-			},
-			cfg:         &config.Config{},
-			expectError: true,
-		},
-		{
-			name: "should fail when expression path is invalid",
-			policy: &corev1alpha1.APIExportPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-policy",
-				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
-						Name:        "my-export",
-						ClusterPath: "root:providers:my-provider",
-					},
-					AllowPathExpressions: []string{"invalid:expression:path"},
-				},
-			},
-			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, fakeClient client.Client) {
-				ctrlMgr := mocks.NewCTRLManager(t)
-				mgr.EXPECT().GetLocalManager().Return(ctrlMgr).Maybe()
-				ctrlMgr.EXPECT().GetConfig().Return(&rest.Config{Host: "https://localhost:99999"}).Maybe()
-				ctrlMgr.EXPECT().GetScheme().Return(getAPIExportPolicyTestScheme()).Maybe()
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(nil, errors.New("logical cluster not found")).Maybe()
 			},
 			cfg:         &config.Config{},
 			expectError: true,
@@ -139,17 +85,24 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 					AllowPathExpressions: []string{"wrong:prefix:acme"},
 				},
 			},
-			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, fakeClient client.Client) {
-				ctrlMgr := mocks.NewCTRLManager(t)
-				mgr.EXPECT().GetLocalManager().Return(ctrlMgr).Maybe()
-				ctrlMgr.EXPECT().GetConfig().Return(&rest.Config{Host: "https://localhost:99999"}).Maybe()
-				ctrlMgr.EXPECT().GetScheme().Return(getAPIExportPolicyTestScheme()).Maybe()
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				providerClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&kcpcorev1alpha1.LogicalCluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "cluster",
+							Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
+						},
+					}).
+					Build()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(providerClient, nil).Maybe()
 			},
 			cfg:         &config.Config{},
 			expectError: true,
 		},
 		{
-			name: "should handle wildcard expression with root:orgs path",
+			name: "should handle wildcard expression with root:orgs path - GetAllClient fails",
 			policy: &corev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
@@ -162,11 +115,19 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 					AllowPathExpressions: []string{"root:orgs:*"},
 				},
 			},
-			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, fakeClient client.Client) {
-				ctrlMgr := mocks.NewCTRLManager(t)
-				mgr.EXPECT().GetLocalManager().Return(ctrlMgr).Maybe()
-				ctrlMgr.EXPECT().GetConfig().Return(&rest.Config{Host: "https://localhost:99999"}).Maybe()
-				ctrlMgr.EXPECT().GetScheme().Return(getAPIExportPolicyTestScheme()).Maybe()
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				providerClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&kcpcorev1alpha1.LogicalCluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "cluster",
+							Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
+						},
+					}).
+					Build()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(providerClient, nil).Maybe()
+				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(nil, errors.New("unable to create all client")).Maybe()
 			},
 			cfg:         &config.Config{},
 			expectError: true,
@@ -179,21 +140,16 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 			mgr := mocks.NewMockManager(t)
 			storeIDGetter := mocks.NewMockStoreIDGetter(t)
 			cluster := mocks.NewMockCluster(t)
-
-			scheme := getAPIExportPolicyTestScheme()
-			fakeClient := fake.NewClientBuilder().
-				WithScheme(scheme).
-				WithStatusSubresource(&corev1alpha1.APIExportPolicy{}).
-				Build()
+			kcpHelper := mocks.NewMockKcpHelper(t)
 
 			if tt.setupMocks != nil {
-				tt.setupMocks(t, fga, mgr, storeIDGetter, cluster, fakeClient)
+				tt.setupMocks(t, fga, mgr, storeIDGetter, cluster, kcpHelper)
 			}
 
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
 
 			_, err := sub.Process(ctx, tt.policy)
 
@@ -201,9 +157,6 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 				assert.NotNil(t, err)
 			} else {
 				assert.Nil(t, err)
-				if tt.expectedStatus != nil {
-					assert.Equal(t, tt.expectedStatus, tt.policy.Status.ManagedAllowExpressions)
-				}
 			}
 		})
 	}
@@ -213,7 +166,7 @@ func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 	tests := []struct {
 		name        string
 		policy      *corev1alpha1.APIExportPolicy
-		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockManager, *mocks.MockStoreIDGetter)
+		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockManager, *mocks.MockStoreIDGetter, *mocks.MockKcpHelper)
 		cfg         *config.Config
 		expectError bool
 	}{
@@ -231,40 +184,14 @@ func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
-			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter) {
-				ctrlMgr := mocks.NewCTRLManager(t)
-				mgr.EXPECT().GetLocalManager().Return(ctrlMgr).Maybe()
-				ctrlMgr.EXPECT().GetConfig().Return(&rest.Config{Host: "https://localhost:99999"}).Maybe()
-				ctrlMgr.EXPECT().GetScheme().Return(getAPIExportPolicyTestScheme()).Maybe()
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(nil, errors.New("failed to get clusterID")).Maybe()
 			},
 			cfg:         &config.Config{},
 			expectError: true,
 		},
 		{
-			name: "should fail when expression is invalid during finalize",
-			policy: &corev1alpha1.APIExportPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-policy",
-				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
-						Name:        "my-export",
-						ClusterPath: "root:providers:my-provider",
-					},
-					AllowPathExpressions: []string{"invalid:path"},
-				},
-			},
-			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter) {
-				ctrlMgr := mocks.NewCTRLManager(t)
-				mgr.EXPECT().GetLocalManager().Return(ctrlMgr).Maybe()
-				ctrlMgr.EXPECT().GetConfig().Return(&rest.Config{Host: "https://localhost:99999"}).Maybe()
-				ctrlMgr.EXPECT().GetScheme().Return(getAPIExportPolicyTestScheme()).Maybe()
-			},
-			cfg:         &config.Config{},
-			expectError: true,
-		},
-		{
-			name: "should handle finalize with wildcard expression",
+			name: "should handle finalize with wildcard expression - GetAllClient fails",
 			policy: &corev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
@@ -277,37 +204,18 @@ func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 					AllowPathExpressions: []string{"root:orgs:acme:*"},
 				},
 			},
-			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter) {
-				ctrlMgr := mocks.NewCTRLManager(t)
-				mgr.EXPECT().GetLocalManager().Return(ctrlMgr).Maybe()
-				ctrlMgr.EXPECT().GetConfig().Return(&rest.Config{Host: "https://localhost:99999"}).Maybe()
-				ctrlMgr.EXPECT().GetScheme().Return(getAPIExportPolicyTestScheme()).Maybe()
-			},
-			cfg:         &config.Config{},
-			expectError: true,
-		},
-		{
-			name: "should handle finalize with multiple expressions",
-			policy: &corev1alpha1.APIExportPolicy{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "test-policy",
-				},
-				Spec: corev1alpha1.APIExportPolicySpec{
-					APIExportRef: corev1alpha1.APIExportRef{
-						Name:        "my-export",
-						ClusterPath: "root:providers:my-provider",
-					},
-					AllowPathExpressions: []string{
-						"root:orgs:acme",
-						"root:orgs:beta:*",
-					},
-				},
-			},
-			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter) {
-				ctrlMgr := mocks.NewCTRLManager(t)
-				mgr.EXPECT().GetLocalManager().Return(ctrlMgr).Maybe()
-				ctrlMgr.EXPECT().GetConfig().Return(&rest.Config{Host: "https://localhost:99999"}).Maybe()
-				ctrlMgr.EXPECT().GetScheme().Return(getAPIExportPolicyTestScheme()).Maybe()
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				providerClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&kcpcorev1alpha1.LogicalCluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "cluster",
+							Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
+						},
+					}).
+					Build()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(providerClient, nil).Maybe()
 			},
 			cfg:         &config.Config{},
 			expectError: true,
@@ -319,15 +227,16 @@ func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 			fga := mocks.NewMockOpenFGAServiceClient(t)
 			mgr := mocks.NewMockManager(t)
 			storeIDGetter := mocks.NewMockStoreIDGetter(t)
+			kcpHelper := mocks.NewMockKcpHelper(t)
 
 			if tt.setupMocks != nil {
-				tt.setupMocks(t, fga, mgr, storeIDGetter)
+				tt.setupMocks(t, fga, mgr, storeIDGetter, kcpHelper)
 			}
 
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
 
 			_, err := sub.Finalize(ctx, tt.policy)
 
@@ -340,17 +249,17 @@ func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 	}
 }
 
-func TestAPIExportPolicySubroutine_ProcessWithFGAMocks(t *testing.T) {
+func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 	tests := []struct {
-		name        string
-		policy      *corev1alpha1.APIExportPolicy
-		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
-		setupMocks  func(*testing.T, *mocks.MockManager, *mocks.MockStoreIDGetter, *mocks.MockCluster, client.Client)
-		cfg         *config.Config
-		expectError bool
+		name                string
+		policy              *corev1alpha1.APIExportPolicy
+		setupMocks          func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockManager, *mocks.MockStoreIDGetter, *mocks.MockCluster, *mocks.MockKcpHelper)
+		cfg                 *config.Config
+		expectError         bool
+		expectedTupleWrites []corev1alpha1.Tuple
 	}{
 		{
-			name: "should fail when StoreIDGetter returns error",
+			name: "should write correct FGA tuple for single org expression",
 			policy: &corev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
@@ -363,18 +272,287 @@ func TestAPIExportPolicySubroutine_ProcessWithFGAMocks(t *testing.T) {
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
-			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
-				// No FGA calls expected since we fail before reaching FGA
-			},
-			setupMocks: func(t *testing.T, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, fakeClient client.Client) {
-				ctrlMgr := mocks.NewCTRLManager(t)
-				mgr.EXPECT().GetLocalManager().Return(ctrlMgr).Maybe()
-				ctrlMgr.EXPECT().GetConfig().Return(&rest.Config{Host: "https://localhost:99999"}).Maybe()
-				ctrlMgr.EXPECT().GetScheme().Return(getAPIExportPolicyTestScheme()).Maybe()
-				// StoreIDGetter would be called after getting AccountInfo, but we fail before that
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+
+				// Provider cluster client
+				providerClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&kcpcorev1alpha1.LogicalCluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "cluster",
+							Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
+						},
+					}).
+					Build()
+
+				// Target workspace client with AccountInfo
+				targetClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&accountsv1alpha1.AccountInfo{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "account",
+						},
+						Spec: accountsv1alpha1.AccountInfoSpec{
+							Account: accountsv1alpha1.AccountLocation{
+								Name:            "acme-account",
+								OriginClusterId: "acme-cluster-id",
+								Type:            accountsv1alpha1.AccountTypeOrg,
+							},
+							Organization: accountsv1alpha1.AccountLocation{
+								Name: "acme-org",
+							},
+						},
+					}).
+					Build()
+
+				// Cluster client for status patch
+				clusterClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&corev1alpha1.APIExportPolicy{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-policy",
+						},
+					}).
+					WithStatusSubresource(&corev1alpha1.APIExportPolicy{}).
+					Build()
+
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
+					return name.String() == "root:providers:my-provider"
+				})).Return(providerClient, nil)
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
+					return name.String() == "root:orgs:acme"
+				})).Return(targetClient, nil)
+
+				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("test-store-id", nil)
+
+				// Expect FGA Write with specific tuple content
+				fga.EXPECT().Write(mock.Anything, mock.MatchedBy(func(req *openfgav1.WriteRequest) bool {
+					if req.StoreId != "test-store-id" {
+						return false
+					}
+					if len(req.Writes.TupleKeys) != 1 {
+						return false
+					}
+					tuple := req.Writes.TupleKeys[0]
+					return tuple.Object == "core_platform-mesh_io_account:acme-cluster-id/acme-account" &&
+						tuple.Relation == "bind" &&
+						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
+				}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
+
+				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				cluster.EXPECT().GetClient().Return(clusterClient)
 			},
 			cfg:         &config.Config{},
-			expectError: true,
+			expectError: false,
+		},
+		{
+			name: "should write correct FGA tuple with bind_inherited for wildcard expression",
+			policy: &corev1alpha1.APIExportPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-policy",
+				},
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef: corev1alpha1.APIExportRef{
+						Name:        "my-export",
+						ClusterPath: "root:providers:my-provider",
+					},
+					AllowPathExpressions: []string{"root:orgs:acme:*"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+
+				// Provider cluster client
+				providerClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&kcpcorev1alpha1.LogicalCluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "cluster",
+							Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
+						},
+					}).
+					Build()
+
+				// Target workspace client with AccountInfo
+				targetClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&accountsv1alpha1.AccountInfo{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "account",
+						},
+						Spec: accountsv1alpha1.AccountInfoSpec{
+							Account: accountsv1alpha1.AccountLocation{
+								Name:            "acme-account",
+								OriginClusterId: "acme-cluster-id",
+								Type:            accountsv1alpha1.AccountTypeOrg,
+							},
+							Organization: accountsv1alpha1.AccountLocation{
+								Name: "acme-org",
+							},
+						},
+					}).
+					Build()
+
+				// Cluster client for status patch
+				clusterClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&corev1alpha1.APIExportPolicy{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-policy",
+						},
+					}).
+					WithStatusSubresource(&corev1alpha1.APIExportPolicy{}).
+					Build()
+
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
+					return name.String() == "root:providers:my-provider"
+				})).Return(providerClient, nil)
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
+					return name.String() == "root:orgs:acme"
+				})).Return(targetClient, nil)
+
+				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("test-store-id", nil)
+
+				// Expect FGA Write with bind_inherited relation for wildcard
+				fga.EXPECT().Write(mock.Anything, mock.MatchedBy(func(req *openfgav1.WriteRequest) bool {
+					if req.StoreId != "test-store-id" {
+						return false
+					}
+					if len(req.Writes.TupleKeys) != 1 {
+						return false
+					}
+					tuple := req.Writes.TupleKeys[0]
+					return tuple.Object == "core_platform-mesh_io_account:acme-cluster-id/acme-account" &&
+						tuple.Relation == "bind_inherited" &&
+						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
+				}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
+
+				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				cluster.EXPECT().GetClient().Return(clusterClient)
+			},
+			cfg:         &config.Config{},
+			expectError: false,
+		},
+		{
+			name: "should write FGA tuples for all orgs when root:orgs:* expression is used",
+			policy: &corev1alpha1.APIExportPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-policy",
+				},
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef: corev1alpha1.APIExportRef{
+						Name:        "my-export",
+						ClusterPath: "root:providers:my-provider",
+					},
+					AllowPathExpressions: []string{"root:orgs:*"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+
+				// Provider cluster client
+				providerClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&kcpcorev1alpha1.LogicalCluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "cluster",
+							Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
+						},
+					}).
+					Build()
+
+				// All client with AccountInfo list
+				allClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithLists(&accountsv1alpha1.AccountInfoList{
+						Items: []accountsv1alpha1.AccountInfo{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "account-1",
+								},
+								Spec: accountsv1alpha1.AccountInfoSpec{
+									Account: accountsv1alpha1.AccountLocation{
+										Name:            "org1-account",
+										OriginClusterId: "org1-cluster-id",
+										Type:            accountsv1alpha1.AccountTypeOrg,
+									},
+									Organization: accountsv1alpha1.AccountLocation{
+										Name: "org1",
+									},
+								},
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "account-2",
+								},
+								Spec: accountsv1alpha1.AccountInfoSpec{
+									Account: accountsv1alpha1.AccountLocation{
+										Name:            "org2-account",
+										OriginClusterId: "org2-cluster-id",
+										Type:            accountsv1alpha1.AccountTypeOrg,
+									},
+									Organization: accountsv1alpha1.AccountLocation{
+										Name: "org2",
+									},
+								},
+							},
+						},
+					}).
+					Build()
+
+				// Cluster client for status patch
+				clusterClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&corev1alpha1.APIExportPolicy{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "test-policy",
+						},
+					}).
+					WithStatusSubresource(&corev1alpha1.APIExportPolicy{}).
+					Build()
+
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
+					return name.String() == "root:providers:my-provider"
+				})).Return(providerClient, nil)
+				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+
+				storeIDGetter.EXPECT().Get(mock.Anything, "org1").Return("store-id-org1", nil)
+				storeIDGetter.EXPECT().Get(mock.Anything, "org2").Return("store-id-org2", nil)
+
+				// Expect FGA Write for org1 with bind_inherited relation
+				fga.EXPECT().Write(mock.Anything, mock.MatchedBy(func(req *openfgav1.WriteRequest) bool {
+					if req.StoreId != "store-id-org1" {
+						return false
+					}
+					if len(req.Writes.TupleKeys) != 1 {
+						return false
+					}
+					tuple := req.Writes.TupleKeys[0]
+					return tuple.Object == "core_platform-mesh_io_account:org1-cluster-id/org1-account" &&
+						tuple.Relation == "bind_inherited" &&
+						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
+				}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
+
+				// Expect FGA Write for org2 with bind_inherited relation
+				fga.EXPECT().Write(mock.Anything, mock.MatchedBy(func(req *openfgav1.WriteRequest) bool {
+					if req.StoreId != "store-id-org2" {
+						return false
+					}
+					if len(req.Writes.TupleKeys) != 1 {
+						return false
+					}
+					tuple := req.Writes.TupleKeys[0]
+					return tuple.Object == "core_platform-mesh_io_account:org2-cluster-id/org2-account" &&
+						tuple.Relation == "bind_inherited" &&
+						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
+				}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
+
+				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				cluster.EXPECT().GetClient().Return(clusterClient)
+			},
+			cfg:         &config.Config{},
+			expectError: false,
 		},
 	}
 
@@ -384,24 +562,16 @@ func TestAPIExportPolicySubroutine_ProcessWithFGAMocks(t *testing.T) {
 			mgr := mocks.NewMockManager(t)
 			storeIDGetter := mocks.NewMockStoreIDGetter(t)
 			cluster := mocks.NewMockCluster(t)
+			kcpHelper := mocks.NewMockKcpHelper(t)
 
-			scheme := getAPIExportPolicyTestScheme()
-			fakeClient := fake.NewClientBuilder().
-				WithScheme(scheme).
-				WithStatusSubresource(&corev1alpha1.APIExportPolicy{}).
-				Build()
-
-			if tt.fgaMocks != nil {
-				tt.fgaMocks(fga)
-			}
 			if tt.setupMocks != nil {
-				tt.setupMocks(t, mgr, storeIDGetter, cluster, fakeClient)
+				tt.setupMocks(t, fga, mgr, storeIDGetter, cluster, kcpHelper)
 			}
 
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
 
 			_, err := sub.Process(ctx, tt.policy)
 
@@ -414,17 +584,16 @@ func TestAPIExportPolicySubroutine_ProcessWithFGAMocks(t *testing.T) {
 	}
 }
 
-func TestAPIExportPolicySubroutine_FinalizeWithFGAWrite(t *testing.T) {
+func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 	tests := []struct {
 		name        string
 		policy      *corev1alpha1.APIExportPolicy
-		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
-		setupMocks  func(*testing.T, *mocks.MockManager, *mocks.MockStoreIDGetter)
+		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockManager, *mocks.MockStoreIDGetter, *mocks.MockKcpHelper)
 		cfg         *config.Config
 		expectError bool
 	}{
 		{
-			name: "should fail when FGA Write fails during tuple deletion",
+			name: "should delete FGA tuple for single org expression",
 			policy: &corev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
@@ -437,19 +606,245 @@ func TestAPIExportPolicySubroutine_FinalizeWithFGAWrite(t *testing.T) {
 					AllowPathExpressions: []string{"root:orgs:acme"},
 				},
 			},
-			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
-				fga.EXPECT().Write(mock.Anything, mock.Anything, mock.Anything).
-					Return(nil, errors.New("FGA write failed")).Maybe()
-			},
-			setupMocks: func(t *testing.T, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter) {
-				ctrlMgr := mocks.NewCTRLManager(t)
-				mgr.EXPECT().GetLocalManager().Return(ctrlMgr).Maybe()
-				ctrlMgr.EXPECT().GetConfig().Return(&rest.Config{Host: "https://localhost:99999"}).Maybe()
-				ctrlMgr.EXPECT().GetScheme().Return(getAPIExportPolicyTestScheme()).Maybe()
-				storeIDGetter.EXPECT().Get(mock.Anything, mock.Anything).Return("store-id", nil).Maybe()
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+
+				// Provider cluster client
+				providerClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&kcpcorev1alpha1.LogicalCluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "cluster",
+							Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
+						},
+					}).
+					Build()
+
+				// Target workspace client with AccountInfo
+				targetClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&accountsv1alpha1.AccountInfo{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "account",
+						},
+						Spec: accountsv1alpha1.AccountInfoSpec{
+							Account: accountsv1alpha1.AccountLocation{
+								Name:            "acme-account",
+								OriginClusterId: "acme-cluster-id",
+								Type:            accountsv1alpha1.AccountTypeOrg,
+							},
+							Organization: accountsv1alpha1.AccountLocation{
+								Name: "acme-org",
+							},
+						},
+					}).
+					Build()
+
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
+					return name.String() == "root:providers:my-provider"
+				})).Return(providerClient, nil)
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
+					return name.String() == "root:orgs:acme"
+				})).Return(targetClient, nil)
+
+				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("test-store-id", nil)
+
+				// Expect FGA Write with Deletes for tuple deletion
+				fga.EXPECT().Write(mock.Anything, mock.MatchedBy(func(req *openfgav1.WriteRequest) bool {
+					if req.StoreId != "test-store-id" {
+						return false
+					}
+					if req.Deletes == nil || len(req.Deletes.TupleKeys) != 1 {
+						return false
+					}
+					tuple := req.Deletes.TupleKeys[0]
+					return tuple.Object == "core_platform-mesh_io_account:acme-cluster-id/acme-account" &&
+						tuple.Relation == "bind" &&
+						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
+				}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
 			},
 			cfg:         &config.Config{},
-			expectError: true,
+			expectError: false,
+		},
+		{
+			name: "should delete FGA tuple with bind_inherited for wildcard expression",
+			policy: &corev1alpha1.APIExportPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-policy",
+				},
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef: corev1alpha1.APIExportRef{
+						Name:        "my-export",
+						ClusterPath: "root:providers:my-provider",
+					},
+					AllowPathExpressions: []string{"root:orgs:acme:*"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+
+				// Provider cluster client
+				providerClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&kcpcorev1alpha1.LogicalCluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "cluster",
+							Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
+						},
+					}).
+					Build()
+
+				// Target workspace client with AccountInfo
+				targetClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&accountsv1alpha1.AccountInfo{
+						ObjectMeta: metav1.ObjectMeta{
+							Name: "account",
+						},
+						Spec: accountsv1alpha1.AccountInfoSpec{
+							Account: accountsv1alpha1.AccountLocation{
+								Name:            "acme-account",
+								OriginClusterId: "acme-cluster-id",
+								Type:            accountsv1alpha1.AccountTypeOrg,
+							},
+							Organization: accountsv1alpha1.AccountLocation{
+								Name: "acme-org",
+							},
+						},
+					}).
+					Build()
+
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
+					return name.String() == "root:providers:my-provider"
+				})).Return(providerClient, nil)
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
+					return name.String() == "root:orgs:acme"
+				})).Return(targetClient, nil)
+
+				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("test-store-id", nil)
+
+				// Expect FGA Write with Deletes using bind_inherited relation
+				fga.EXPECT().Write(mock.Anything, mock.MatchedBy(func(req *openfgav1.WriteRequest) bool {
+					if req.StoreId != "test-store-id" {
+						return false
+					}
+					if req.Deletes == nil || len(req.Deletes.TupleKeys) != 1 {
+						return false
+					}
+					tuple := req.Deletes.TupleKeys[0]
+					return tuple.Object == "core_platform-mesh_io_account:acme-cluster-id/acme-account" &&
+						tuple.Relation == "bind_inherited" &&
+						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
+				}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
+			},
+			cfg:         &config.Config{},
+			expectError: false,
+		},
+		{
+			name: "should delete FGA tuples for all orgs when root:orgs:* expression is used",
+			policy: &corev1alpha1.APIExportPolicy{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-policy",
+				},
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef: corev1alpha1.APIExportRef{
+						Name:        "my-export",
+						ClusterPath: "root:providers:my-provider",
+					},
+					AllowPathExpressions: []string{"root:orgs:*"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+
+				// Provider cluster client
+				providerClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&kcpcorev1alpha1.LogicalCluster{
+						ObjectMeta: metav1.ObjectMeta{
+							Name:        "cluster",
+							Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
+						},
+					}).
+					Build()
+
+				// All client with AccountInfo list
+				allClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithLists(&accountsv1alpha1.AccountInfoList{
+						Items: []accountsv1alpha1.AccountInfo{
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "account-1",
+								},
+								Spec: accountsv1alpha1.AccountInfoSpec{
+									Account: accountsv1alpha1.AccountLocation{
+										Name:            "org1-account",
+										OriginClusterId: "org1-cluster-id",
+										Type:            accountsv1alpha1.AccountTypeOrg,
+									},
+									Organization: accountsv1alpha1.AccountLocation{
+										Name: "org1",
+									},
+								},
+							},
+							{
+								ObjectMeta: metav1.ObjectMeta{
+									Name: "account-2",
+								},
+								Spec: accountsv1alpha1.AccountInfoSpec{
+									Account: accountsv1alpha1.AccountLocation{
+										Name:            "org2-account",
+										OriginClusterId: "org2-cluster-id",
+										Type:            accountsv1alpha1.AccountTypeOrg,
+									},
+									Organization: accountsv1alpha1.AccountLocation{
+										Name: "org2",
+									},
+								},
+							},
+						},
+					}).
+					Build()
+
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
+					return name.String() == "root:providers:my-provider"
+				})).Return(providerClient, nil)
+				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+
+				storeIDGetter.EXPECT().Get(mock.Anything, "org1").Return("store-id-org1", nil)
+				storeIDGetter.EXPECT().Get(mock.Anything, "org2").Return("store-id-org2", nil)
+
+				// Expect FGA Write with Deletes for org1 with bind_inherited relation
+				fga.EXPECT().Write(mock.Anything, mock.MatchedBy(func(req *openfgav1.WriteRequest) bool {
+					if req.StoreId != "store-id-org1" {
+						return false
+					}
+					if req.Deletes == nil || len(req.Deletes.TupleKeys) != 1 {
+						return false
+					}
+					tuple := req.Deletes.TupleKeys[0]
+					return tuple.Object == "core_platform-mesh_io_account:org1-cluster-id/org1-account" &&
+						tuple.Relation == "bind_inherited" &&
+						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
+				}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
+
+				// Expect FGA Write with Deletes for org2 with bind_inherited relation
+				fga.EXPECT().Write(mock.Anything, mock.MatchedBy(func(req *openfgav1.WriteRequest) bool {
+					if req.StoreId != "store-id-org2" {
+						return false
+					}
+					if req.Deletes == nil || len(req.Deletes.TupleKeys) != 1 {
+						return false
+					}
+					tuple := req.Deletes.TupleKeys[0]
+					return tuple.Object == "core_platform-mesh_io_account:org2-cluster-id/org2-account" &&
+						tuple.Relation == "bind_inherited" &&
+						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
+				}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
+			},
+			cfg:         &config.Config{},
+			expectError: false,
 		},
 	}
 
@@ -458,18 +853,16 @@ func TestAPIExportPolicySubroutine_FinalizeWithFGAWrite(t *testing.T) {
 			fga := mocks.NewMockOpenFGAServiceClient(t)
 			mgr := mocks.NewMockManager(t)
 			storeIDGetter := mocks.NewMockStoreIDGetter(t)
+			kcpHelper := mocks.NewMockKcpHelper(t)
 
-			if tt.fgaMocks != nil {
-				tt.fgaMocks(fga)
-			}
 			if tt.setupMocks != nil {
-				tt.setupMocks(t, mgr, storeIDGetter)
+				tt.setupMocks(t, fga, mgr, storeIDGetter, kcpHelper)
 			}
 
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
 
 			_, err := sub.Finalize(ctx, tt.policy)
 

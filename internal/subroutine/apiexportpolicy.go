@@ -32,14 +32,16 @@ type APIExportPolicySubroutine struct {
 	mgr           mcmanager.Manager
 	cfg           *config.Config
 	storeIDGetter fga.StoreIDGetter
+	kcpHelper     iclient.KcpClientHelper
 }
 
-func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter) *APIExportPolicySubroutine {
+func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpHelper iclient.KcpClientHelper) *APIExportPolicySubroutine {
 	return &APIExportPolicySubroutine{
 		fga:           fgaClient,
 		mgr:           mgr,
 		cfg:           cfg,
 		storeIDGetter: storeIDGetter,
+		kcpHelper:     kcpHelper,
 	}
 }
 
@@ -76,7 +78,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Obje
 		// for orgs workspace we need to write 1 tuple in every store
 		// for this we need to get cluster id for every org's workspace
 		if workspacePath == orgsWorkspacePath {
-			allclient, err := iclient.GetAllClient(ctx, a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), a.cfg.APIExportEndpointSlices.CorePlatformMeshIO)
+			allclient, err := a.kcpHelper.GetAllClient(ctx, a.cfg.APIExportEndpointSlices.CorePlatformMeshIO)
 			if err != nil {
 				return subroutines.OK(), fmt.Errorf("unable to create all client: %w", err)
 			}
@@ -113,7 +115,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Obje
 		// for all valid expressions except of :root:orgs:*
 		// e.g :root:orgs:A:B, find store id
 		// and clusterID of logical cluster where account B lives (logical cluster A)
-		lcClient, err := iclient.NewForLogicalCluster(a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(workspacePath))
+		lcClient, err := a.kcpHelper.NewForLogicalCluster(logicalcluster.Name(workspacePath))
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("getting client: %w", err)
 		}
@@ -180,7 +182,7 @@ func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, obj client.Obj
 }
 
 func (a *APIExportPolicySubroutine) getClusterIDFromPath(ctx context.Context, clusterPath string) (string, error) {
-	lcClient, err := iclient.NewForLogicalCluster(a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(clusterPath))
+	lcClient, err := a.kcpHelper.NewForLogicalCluster(logicalcluster.Name(clusterPath))
 	if err != nil {
 		return "", fmt.Errorf("getting client for workspace %s: %w", clusterPath, err)
 	}
@@ -247,7 +249,7 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 	}
 
 	if workspacePath == orgsWorkspacePath {
-		allclient, err := iclient.GetAllClient(ctx, a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), a.cfg.APIExportEndpointSlices.CorePlatformMeshIO)
+		allclient, err := a.kcpHelper.GetAllClient(ctx, a.cfg.APIExportEndpointSlices.CorePlatformMeshIO)
 		if err != nil {
 			return fmt.Errorf("creating all client: %w", err)
 		}
@@ -277,7 +279,7 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 		return nil
 	}
 
-	lcClient, err := iclient.NewForLogicalCluster(a.mgr.GetLocalManager().GetConfig(), a.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(workspacePath))
+	lcClient, err := a.kcpHelper.NewForLogicalCluster(logicalcluster.Name(workspacePath))
 	if err != nil {
 		return fmt.Errorf("getting client for workspace %s: %w", workspacePath, err)
 	}

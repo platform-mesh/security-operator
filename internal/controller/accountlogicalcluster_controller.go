@@ -9,6 +9,7 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
@@ -40,9 +41,10 @@ func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, f
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 
+	kcpClientHelper := iclient.NewKcpHelper(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
 	lc := lifecycle.New(mgr, "AccountLogicalClusterReconciler", func() client.Object {
 		return &kcpcorev1alpha1.LogicalCluster{}
-	}, subroutine.NewAccountTuplesSubroutine(mcc, mgr, fgaClient, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType)).
+	}, subroutine.NewAccountTuplesSubroutine(mcc, mgr, fgaClient, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType, kcpClientHelper)).
 		WithInitializer(cfg.InitializerName()).
 		WithTerminator(cfg.TerminatorName())
 

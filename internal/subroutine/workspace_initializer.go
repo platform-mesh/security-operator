@@ -27,7 +27,7 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mcmanager.Manager, creatorRelation, objectType string) *workspaceInitializer {
+func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mcmanager.Manager, creatorRelation, objectType string, kcpHelper iclient.KcpClientHelper) *workspaceInitializer {
 	// read file from path
 	res, err := os.ReadFile(cfg.CoreModulePath)
 	if err != nil {
@@ -42,6 +42,7 @@ func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mc
 		cfg:             cfg,
 		creatorRelation: creatorRelation,
 		objectType:      objectType,
+		kcpHelper:       kcpHelper,
 	}
 }
 
@@ -56,6 +57,7 @@ type workspaceInitializer struct {
 
 	objectType      string
 	creatorRelation string
+	kcpHelper       iclient.KcpClientHelper
 }
 
 func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" }
@@ -69,7 +71,7 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, obj client.Object
 	}
 	lcID, _ := mccontext.ClusterFrom(ctx)
 
-	lcClient, err := iclient.NewForLogicalCluster(w.mgr.GetLocalManager().GetConfig(), w.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(lcID))
+	lcClient, err := w.kcpHelper.NewForLogicalCluster(logicalcluster.Name(lcID))
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting client: %w", err)
 	}
@@ -83,7 +85,7 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, obj client.Object
 		return subroutines.StopWithRequeue(5*time.Second, "AccountInfo not found yet, requeueing"), nil
 	}
 
-	orgsClient, err := iclient.NewForLogicalCluster(w.mgr.GetLocalManager().GetConfig(), w.mgr.GetLocalManager().GetScheme(), logicalcluster.Name("root:orgs"))
+	orgsClient, err := w.kcpHelper.NewForLogicalCluster(logicalcluster.Name("root:orgs"))
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting parent organisation client: %w", err)
 	}
