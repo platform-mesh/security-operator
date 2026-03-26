@@ -3,9 +3,10 @@ package mocks
 import (
 	"context"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	mock "github.com/stretchr/testify/mock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 // NewMockKcpHelper creates a new instance of MockKcpHelper. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.

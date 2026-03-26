@@ -5,8 +5,6 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/kcp-dev/logicalcluster/v3"
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
@@ -22,6 +20,9 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+
+	"github.com/kcp-dev/logicalcluster/v3"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 func getAPIExportPolicyTestScheme() *runtime.Scheme {
@@ -45,11 +46,11 @@ func TestAPIExportPolicySubroutine_Finalizers(t *testing.T) {
 
 func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 	tests := []struct {
-		name           string
-		policy         *corev1alpha1.APIExportPolicy
-		setupMocks     func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockManager, *mocks.MockStoreIDGetter, *mocks.MockCluster, *mocks.MockKcpHelper)
-		cfg            *config.Config
-		expectError    bool
+		name        string
+		policy      *corev1alpha1.APIExportPolicy
+		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockManager, *mocks.MockStoreIDGetter, *mocks.MockCluster, *mocks.MockKcpHelper)
+		cfg         *config.Config
+		expectError bool
 	}{
 		{
 			name: "should fail when getting provider cluster ID fails - LogicalCluster not found",
