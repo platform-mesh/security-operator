@@ -6,7 +6,7 @@ packages:
       filename: mock_OpenFGAServiceClient.go
     interfaces:
       OpenFGAServiceClient:
-  
+
   sigs.k8s.io/controller-runtime/pkg/client:
     config:
       dir: internal/subroutine/mocks
@@ -35,10 +35,17 @@ packages:
         filename: mock_Cluster.go
       interfaces:
         Cluster:
-  
+
   k8s.io/client-go/discovery:
       config:
         dir: internal/subroutine/mocks
         filename: mock_DiscoveryInterface.go
       interfaces:
         DiscoveryInterface:
+
+  github.com/platform-mesh/security-operator/internal/client:
+    config:
+      dir: internal/subroutine/mocks
+      filename: mock_KcpHelper.go
+    interfaces:
+      KcpClientHelper:

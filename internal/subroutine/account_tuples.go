@@ -31,6 +31,7 @@ type AccountTuplesSubroutine struct {
 	objectType      string
 	parentRelation  string
 	creatorRelation string
+	kcpHelper       iclient.KcpClientHelper
 }
 
 // Process implements lifecycle.Subroutine as no-op since Initialize handles the
@@ -55,7 +56,7 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, obj client.Obj
 
 	// Determine the parent's and grandParent's LogicalCluster ID
 	parentPath, _ := accountPath.Parent()
-	parentAccountClusterID, parentAccountLC, err := clusterAndIDFromLogicalClusterForPath(ctx, s.mgr, parentPath)
+	parentAccountClusterID, parentAccountLC, err := s.clusterAndIDFromLogicalClusterForPath(ctx, parentPath)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting parent account's LogicalCluster: %w", err)
 	}
@@ -63,7 +64,7 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, obj client.Obj
 
 	// Retrieve the Account resource out of the parent workspace to determine
 	// the creator
-	parentAccountClient, err := iclient.NewForLogicalCluster(s.mgr.GetLocalManager().GetConfig(), s.mgr.GetLocalManager().GetScheme(), logicalcluster.Name(parentPath.String()))
+	parentAccountClient, err := s.kcpHelper.NewForLogicalCluster(logicalcluster.Name(parentPath.String()))
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting client for parent account cluster: %w", err)
 	}
@@ -110,7 +111,7 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, obj client.Obje
 	parentPath, _ := accountPath.Parent()
 
 	// Determine the parent's LogicalClusterID
-	parentClusterID, _, err := clusterAndIDFromLogicalClusterForPath(ctx, s.mgr, parentPath)
+	parentClusterID, _, err := s.clusterAndIDFromLogicalClusterForPath(ctx, parentPath)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting parent account's LogicalCluster: %w", err)
 	}
@@ -153,7 +154,7 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, obj client.Obje
 // GetName implements subroutines.Subroutine.
 func (s *AccountTuplesSubroutine) GetName() string { return "AccountTuplesSubroutine" }
 
-func NewAccountTuplesSubroutine(mcc mcclient.ClusterClient, mgr mcmanager.Manager, fga openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, creatorRelation, parentRelation, objectType string) *AccountTuplesSubroutine {
+func NewAccountTuplesSubroutine(mcc mcclient.ClusterClient, mgr mcmanager.Manager, fga openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, creatorRelation, parentRelation, objectType string, kcpHelper iclient.KcpClientHelper) *AccountTuplesSubroutine {
 	return &AccountTuplesSubroutine{
 		mgr:             mgr,
 		mcc:             mcc,
@@ -162,6 +163,7 @@ func NewAccountTuplesSubroutine(mcc mcclient.ClusterClient, mgr mcmanager.Manage
 		creatorRelation: creatorRelation,
 		parentRelation:  parentRelation,
 		objectType:      objectType,
+		kcpHelper:       kcpHelper,
 	}
 }
 
@@ -172,10 +174,10 @@ var (
 
 // clusterAndIDFromLogicalClusterForPath retrieves the LogicalCluster of a given
 // path and returns its cluster ID and the LogicalCluster object.
-func clusterAndIDFromLogicalClusterForPath(ctx context.Context, mgr mcmanager.Manager, p logicalcluster.Path) (string, kcpcorev1alpha1.LogicalCluster, error) {
+func (s *AccountTuplesSubroutine) clusterAndIDFromLogicalClusterForPath(ctx context.Context, p logicalcluster.Path) (string, kcpcorev1alpha1.LogicalCluster, error) {
 	var lc kcpcorev1alpha1.LogicalCluster
 
-	clusterClient, err := iclient.NewForLogicalCluster(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), logicalcluster.Name(p.String()))
+	clusterClient, err := s.kcpHelper.NewForLogicalCluster(logicalcluster.Name(p.String()))
 	if err != nil {
 		return "", lc, fmt.Errorf("getting account cluster client: %w", err)
 	}
