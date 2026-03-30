@@ -1,56 +1,72 @@
-package controller // coverage-ignore
+package controller
 
 import (
 	"context"
+	"fmt"
 
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/controller/filter"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/invite"
+	"github.com/platform-mesh/subroutines/conditions"
+	"github.com/platform-mesh/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
+
+	"k8s.io/client-go/util/workqueue"
 )
 
 type InviteReconciler struct {
-	mclifecycle *multicluster.LifecycleManager
+	log         *logger.Logger
+	lifecycle   *lifecycle.Lifecycle
+	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
 }
 
-func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, cfg *config.Config, log *logger.Logger) *InviteReconciler {
+func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, cfg *config.Config, log *logger.Logger) (*InviteReconciler, error) {
 	inviteSubroutine, err := invite.New(ctx, cfg, mgr)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to create invite subroutine")
+		return nil, fmt.Errorf("creating Invite subroutine: %w", err)
 	}
 
-	return &InviteReconciler{
-		mclifecycle: builder.NewBuilder(
-			"invite",
-			"InviteReconciler",
-			[]lifecyclesubroutine.Subroutine{
-				inviteSubroutine,
-			}, log,
-		).WithConditionManagement().WithStaticThenExponentialRateLimiter().BuildMultiCluster(mgr),
+	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[mcreconcile.Request](ratelimiter.NewConfig())
+	if err != nil {
+		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
+
+	lc := lifecycle.New(mgr, "InviteReconciler", func() client.Object {
+		return &v1alpha1.Invite{}
+	}, inviteSubroutine).
+		WithConditions(conditions.NewManager())
+
+	return &InviteReconciler{
+		log:         log,
+		lifecycle:   lc,
+		rateLimiter: rl,
+	}, nil
 }
 
 func (r *InviteReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	return r.mclifecycle.Reconcile(mccontext.WithCluster(ctx, req.ClusterName), req, &v1alpha1.Invite{})
+	return r.lifecycle.Reconcile(ctx, req)
 }
 
-func (r *InviteReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, log *logger.Logger) error { // coverage-ignore
-	return r.mclifecycle.
-		SetupWithManager(
-			mgr,
-			cfg.MaxConcurrentReconciles,
-			"invite",
-			&v1alpha1.Invite{},
-			cfg.DebugLabelValue,
-			r,
-			log,
-		)
+func (r *InviteReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, log *logger.Logger) error {
+	opts := controller.TypedOptions[mcreconcile.Request]{
+		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
+		RateLimiter:             r.rateLimiter,
+	}
+	predicates := []predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}
+	return mcbuilder.ControllerManagedBy(mgr).
+		Named("invite").
+		For(&v1alpha1.Invite{}).
+		WithOptions(opts).
+		WithEventFilter(predicate.And(predicates...)).
+		Complete(r)
 }

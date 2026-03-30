@@ -70,7 +70,7 @@ var modelGeneratorCmd = &cobra.Command{
 			return fmt.Errorf("scheme should not be nil")
 		}
 
-		provider, err := apiexport.New(restCfg, operatorCfg.APIExportEndpointSliceName, apiexport.Options{
+		provider, err := apiexport.New(restCfg, generatorCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
@@ -84,7 +84,7 @@ var modelGeneratorCmd = &cobra.Command{
 			return err
 		}
 
-		if err := controller.NewAPIBindingReconciler(ctx, log, mgr).
+		if err := controller.NewAPIBindingReconciler(ctx, log, mgr, &generatorCfg).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Resource")
 			return err

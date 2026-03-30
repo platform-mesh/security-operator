@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
@@ -18,7 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/oauth2"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 
@@ -55,7 +53,7 @@ func configureOIDCProvider(t *testing.T, mux *http.ServeMux, baseURL string) {
 func TestSubroutineProcess(t *testing.T) {
 	testCases := []struct {
 		desc               string
-		obj                runtimeobject.RuntimeObject
+		obj                client.Object
 		config             *config.Config
 		setupK8sMocks      func(m *mocks.MockClient)
 		setupKeycloakMocks func(mux *http.ServeMux)
@@ -342,7 +340,7 @@ func TestSubroutineProcess(t *testing.T) {
 					Email: "requeue@acme.corp",
 				},
 			},
-			expectErr: true,
+			expectErr: false,
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
@@ -526,11 +524,11 @@ func TestSubroutineProcess(t *testing.T) {
 
 			ctx = mccontext.WithCluster(ctx, "cluster1")
 
-			_, opErr := s.Process(ctx, test.obj)
+			_, processErr := s.Process(ctx, test.obj)
 			if test.expectErr {
-				assert.NotNil(t, opErr, "expected an operator error")
+				assert.NotNil(t, processErr, "expected an error")
 			} else {
-				assert.Nil(t, opErr, "did not expect an operator error")
+				assert.Nil(t, processErr, "did not expect an error")
 			}
 		})
 	}
@@ -553,9 +551,4 @@ func TestHelperFunctions(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.Equal(t, "Invite", s.GetName())
-	assert.Equal(t, []string{}, s.Finalizers(nil))
-
-	res, finalizerErr := s.Finalize(ctx, &v1alpha1.Invite{})
-	assert.Nil(t, finalizerErr)
-	assert.Equal(t, ctrl.Result{}, res)
 }

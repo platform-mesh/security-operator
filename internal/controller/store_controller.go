@@ -5,21 +5,22 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
+	"github.com/platform-mesh/subroutines/conditions"
+	"github.com/platform-mesh/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	ctrhandler "sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	"sigs.k8s.io/multicluster-runtime/pkg/handler"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
@@ -31,43 +32,48 @@ import (
 
 // StoreReconciler reconciles a Store object
 type StoreReconciler struct {
-	fga         openfgav1.OpenFGAServiceClient
-	log         *logger.Logger
-	mclifecycle *multicluster.LifecycleManager
+	fga       openfgav1.OpenFGAServiceClient
+	log       *logger.Logger
+	lifecycle *lifecycle.Lifecycle
 }
 
-func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *StoreReconciler {
-	allClient, err := iclient.NewForAllPlatformMeshResources(ctx, mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme())
+func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config) *StoreReconciler {
+	allClient, err := iclient.GetAllClient(ctx, mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme(), cfg.APIExportEndpointSlices.CorePlatformMeshIO)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create new client")
 	}
 
+	lc := lifecycle.New(mcMgr, "StoreReconciler", func() client.Object {
+		return &corev1alpha1.Store{}
+	},
+		subroutine.NewStoreSubroutine(fga, mcMgr),
+		subroutine.NewAuthorizationModelSubroutine(fga, mcMgr, allClient, func(cfg *rest.Config) discovery.DiscoveryInterface {
+			return discovery.NewDiscoveryClientForConfigOrDie(cfg)
+		}, log),
+		subroutine.NewTupleSubroutine(fga, mcMgr),
+	).WithConditions(conditions.NewManager())
+
 	return &StoreReconciler{
-		fga: fga,
-		log: log,
-		mclifecycle: builder.NewBuilder("store", "StoreReconciler", []lifecyclesubroutine.Subroutine{
-			subroutine.NewStoreSubroutine(fga, mcMgr),
-			subroutine.NewAuthorizationModelSubroutine(fga, mcMgr, allClient, func(cfg *rest.Config) discovery.DiscoveryInterface {
-				return discovery.NewDiscoveryClientForConfigOrDie(cfg)
-			}, log),
-			subroutine.NewTupleSubroutine(fga, mcMgr),
-		}, log).WithConditionManagement().
-			BuildMultiCluster(mcMgr),
+		fga:       fga,
+		log:       log,
+		lifecycle: lc,
 	}
 }
 
 func (r *StoreReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.mclifecycle.Reconcile(ctxWithCluster, req, &corev1alpha1.Store{})
+	return r.lifecycle.Reconcile(ctx, req)
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error { // coverage-ignore
-	builder, err := r.mclifecycle.SetupWithManagerBuilder(mgr, cfg.MaxConcurrentReconciles, "store", &corev1alpha1.Store{}, cfg.DebugLabelValue, r.log, evp...)
-	if err != nil {
-		return err
-	}
-	return builder.
+func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
+	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
+	b := mcbuilder.ControllerManagedBy(mgr).
+		Named("store").
+		For(&corev1alpha1.Store{}).
+		WithOptions(controller.TypedOptions[mcreconcile.Request]{MaxConcurrentReconciles: cfg.MaxConcurrentReconciles}).
+		WithEventFilter(predicate.And(predicates...))
+
+	return b.
 		Watches(
 			&corev1alpha1.AuthorizationModel{},
 			func(clusterName string, c cluster.Cluster) ctrhandler.TypedEventHandler[client.Object, mcreconcile.Request] {

@@ -6,15 +6,13 @@ import (
 	"os"
 	"slices"
 	"strings"
+	"time"
 
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
-	"github.com/platform-mesh/security-operator/pkg/fga"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"github.com/platform-mesh/security-operator/internal/fga"
+	"github.com/platform-mesh/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -25,7 +23,7 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mcmanager.Manager, creatorRelation, objectType string) *workspaceInitializer {
+func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mcmanager.Manager, creatorRelation, objectType string, kcpHelper iclient.KcpClientHelper) *workspaceInitializer {
 	// read file from path
 	res, err := os.ReadFile(cfg.CoreModulePath)
 	if err != nil {
@@ -40,13 +38,11 @@ func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mc
 		cfg:             cfg,
 		creatorRelation: creatorRelation,
 		objectType:      objectType,
+		kcpHelper:       kcpHelper,
 	}
 }
 
-var (
-	_ lifecyclesubroutine.Subroutine  = &workspaceInitializer{}
-	_ lifecyclesubroutine.Initializer = &workspaceInitializer{}
-)
+var _ subroutines.Initializer = &workspaceInitializer{}
 
 type workspaceInitializer struct {
 	orgsClient      client.Client
@@ -57,56 +53,64 @@ type workspaceInitializer struct {
 
 	objectType      string
 	creatorRelation string
-}
-
-func (w *workspaceInitializer) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	// TODO: implement once finalizing workspaces are a thing
-	return ctrl.Result{}, nil
-}
-
-func (w *workspaceInitializer) Finalizers(_ runtimeobject.RuntimeObject) []string {
-	return nil
+	kcpHelper       iclient.KcpClientHelper
 }
 
 func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" }
 
-// Process implements lifecycle.Subroutine as no-op since Initialize handles the
-// work.
-func (w *workspaceInitializer) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	return ctrl.Result{}, nil
-}
+// Initialize implements subroutines.Initializer.
+func (w *workspaceInitializer) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
+	p := lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey]
+	if p == "" {
+		return subroutines.OK(), fmt.Errorf("annotation on LogicalCluster is not set")
+	}
+	lcID, _ := mccontext.ClusterFrom(ctx)
 
-// Initialize implements lifecycle.Initializer.
-func (w *workspaceInitializer) Initialize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	lc := instance.(*kcpcorev1alpha1.LogicalCluster)
-	cluster, err := w.mgr.ClusterFromContext(ctx)
+	lcClient, err := w.kcpHelper.NewForLogicalCluster(logicalcluster.Name(lcID))
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting cluster from context: %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("getting client: %w", err)
 	}
 
 	var ai accountsv1alpha1.AccountInfo
 	if err := cluster.GetClient().Get(ctx, client.ObjectKey{
 		Name: "account",
 	}, &ai); err != nil && !kerrors.IsNotFound(err) {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err)
 	} else if kerrors.IsNotFound(err) {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("AccountInfo not found yet, requeueing"), true, false)
+		return subroutines.StopWithRequeue(5*time.Second, "AccountInfo not found yet, requeueing"), nil
+	}
+
+	orgsClient, err := w.kcpHelper.NewForLogicalCluster(logicalcluster.Name("root:orgs"))
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting parent organisation client: %w", err)
 	}
 
 	var acc accountsv1alpha1.Account
 	if err := w.orgsClient.Get(ctx, client.ObjectKey{
 		Name: ai.Spec.Account.Name,
 	}, &acc); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("getting Account in orgs workspace: %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("getting Account in platform-mesh-system: %w", err)
 	}
 
 	store := v1alpha1.Store{
 		ObjectMeta: metav1.ObjectMeta{Name: generateStoreName(lc)},
 	}
 
-	tuples, err := fga.TuplesForOrganization(acc, ai, w.creatorRelation, w.objectType)
+	if acc.Spec.Creator == nil || *acc.Spec.Creator == "" {
+		return subroutines.OK(), fmt.Errorf("account creator is nil or empty")
+	}
+	tuples, err := fga.TuplesForOrganization(fga.TuplesForOrganizationInput{
+		BaseTuplesInput: fga.BaseTuplesInput{
+			Creator:                *acc.Spec.Creator,
+			AccountOriginClusterID: ai.Spec.Account.OriginClusterId,
+			AccountName:            ai.Spec.Account.Name,
+			CreatorRelation:        w.creatorRelation,
+			ObjectType:             w.objectType,
+		},
+	})
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("building tuples for organization: %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("building tuples for organization: %w", err)
 	}
 	if w.cfg.AllowMemberTuplesEnabled { // TODO: remove this flag once the feature is tested and stable
 		tuples = append(tuples, []v1alpha1.Tuple{
@@ -130,35 +134,24 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, instance runtimeo
 
 		return nil
 	}); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to create/update store: %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("unable to create/update store: %w", err)
 	} else if result == controllerutil.OperationResultCreated || result == controllerutil.OperationResultUpdated {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store needed to be updated, requeueing"), true, false)
+		return subroutines.StopWithRequeue(5*time.Second, "store needed to be updated, requeueing"), nil
 	}
 
 	// Check if Store applied tuple changes
 	for _, t := range tuples {
 		if !slices.Contains(store.Status.ManagedTuples, t) {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store does not yet contain all specified tuples, requeueing"), true, false)
+			return subroutines.StopWithRequeue(5*time.Second, "store does not yet contain all specified tuples, requeueing"), nil
 		}
 	}
 
 	if store.Status.StoreID == "" {
 		// Store is not ready yet, requeue
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("store id is empty"), true, false)
+		return subroutines.StopWithRequeue(5*time.Second, "store id is empty"), nil
 	}
 
-	accountInfo := accountsv1alpha1.AccountInfo{
-		ObjectMeta: metav1.ObjectMeta{Name: "account"},
-	}
-	_, err = controllerutil.CreateOrUpdate(ctx, cluster.GetClient(), &accountInfo, func() error {
-		accountInfo.Spec.FGA.Store.Id = store.Status.StoreID
-		return nil
-	})
-	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to create/update accountInfo: %w", err), true, true)
-	}
-
-	return ctrl.Result{}, nil
+	return subroutines.OK(), nil
 }
 
 func generateStoreName(lc *kcpcorev1alpha1.LogicalCluster) string {

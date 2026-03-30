@@ -168,7 +168,7 @@ func TestTupleProcessWithStore(t *testing.T) {
 
 			_, err := subroutine.Process(context.Background(), test.store)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, err)
 			} else {
 				assert.Nil(t, err)
 				assert.Equal(t, test.store.Status.ManagedTuples, test.store.Spec.Tuples)
@@ -329,7 +329,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 
 			_, err := subroutine.Process(ctx, test.store)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, err)
 			} else {
 				assert.Nil(t, err)
 				assert.Equal(t, test.store.Status.ManagedTuples, test.store.Spec.Tuples)
@@ -418,7 +418,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 
 			_, err := subroutine.Finalize(ctx, test.store)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, err)
 			} else {
 				assert.Nil(t, err)
 				assert.Empty(t, test.store.Status.ManagedTuples)
@@ -491,7 +491,7 @@ func TestTupleFinalizationWithStore(t *testing.T) {
 
 			_, err := subroutine.Finalize(context.Background(), test.store)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, err)
 			} else {
 				assert.Nil(t, err)
 				assert.Empty(t, test.store.Status.ManagedTuples)

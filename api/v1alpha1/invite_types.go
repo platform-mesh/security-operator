@@ -1,7 +1,7 @@
 package v1alpha1
 
 import (
-	lifecycleapi "github.com/platform-mesh/golang-commons/controller/lifecycle/api"
+	"github.com/platform-mesh/subroutines/conditions"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -39,12 +39,12 @@ type Invite struct {
 	Status InviteStatus `json:"status,omitempty,omitzero"`
 }
 
-// GetConditions implements api.RuntimeObjectConditions.
+// GetConditions implements conditions.ConditionAccessor.
 func (in *Invite) GetConditions() []metav1.Condition {
 	return in.Status.Conditions
 }
 
-// SetConditions implements api.RuntimeObjectConditions.
+// SetConditions implements conditions.ConditionAccessor.
 func (in *Invite) SetConditions(c []metav1.Condition) {
 	in.Status.Conditions = c
 }
@@ -58,7 +58,7 @@ type InviteList struct {
 	Items           []Invite `json:"items"`
 }
 
-var _ lifecycleapi.RuntimeObjectConditions = &Invite{}
+var _ conditions.ConditionAccessor = &Invite{}
 
 func init() {
 	SchemeBuilder.Register(&Invite{}, &InviteList{})

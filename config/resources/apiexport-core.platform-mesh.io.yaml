@@ -6,6 +6,11 @@ metadata:
 spec:
   resources:
   - group: core.platform-mesh.io
+    name: apiexportpolicies
+    schema: v260313-c8b198d.apiexportpolicies.core.platform-mesh.io
+    storage:
+      crd: {}
+  - group: core.platform-mesh.io
     name: authorizationmodels
     schema: v260112-5925c7e.authorizationmodels.core.platform-mesh.io
     storage:

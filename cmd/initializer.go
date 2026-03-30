@@ -8,6 +8,7 @@ import (
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/platform-mesh/security-operator/internal/controller"
+	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/security-operator/internal/predicates"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -99,8 +100,12 @@ var initializerCmd = &cobra.Command{
 			initializerCfg.IDP.AdditionalRedirectURLs = []string{}
 		}
 
-		if err := controller.NewOrgLogicalClusterInitializer(log, orgClient, initializerCfg, runtimeClient, mgr).
-			SetupWithManager(mgr, defaultCfg, predicates.LogicalClusterIsAccountTypeOrg()); err != nil {
+		orgReconciler, err := controller.NewOrgLogicalClusterReconciler(log, orgClient, initializerCfg, runtimeClient, mgr)
+		if err != nil {
+			setupLog.Error(err, "unable to create LogicalCluster reconciler")
+			os.Exit(1)
+		}
+		if err := orgReconciler.SetupWithManager(mgr, defaultCfg, predicates.LogicalClusterIsAccountTypeOrg()); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")
 			os.Exit(1)
 		}
@@ -111,10 +116,25 @@ var initializerCmd = &cobra.Command{
 			return err
 		}
 		defer func() { _ = conn.Close() }()
-		fga := openfgav1.NewOpenFGAServiceClient(conn)
+		fgaClient := openfgav1.NewOpenFGAServiceClient(conn)
+		storeIDGetter := fga.NewCachingStoreIDGetter(
+			fgaClient,
+			initializerCfg.FGA.StoreIDCacheTTL,
+			cmd.Context(),
+			log,
+		)
 
-		if err := controller.NewAccountLogicalClusterInitializer(log, initializerCfg, fga, mgr).
-			SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
+		mcc, err := mcclient.New(kcpCfg, client.Options{Scheme: scheme})
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create multicluster client")
+			os.Exit(1)
+		}
+		alcReconciler, err := controller.NewAccountLogicalClusterReconciler(log, initializerCfg, fgaClient, storeIDGetter, mcc, mgr)
+		if err != nil {
+			setupLog.Error(err, "unable to create AccountLogicalCluster reconciler")
+			os.Exit(1)
+		}
+		if err := alcReconciler.SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "AccountLogicalCluster")
 			os.Exit(1)
 		}

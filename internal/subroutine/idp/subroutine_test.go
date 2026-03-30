@@ -8,16 +8,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/idp"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
+	"github.com/platform-mesh/subroutines"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/oauth2"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -95,7 +94,7 @@ func getTestConfig(cfg *config.Config, baseURL string) *config.Config {
 func TestSubroutineProcess(t *testing.T) {
 	testCases := []struct {
 		desc               string
-		obj                runtimeobject.RuntimeObject
+		obj                client.Object
 		cfg                *config.Config
 		setupK8sMocks      func(m *mocks.MockClient, kcpClient client.Client)
 		setupKeycloakMocks func(mux *http.ServeMux, baseURL string)
@@ -929,7 +928,7 @@ func TestSubroutineProcess(t *testing.T) {
 func TestFinalize(t *testing.T) {
 	testCases := []struct {
 		desc               string
-		obj                runtimeobject.RuntimeObject
+		obj                client.Object
 		cfg                *config.Config
 		setupK8sMocks      func(m *mocks.MockClient)
 		setupKeycloakMocks func(mux *http.ServeMux, baseURL string)
@@ -1266,5 +1265,5 @@ func TestHelperFunctions(t *testing.T) {
 
 	res, finalizerErr := s.Finalize(ctx, &v1alpha1.IdentityProviderConfiguration{})
 	assert.Nil(t, finalizerErr)
-	assert.Equal(t, ctrl.Result{}, res)
+	assert.Equal(t, subroutines.OK(), res)
 }

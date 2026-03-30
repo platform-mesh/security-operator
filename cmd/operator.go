@@ -13,6 +13,7 @@ import (
 	"github.com/platform-mesh/golang-commons/sentry"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/platform-mesh/security-operator/internal/predicates"
 	internalwebhook "github.com/platform-mesh/security-operator/internal/webhook"
@@ -83,7 +84,7 @@ var operatorCmd = &cobra.Command{
 		}
 
 		if operatorCfg.MigrateAuthorizationModels {
-			if err := migrateAuthorizationModels(ctx, restCfg, scheme, logicalClusterClientFromKey(restCfg, log)); err != nil {
+			if err := migrateAuthorizationModels(ctx, restCfg, &operatorCfg, scheme, logicalClusterClientFromKey(restCfg, log)); err != nil {
 				log.Error().Err(err).Msg("migration failed")
 				return err
 			}
@@ -143,7 +144,7 @@ var operatorCmd = &cobra.Command{
 			return fmt.Errorf("scheme should not be nil")
 		}
 
-		provider, err := apiexport.New(restCfg, operatorCfg.APIExportEndpointSliceName, apiexport.Options{
+		provider, err := apiexport.New(restCfg, operatorCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
@@ -160,12 +161,6 @@ var operatorCmd = &cobra.Command{
 		conn, err := grpc.NewClient(operatorCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Error().Err(err).Msg("unable to create grpc client")
-			return err
-		}
-
-		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create org client")
 			return err
 		}
 
@@ -190,11 +185,12 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
 			return err
 		}
-		if err = controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, orgClient, &operatorCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {
-			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create controller")
+		inviteReconciler, err := controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log)
+		if err != nil {
+			log.Error().Err(err).Str("controller", "invite").Msg("unable to create reconciler")
 			return err
 		}
-		if err = controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log).SetupWithManager(mgr, defaultCfg, log); err != nil {
+		if err = inviteReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
 			return err
 		}
@@ -241,8 +237,8 @@ var operatorCmd = &cobra.Command{
 }
 
 // this function can be removed after the operator has migrated the authz models in all environments
-func migrateAuthorizationModels(ctx context.Context, config *rest.Config, scheme *runtime.Scheme, getClusterClient NewLogicalClusterClientFunc) error {
-	allClient, err := iclient.NewForAllPlatformMeshResources(ctx, config, scheme)
+func migrateAuthorizationModels(ctx context.Context, config *rest.Config, operatorCfg *config.Config, scheme *runtime.Scheme, getClusterClient NewLogicalClusterClientFunc) error {
+	allClient, err := iclient.GetAllClient(ctx, config, scheme, operatorCfg.APIExportEndpointSlices.CorePlatformMeshIO)
 	if err != nil {
 		return fmt.Errorf("failed to create all-cluster client: %w", err)
 	}

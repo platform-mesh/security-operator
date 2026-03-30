@@ -12,6 +12,7 @@ import (
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -235,7 +236,13 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 	})
 	suite.Require().NoError(err)
 
-	err = controller.NewAPIBindingReconciler(ctx, testLogger, mgr).SetupWithManager(mgr, defaultCfg)
+	operatorCfg := &config.Config{
+		APIExportEndpointSlices: config.APIExportEndpointSlices{
+			CorePlatformMeshIO: "core.platform-mesh.io",
+		},
+	}
+
+	err = controller.NewAPIBindingReconciler(ctx, testLogger, mgr, operatorCfg).SetupWithManager(mgr, defaultCfg)
 	suite.Require().NoError(err)
 
 	managerCtx, cancel := context.WithCancel(ctx)
