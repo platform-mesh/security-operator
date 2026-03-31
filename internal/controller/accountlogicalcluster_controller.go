@@ -43,9 +43,7 @@ func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, f
 	kcpClientHelper := iclient.NewKcpHelper(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
 	lc := lifecycle.New(mgr, "AccountLogicalClusterReconciler", func() client.Object {
 		return &kcpcorev1alpha1.LogicalCluster{}
-	}, subroutine.NewAccountTuplesSubroutine(mgr, fgaClient, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType, kcpClientHelper)).
-		WithInitializer(cfg.InitializerName()).
-		WithTerminator(cfg.TerminatorName())
+	}, subroutine.NewAccountTuplesSubroutine(mgr, fgaClient, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType, kcpClientHelper))
 
 	return &AccountLogicalClusterReconciler{
 		log:         log,

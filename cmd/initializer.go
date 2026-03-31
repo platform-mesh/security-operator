@@ -101,7 +101,7 @@ var initializerCmd = &cobra.Command{
 			initializerCfg.IDP.AdditionalRedirectURLs = []string{}
 		}
 
-		orgReconciler, err := controller.NewOrgLogicalClusterReconciler(log, orgClient, initializerCfg, runtimeClient, mgr)
+		orgReconciler, err := controller.NewOrgLogicalClusterInitializer(log, orgClient, initializerCfg, runtimeClient, mgr)
 		if err != nil {
 			setupLog.Error(err, "unable to create LogicalCluster reconciler")
 			os.Exit(1)
@@ -125,7 +125,7 @@ var initializerCmd = &cobra.Command{
 			log,
 		)
 
-		alcReconciler, err := controller.NewAccountLogicalClusterReconciler(log, initializerCfg, fgaClient, storeIDGetter, mgr)
+		alcReconciler, err := controller.NewAccountLogicalClusterInitializer(log, initializerCfg, fgaClient, storeIDGetter, mgr)
 		if err != nil {
 			setupLog.Error(err, "unable to create AccountLogicalCluster reconciler")
 			os.Exit(1)
