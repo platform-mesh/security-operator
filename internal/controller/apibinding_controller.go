@@ -4,17 +4,18 @@ import (
 	"context"
 
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/logger"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
+	"github.com/platform-mesh/subroutines/lifecycle"
 	"github.com/rs/zerolog/log"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
@@ -27,25 +28,34 @@ func NewAPIBindingReconciler(ctx context.Context, logger *logger.Logger, mcMgr m
 		log.Fatal().Err(err).Msg("unable to create new client")
 	}
 
+	lc := lifecycle.New(mcMgr, "APIBindingReconciler", func() client.Object {
+		return &kcpapisv1alpha2.APIBinding{}
+	}, subroutine.NewAuthorizationModelGenerationSubroutine(mcMgr, allclient))
+
 	return &APIBindingReconciler{
-		log: logger,
-		mclifecycle: builder.NewBuilder("apibinding", "apibinding-controller", []lifecyclesubroutine.Subroutine{
-			subroutine.NewAuthorizationModelGenerationSubroutine(mcMgr, allclient),
-		}, logger).
-			BuildMultiCluster(mcMgr),
+		log:       logger,
+		lifecycle: lc,
 	}
 }
 
 type APIBindingReconciler struct {
-	log         *logger.Logger
-	mclifecycle *multicluster.LifecycleManager
+	log       *logger.Logger
+	lifecycle *lifecycle.Lifecycle
 }
 
 func (r *APIBindingReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpapisv1alpha2.APIBinding{})
+	return r.lifecycle.Reconcile(ctx, req)
 }
 
 func (r *APIBindingReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
-	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "apibinding-controller", &kcpapisv1alpha2.APIBinding{}, cfg.DebugLabelValue, r, r.log, evp...)
+	opts := controller.TypedOptions[mcreconcile.Request]{
+		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
+	}
+	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
+	return mcbuilder.ControllerManagedBy(mgr).
+		Named("apibinding").
+		For(&kcpapisv1alpha2.APIBinding{}).
+		WithOptions(opts).
+		WithEventFilter(predicate.And(predicates...)).
+		Complete(r)
 }

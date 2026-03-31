@@ -9,12 +9,9 @@ import (
 	"text/template"
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"github.com/platform-mesh/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -47,7 +44,10 @@ func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, allClien
 	}
 }
 
-var _ lifecyclesubroutine.Subroutine = &AuthorizationModelGenerationSubroutine{}
+var (
+	_ subroutines.Processor = &AuthorizationModelGenerationSubroutine{}
+	_ subroutines.Finalizer = &AuthorizationModelGenerationSubroutine{}
+)
 
 type AuthorizationModelGenerationSubroutine struct {
 	mgr       mcmanager.Manager
@@ -97,28 +97,28 @@ type modelInput struct {
 	Scope    string
 }
 
-// Finalize implements lifecycle.Subroutine.
-func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+// Finalize implements subroutines.Finalizer.
+func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
 
-	bindingToDelete := instance.(*kcpapisv1alpha2.APIBinding)
+	bindingToDelete := obj.(*kcpapisv1alpha2.APIBinding)
 
 	bindingCluster, err := a.mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("unable to get cluster from context: %w", err), true, false)
+		return subroutines.OK(), fmt.Errorf("unable to get cluster from context: %w", err)
 	}
 
 	var bindings kcpapisv1alpha2.APIBindingList
 	err = a.allClient.List(ctx, &bindings)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		return subroutines.OK(), fmt.Errorf("listing APIBindings: %w", err)
 	}
 
 	var toDeleteAccountInfo accountv1alpha1.AccountInfo
 	err = bindingCluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &toDeleteAccountInfo)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to get account info for binding deletion")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		return subroutines.OK(), fmt.Errorf("getting AccountInfo: %w", err)
 	}
 
 	bindingCount := 0
@@ -129,7 +129,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 
 		bindingWsCluster, err := a.mgr.GetCluster(ctx, string(logicalcluster.From(&binding)))
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+			return subroutines.OK(), fmt.Errorf("getting cluster for binding: %w", err)
 		}
 
 		var accountInfo accountv1alpha1.AccountInfo
@@ -139,7 +139,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 			continue
 		}
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+			return subroutines.OK(), fmt.Errorf("getting AccountInfo for binding: %w", err)
 		}
 
 		// org of the binding to be counted
@@ -154,12 +154,12 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 
 	if bindingCount > 1 {
 		// If there are still other bindings for the same APIExport, we can skip the model deletion.
-		return ctrl.Result{}, nil
+		return subroutines.OK(), nil
 	}
 
 	apiExportCluster, err := a.mgr.GetCluster(ctx, bindingToDelete.Status.APIExportClusterName)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster %q: %w", bindingToDelete.Status.APIExportClusterName, err), true, false)
+		return subroutines.OK(), fmt.Errorf("failed to get cluster %q: %w", bindingToDelete.Status.APIExportClusterName, err)
 	}
 	apiExportClient := apiExportCluster.GetClient()
 
@@ -167,7 +167,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 	err = apiExportClient.Get(ctx, types.NamespacedName{Name: bindingToDelete.Spec.Reference.Export.Name}, &apiExport)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to get apiexport for binding deletion")
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		return subroutines.OK(), fmt.Errorf("getting APIExport: %w", err)
 	}
 
 	for _, latestResourceSchema := range apiExport.Spec.Resources {
@@ -175,7 +175,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 		err := apiExportClient.Get(ctx, types.NamespacedName{Name: latestResourceSchema.Schema}, &resourceSchema)
 		if err != nil {
 			log.Error().Err(err).Msg("failed to get resource schema for binding deletion")
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+			return subroutines.OK(), fmt.Errorf("getting APIResourceSchema: %w", err)
 		}
 
 		authModelName := toK8sName(resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural, toDeleteAccountInfo.Spec.Organization.Name)
@@ -191,70 +191,66 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, i
 				continue
 			}
 			log.Error().Err(err).Msg("failed to delete authorization model")
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+			return subroutines.OK(), fmt.Errorf("deleting AuthorizationModel %s: %w", authModelName, err)
 		}
 		log.Info().Msg(fmt.Sprintf("authorization model %s has been deleted", authModelName))
 	}
 
-	return ctrl.Result{}, nil
-
+	return subroutines.OK(), nil
 }
 
-// Finalizers implements lifecycle.Subroutine.
-func (a *AuthorizationModelGenerationSubroutine) Finalizers(instance lifecyclecontrollerruntime.RuntimeObject) []string {
-	binding := instance.(*kcpapisv1alpha2.APIBinding)
+// Finalizers implements subroutines.Finalizer.
+func (a *AuthorizationModelGenerationSubroutine) Finalizers(obj client.Object) []string {
+	binding := obj.(*kcpapisv1alpha2.APIBinding)
 	if strings.Contains(binding.Name, "platform-mesh.io") || strings.Contains(binding.Name, "kcp.io") {
 		return []string{}
 	}
 	return []string{apiBindingFinalizer}
 }
 
-// GetName implements lifecycle.Subroutine.
+// GetName implements subroutines.Subroutine.
 func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 	return "AuthorizationModelGeneration"
 }
 
-// Process implements lifecycle.Subroutine.
-func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	binding := instance.(*kcpapisv1alpha2.APIBinding)
+// Process implements subroutines.Processor.
+func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	binding := obj.(*kcpapisv1alpha2.APIBinding)
 
 	internalAPIBindings := []string{"core.platform-mesh.io", "system.platform-mesh.io"}
 
 	if slices.Contains(internalAPIBindings, binding.Spec.Reference.Export.Name) || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
 		// If the APIExport is the core.platform-mesh.io, system.platform-mesh.io we can skip the model generation.
-		return ctrl.Result{}, nil
+		return subroutines.OK(), nil
 	}
 
 	cluster, err := a.mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		return subroutines.OK(), fmt.Errorf("getting cluster from context: %w", err)
 	}
 
 	var accountInfo accountv1alpha1.AccountInfo
 	err = cluster.GetClient().Get(ctx, types.NamespacedName{Name: "account"}, &accountInfo)
 	if err != nil {
-		if kerrors.IsNotFound(err) || meta.IsNoMatchError(err) {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, false)
-		}
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		return subroutines.OK(), fmt.Errorf("getting AccountInfo: %w", err)
 	}
 
 	apiExportCluster, err := a.mgr.GetCluster(ctx, binding.Status.APIExportClusterName)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		return subroutines.OK(), fmt.Errorf("getting APIExport cluster: %w", err)
 	}
 
 	var apiExport kcpapisv1alpha2.APIExport
 	err = apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: binding.Spec.Reference.Export.Name}, &apiExport)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		return subroutines.OK(), fmt.Errorf("getting APIExport: %w", err)
 	}
 
 	for _, latestResourceSchema := range apiExport.Spec.Resources {
 		var resourceSchema kcpapisv1alpha1.APIResourceSchema
 		err := apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: latestResourceSchema.Schema}, &resourceSchema)
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+			return subroutines.OK(), fmt.Errorf("getting APIResourceSchema: %w", err)
 		}
 
 		longestRelationName := fmt.Sprintf("create_%s_%s", resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural)
@@ -273,7 +269,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 			Scope:    string(resourceSchema.Spec.Scope),
 		})
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+			return subroutines.OK(), fmt.Errorf("executing model template: %w", err)
 		}
 
 		model := securityv1alpha1.AuthorizationModel{
@@ -293,10 +289,9 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 			return nil
 		})
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+			return subroutines.OK(), fmt.Errorf("creating or updating AuthorizationModel: %w", err)
 		}
-
 	}
 
-	return ctrl.Result{}, nil
+	return subroutines.OK(), nil
 }
