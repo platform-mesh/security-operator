@@ -34,14 +34,17 @@ type AccountTuplesSubroutine struct {
 	kcpHelper       iclient.KcpClientHelper
 }
 
-// Process implements lifecycle.Subroutine as no-op since Initialize handles the
-// work when not in deletion.
+// Process implements subroutines.Processor.
 func (s *AccountTuplesSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
-	return subroutines.OK(), nil
+	return s.reconcile(ctx, obj)
 }
 
 // Initialize implements subroutines.Initializer.
 func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	return s.reconcile(ctx, obj)
+}
+
+func (s *AccountTuplesSubroutine) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	accountPath, err := platformmeshpath.NewAccountPathFromLogicalCluster(lc)
@@ -168,6 +171,7 @@ func NewAccountTuplesSubroutine(mgr mcmanager.Manager, fga openfgav1.OpenFGAServ
 
 var (
 	_ subroutines.Initializer = &AccountTuplesSubroutine{}
+	_ subroutines.Processor   = &AccountTuplesSubroutine{}
 	_ subroutines.Terminator  = &AccountTuplesSubroutine{}
 )
 

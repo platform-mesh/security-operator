@@ -43,7 +43,10 @@ func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mc
 	}
 }
 
-var _ subroutines.Initializer = &workspaceInitializer{}
+var (
+	_ subroutines.Initializer = &workspaceInitializer{}
+	_ subroutines.Processor   = &workspaceInitializer{}
+)
 
 type workspaceInitializer struct {
 	orgsClient      client.Client
@@ -61,6 +64,15 @@ func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" 
 
 // Initialize implements subroutines.Initializer.
 func (w *workspaceInitializer) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	return w.reconcile(ctx, obj)
+}
+
+// Process implements subroutines.Processor.
+func (w *workspaceInitializer) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	return w.reconcile(ctx, obj)
+}
+
+func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 	
 	cluster, err := w.mgr.ClusterFromContext(ctx)

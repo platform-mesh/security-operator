@@ -38,12 +38,24 @@ func NewWorkspaceAuthConfigurationSubroutine(orgClient, runtimeClient client.Cli
 	}
 }
 
-var _ subroutines.Initializer = &workspaceAuthSubroutine{}
+var (
+	_ subroutines.Initializer = &workspaceAuthSubroutine{}
+	_ subroutines.Processor   = &workspaceAuthSubroutine{}
+)
 
 func (r *workspaceAuthSubroutine) GetName() string { return "workspaceAuthConfiguration" }
 
 // Initialize implements subroutines.Initializer.
 func (r *workspaceAuthSubroutine) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	return r.reconcile(ctx, obj)
+}
+
+// Process implements subroutines.Processor.
+func (r *workspaceAuthSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	return r.reconcile(ctx, obj)
+}
+
+func (r *workspaceAuthSubroutine) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)

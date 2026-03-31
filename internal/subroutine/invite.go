@@ -36,7 +36,10 @@ func NewInviteSubroutine(orgsClient client.Client, mgr mcmanager.Manager) (*invi
 	}, nil
 }
 
-var _ subroutines.Initializer = &inviteSubroutine{}
+var (
+	_ subroutines.Initializer = &inviteSubroutine{}
+	_ subroutines.Processor   = &inviteSubroutine{}
+)
 
 type inviteSubroutine struct {
 	orgsClient client.Client
@@ -48,6 +51,15 @@ func (w *inviteSubroutine) GetName() string { return "InviteInitializationSubrou
 
 // Initialize implements subroutines.Initializer.
 func (w *inviteSubroutine) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	return w.reconcile(ctx, obj)
+}
+
+// Process implements subroutines.Processor.
+func (w *inviteSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	return w.reconcile(ctx, obj)
+}
+
+func (w *inviteSubroutine) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	wsName := getWorkspaceName(lc)

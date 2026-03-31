@@ -46,7 +46,10 @@ func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg confi
 	}, nil
 }
 
-var _ subroutines.Initializer = &IDPSubroutine{}
+var (
+	_ subroutines.Initializer = &IDPSubroutine{}
+	_ subroutines.Processor   = &IDPSubroutine{}
+)
 
 type IDPSubroutine struct {
 	orgsClient                client.Client
@@ -62,6 +65,15 @@ func (i *IDPSubroutine) GetName() string { return "IDPSubroutine" }
 
 // Initialize implements subroutines.Initializer.
 func (i *IDPSubroutine) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	return i.reconcile(ctx, obj)
+}
+
+// Process implements subroutines.Processor.
+func (i *IDPSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	return i.reconcile(ctx, obj)
+}
+
+func (i *IDPSubroutine) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)
