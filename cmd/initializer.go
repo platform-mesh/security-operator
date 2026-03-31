@@ -124,12 +124,7 @@ var initializerCmd = &cobra.Command{
 			log,
 		)
 
-		mcc, err := mcclient.New(kcpCfg, client.Options{Scheme: scheme})
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create multicluster client")
-			os.Exit(1)
-		}
-		alcReconciler, err := controller.NewAccountLogicalClusterReconciler(log, initializerCfg, fgaClient, storeIDGetter, mcc, mgr)
+		alcReconciler, err := controller.NewAccountLogicalClusterReconciler(log, initializerCfg, fgaClient, storeIDGetter, mgr)
 		if err != nil {
 			setupLog.Error(err, "unable to create AccountLogicalCluster reconciler")
 			os.Exit(1)

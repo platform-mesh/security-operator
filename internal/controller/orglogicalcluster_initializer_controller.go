@@ -2,18 +2,23 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/controller/filter"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
+	"github.com/platform-mesh/subroutines"
+	"github.com/platform-mesh/subroutines/lifecycle"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
@@ -23,40 +28,65 @@ import (
 type OrgLogicalClusterInitializer struct {
 	log *logger.Logger
 
-	mclifecycle *multicluster.LifecycleManager
+	lifecycle   *lifecycle.Lifecycle
+	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
 }
 
-func NewOrgLogicalClusterInitializer(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) *OrgLogicalClusterInitializer {
-	var subroutines []lifecyclesubroutine.Subroutine
+func NewOrgLogicalClusterInitializer(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) (*OrgLogicalClusterInitializer, error) {
+	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[mcreconcile.Request](ratelimiter.NewConfig())
+	if err != nil {
+		return nil, fmt.Errorf("creating RateLimiter: %w", err)
+	}
+	kcpClientHelper := iclient.NewKcpHelper(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
+
+	var subroutines []subroutines.Subroutine
 
 	if cfg.Initializer.WorkspaceInitializerEnabled {
-		subroutines = append(subroutines, subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr, cfg.FGA.CreatorRelation, cfg.FGA.ObjectType))
+		subroutines = append(subroutines, subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr, cfg.FGA.CreatorRelation, cfg.FGA.ObjectType, kcpClientHelper))
 	}
 	if cfg.Initializer.IDPEnabled {
-		subroutines = append(subroutines, subroutine.NewIDPSubroutine(orgClient, mgr, cfg))
+		idpSub, err := subroutine.NewIDPSubroutine(orgClient, mgr, cfg)
+		if err != nil {
+			return nil, fmt.Errorf("creating IDP subroutine: %w", err)
+		}
+		subroutines = append(subroutines, idpSub)
 	}
 	if cfg.Initializer.InviteEnabled {
-		subroutines = append(subroutines, subroutine.NewInviteSubroutine(orgClient, mgr))
+		inviteSub, err := subroutine.NewInviteSubroutine(orgClient, mgr)
+		if err != nil {
+			return nil, fmt.Errorf("creating Invite subroutine: %w", err)
+		}
+		subroutines = append(subroutines, inviteSub)
 	}
 	if cfg.Initializer.WorkspaceAuthEnabled {
 		subroutines = append(subroutines, subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, mgr, cfg))
 	}
 
+	lc := lifecycle.New(mgr, "OrgLogicalClusterReconciler", func() client.Object {
+		return &kcpcorev1alpha1.LogicalCluster{}
+	}, subroutines...)
+
 	return &OrgLogicalClusterInitializer{
-		log: log,
-		mclifecycle: builder.NewBuilder("logicalcluster", "OrgLogicalClusterInitializer", subroutines, log).
-			WithReadOnly().
-			WithStaticThenExponentialRateLimiter().
-			WithInitializer(cfg.InitializerName()).
-			BuildMultiCluster(mgr),
-	}
+		log:         log,
+		lifecycle:   lc,
+		rateLimiter: rl,
+	}, nil
 }
 
 func (r *OrgLogicalClusterInitializer) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpcorev1alpha1.LogicalCluster{})
+	return r.lifecycle.Reconcile(ctx, req)
 }
 
 func (r *OrgLogicalClusterInitializer) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
-	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "LogicalCluster", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r, r.log, evp...)
+	opts := controller.TypedOptions[mcreconcile.Request]{
+		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
+		RateLimiter:             r.rateLimiter,
+	}
+	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
+	return mcbuilder.ControllerManagedBy(mgr).
+		Named("LogicalCluster").
+		For(&kcpcorev1alpha1.LogicalCluster{}).
+		WithOptions(opts).
+		WithEventFilter(predicate.And(predicates...)).
+		Complete(r)
 }

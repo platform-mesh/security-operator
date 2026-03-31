@@ -15,6 +15,7 @@ import (
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/controller"
+	fga2 "github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/security-operator/internal/predicates"
 	internalwebhook "github.com/platform-mesh/security-operator/internal/webhook"
 	"github.com/spf13/cobra"
@@ -163,8 +164,15 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("unable to create grpc client")
 			return err
 		}
+		defer func() { _ = conn.Close() }()
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
+		storeIDGetter := fga2.NewCachingStoreIDGetter(
+			fga,
+			operatorCfg.FGA.StoreIDCacheTTL,
+			ctx,
+			log,
+		)
 
 		k8sCfg := ctrl.GetConfigOrDie()
 
@@ -173,8 +181,13 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("Failed to create in cluster client")
 			return err
 		}
+		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create org client")
+			return err
+		}
 
-		if err = controller.NewStoreReconciler(ctx, log, fga, mgr).
+		if err = controller.NewStoreReconciler(ctx, log, fga, mgr, &operatorCfg).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
 			return err
@@ -195,12 +208,22 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewOrgLogicalClusterReconciler(log, orgClient, operatorCfg, runtimeClient, mgr).SetupWithManager(mgr, defaultCfg, operatorCfg.InitializerName(), predicates.LogicalClusterIsAccountTypeOrg()); err != nil {
+		orgReconciler, err := controller.NewOrgLogicalClusterReconciler(log, orgClient, operatorCfg, runtimeClient, mgr)
+		if err != nil {
+			log.Error().Err(err).Str("controller", "logicalcluster").Msg("unable to create reconciler")
+			return err
+		}
+		if err = orgReconciler.SetupWithManager(mgr, defaultCfg, predicates.LogicalClusterIsAccountTypeOrg()); err != nil {
 			log.Error().Err(err).Str("controller", "logicalcluster").Msg("unable to create controller")
 			return err
 		}
 
-		if err = controller.NewAccountLogicalClusterReconciler(log, operatorCfg, fga, mgr).SetupWithManager(mgr, defaultCfg, operatorCfg.InitializerName(), predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
+		alcReconciler, err := controller.NewAccountLogicalClusterReconciler(log, operatorCfg, fga, storeIDGetter, mgr)
+		if err != nil {
+			log.Error().Err(err).Str("controller", "accounttypelogicalcluster").Msg("unable to create reconciler")
+			return err
+		}
+		if err = alcReconciler.SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
 			log.Error().Err(err).Str("controller", "accounttypelogicalcluster").Msg("unable to create controller")
 			return err
 		}

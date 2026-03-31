@@ -107,20 +107,11 @@ func (i *IDPSubroutine) Initialize(ctx context.Context, obj client.Object) (subr
 					Namespace: secretNamespace,
 				},
 			},
-		},
-	}
-
-	idp := &v1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
-	_, err = controllerutil.CreateOrPatch(ctx, i.orgsClient, idp, func() error {
-		idp.Spec.RegistrationAllowed = i.registrationAllowed
-
-		for _, desired := range clients {
-			idp.Spec.Clients = ensureClient(idp.Spec.Clients, desired)
 		}
 		return nil
 	})
 	if err != nil {
-		return subroutines.OK(), fmt.Errorf("failed to create idp resource %w", err)
+		return subroutines.OK(), fmt.Errorf("failed to create or update idp resource %w", err)
 	}
 
 	log.Info().Str("workspace", workspaceName).Msg("idp configuration resource is created")

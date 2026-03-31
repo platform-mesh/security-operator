@@ -10,6 +10,7 @@ import (
 
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/subroutines"
@@ -61,15 +62,10 @@ func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" 
 // Initialize implements subroutines.Initializer.
 func (w *workspaceInitializer) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
-	p := lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey]
-	if p == "" {
-		return subroutines.OK(), fmt.Errorf("annotation on LogicalCluster is not set")
-	}
-	lcID, _ := mccontext.ClusterFrom(ctx)
-
-	lcClient, err := w.kcpHelper.NewForLogicalCluster(logicalcluster.Name(lcID))
+	
+	cluster, err := w.mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return subroutines.OK(), fmt.Errorf("getting client: %w", err)
+		return subroutines.OK(), fmt.Errorf("failed to get cluster from context %w", err)
 	}
 
 	var ai accountsv1alpha1.AccountInfo
@@ -79,11 +75,6 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, obj client.Object
 		return subroutines.OK(), fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err)
 	} else if kerrors.IsNotFound(err) {
 		return subroutines.StopWithRequeue(5*time.Second, "AccountInfo not found yet, requeueing"), nil
-	}
-
-	orgsClient, err := w.kcpHelper.NewForLogicalCluster(logicalcluster.Name("root:orgs"))
-	if err != nil {
-		return subroutines.OK(), fmt.Errorf("getting parent organisation client: %w", err)
 	}
 
 	var acc accountsv1alpha1.Account
@@ -126,6 +117,7 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, obj client.Object
 			},
 		}...)
 	}
+
 	if result, err := controllerutil.CreateOrUpdate(ctx, w.orgsClient, &store, func() error {
 		store.Spec = v1alpha1.StoreSpec{
 			CoreModule: w.coreModule,

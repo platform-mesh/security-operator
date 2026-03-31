@@ -2,18 +2,24 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/builder"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/multicluster"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
+	"github.com/platform-mesh/golang-commons/controller/filter"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
+	"github.com/platform-mesh/subroutines/lifecycle"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
@@ -24,28 +30,44 @@ import (
 type AccountLogicalClusterInitializer struct {
 	log *logger.Logger
 
-	mclifecycle *multicluster.LifecycleManager
+	lifecycle   *lifecycle.Lifecycle
+	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
 }
 
-func NewAccountLogicalClusterInitializer(log *logger.Logger, cfg config.Config, fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *AccountLogicalClusterInitializer {
-	return &AccountLogicalClusterInitializer{
-		log: log,
-		mclifecycle: builder.NewBuilder("security", "AccountLogicalClusterInitializer", []lifecyclesubroutine.Subroutine{
-			subroutine.NewAccountTuplesSubroutine(mgr, fga, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType),
-		}, log).
-			WithReadOnly().
-			WithStaticThenExponentialRateLimiter().
-			WithInitializer(cfg.InitializerName()).
-			WithTerminator(cfg.TerminatorName()).
-			BuildMultiCluster(mgr),
+func NewAccountLogicalClusterInitializer(log *logger.Logger, cfg config.Config, fga openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, mgr mcmanager.Manager) (*AccountLogicalClusterInitializer, error) {
+	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[mcreconcile.Request](ratelimiter.NewConfig())
+	if err != nil {
+		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
+
+	kcpClientHelper := iclient.NewKcpHelper(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
+	lc := lifecycle.New(mgr, "AccountLogicalClusterReconciler", func() client.Object {
+		return &kcpcorev1alpha1.LogicalCluster{}
+	}, subroutine.NewAccountTuplesSubroutine(mgr, fga, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType, kcpClientHelper)).
+		WithInitializer(cfg.InitializerName()).
+		WithTerminator(cfg.TerminatorName())
+
+	return &AccountLogicalClusterInitializer{
+		log:         log,
+		lifecycle:   lc,
+		rateLimiter: rl,
+	}, nil
 }
 
 func (r *AccountLogicalClusterInitializer) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	ctxWithCluster := mccontext.WithCluster(ctx, req.ClusterName)
-	return r.mclifecycle.Reconcile(ctxWithCluster, req, &kcpcorev1alpha1.LogicalCluster{})
+	return r.lifecycle.Reconcile(ctx, req)
 }
 
 func (r *AccountLogicalClusterInitializer) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
-	return r.mclifecycle.SetupWithManager(mgr, cfg.MaxConcurrentReconciles, "AccountLogicalClusterInitializer", &kcpcorev1alpha1.LogicalCluster{}, cfg.DebugLabelValue, r, r.log, evp...)
+	opts := controller.TypedOptions[mcreconcile.Request]{
+		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
+		RateLimiter:             r.rateLimiter,
+	}
+	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
+	return mcbuilder.ControllerManagedBy(mgr).
+		Named("AccountLogicalCluster").
+		For(&kcpcorev1alpha1.LogicalCluster{}).
+		WithOptions(opts).
+		WithEventFilter(predicate.And(predicates...)).
+		Complete(r)
 }
