@@ -64,7 +64,7 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, obj client.Obj
 
 	// Retrieve the Account resource out of the parent workspace to determine
 	// the creator
-	parentAccountClient, err := s.kcpHelper.NewForLogicalCluster(logicalcluster.Name(parentPath.String()))
+	parentAccountClient, err := s.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(parentPath.String()))
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting client for parent account cluster: %w", err)
 	}
@@ -176,7 +176,7 @@ var (
 func (s *AccountTuplesSubroutine) clusterAndIDFromLogicalClusterForPath(ctx context.Context, p logicalcluster.Path) (string, kcpcorev1alpha1.LogicalCluster, error) {
 	var lc kcpcorev1alpha1.LogicalCluster
 
-	clusterClient, err := s.kcpHelper.NewForLogicalCluster(logicalcluster.Name(p.String()))
+	clusterClient, err := s.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(p.String()))
 	if err != nil {
 		return "", lc, fmt.Errorf("getting account cluster client: %w", err)
 	}

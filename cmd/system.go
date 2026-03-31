@@ -6,6 +6,7 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshcontext "github.com/platform-mesh/golang-commons/context"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/spf13/cobra"
@@ -91,7 +92,7 @@ var systemCmd = &cobra.Command{
 			log,
 		)
 
-		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
+		orgClient, err := iclient.NewClientForLogicalCluster(restCfg, scheme, logicalcluster.Name("root:orgs"))
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create org client")
 			return err

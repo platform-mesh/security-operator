@@ -36,8 +36,8 @@ func (_m *MockKcpHelper) EXPECT() *MockKcpHelper_Expecter {
 	return &MockKcpHelper_Expecter{mock: &_m.Mock}
 }
 
-// NewForLogicalCluster provides a mock function for the type MockKcpHelper
-func (_mock *MockKcpHelper) NewForLogicalCluster(clusterKey logicalcluster.Name) (client.Client, error) {
+// NewClientForLogicalCluster provides a mock function for the type MockKcpHelper
+func (_mock *MockKcpHelper) NewClientForLogicalCluster(clusterKey logicalcluster.Name) (client.Client, error) {
 	ret := _mock.Called(clusterKey)
 
 	var r0 client.Client
@@ -59,29 +59,29 @@ func (_mock *MockKcpHelper) NewForLogicalCluster(clusterKey logicalcluster.Name)
 	return r0, r1
 }
 
-// MockKcpHelper_NewForLogicalCluster_Call is a helper struct to make the mock expectations more readable
-type MockKcpHelper_NewForLogicalCluster_Call struct {
+// MockKcpHelper_NewClientForLogicalCluster_Call is a helper struct to make the mock expectations more readable
+type MockKcpHelper_NewClientForLogicalCluster_Call struct {
 	*mock.Call
 }
 
-// NewForLogicalCluster is a helper method to define mock expectations
-func (_e *MockKcpHelper_Expecter) NewForLogicalCluster(clusterKey interface{}) *MockKcpHelper_NewForLogicalCluster_Call {
-	return &MockKcpHelper_NewForLogicalCluster_Call{Call: _e.mock.On("NewForLogicalCluster", clusterKey)}
+// NewClientForLogicalCluster is a helper method to define mock expectations
+func (_e *MockKcpHelper_Expecter) NewClientForLogicalCluster(clusterKey interface{}) *MockKcpHelper_NewClientForLogicalCluster_Call {
+	return &MockKcpHelper_NewClientForLogicalCluster_Call{Call: _e.mock.On("NewClientForLogicalCluster", clusterKey)}
 }
 
-func (_c *MockKcpHelper_NewForLogicalCluster_Call) Run(run func(clusterKey logicalcluster.Name)) *MockKcpHelper_NewForLogicalCluster_Call {
+func (_c *MockKcpHelper_NewClientForLogicalCluster_Call) Run(run func(clusterKey logicalcluster.Name)) *MockKcpHelper_NewClientForLogicalCluster_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(logicalcluster.Name))
 	})
 	return _c
 }
 
-func (_c *MockKcpHelper_NewForLogicalCluster_Call) Return(_a0 client.Client, _a1 error) *MockKcpHelper_NewForLogicalCluster_Call {
+func (_c *MockKcpHelper_NewClientForLogicalCluster_Call) Return(_a0 client.Client, _a1 error) *MockKcpHelper_NewClientForLogicalCluster_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockKcpHelper_NewForLogicalCluster_Call) RunAndReturn(run func(logicalcluster.Name) (client.Client, error)) *MockKcpHelper_NewForLogicalCluster_Call {
+func (_c *MockKcpHelper_NewClientForLogicalCluster_Call) RunAndReturn(run func(logicalcluster.Name) (client.Client, error)) *MockKcpHelper_NewClientForLogicalCluster_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -115,7 +115,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Obje
 		// for all valid expressions except of :root:orgs:*
 		// e.g :root:orgs:A:B, find store id
 		// and clusterID of logical cluster where account B lives (logical cluster A)
-		lcClient, err := a.kcpHelper.NewForLogicalCluster(logicalcluster.Name(workspacePath))
+		lcClient, err := a.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(workspacePath))
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("getting client: %w", err)
 		}
@@ -182,7 +182,7 @@ func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, obj client.Obj
 }
 
 func (a *APIExportPolicySubroutine) getClusterIDFromPath(ctx context.Context, clusterPath string) (string, error) {
-	lcClient, err := a.kcpHelper.NewForLogicalCluster(logicalcluster.Name(clusterPath))
+	lcClient, err := a.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(clusterPath))
 	if err != nil {
 		return "", fmt.Errorf("getting client for workspace %s: %w", clusterPath, err)
 	}
@@ -279,7 +279,7 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 		return nil
 	}
 
-	lcClient, err := a.kcpHelper.NewForLogicalCluster(logicalcluster.Name(workspacePath))
+	lcClient, err := a.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(workspacePath))
 	if err != nil {
 		return fmt.Errorf("getting client for workspace %s: %w", workspacePath, err)
 	}

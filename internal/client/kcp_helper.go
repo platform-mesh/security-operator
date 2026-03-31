@@ -12,7 +12,7 @@ import (
 )
 
 type KcpClientHelper interface {
-	NewForLogicalCluster(clusterKey logicalcluster.Name) (client.Client, error)
+	NewClientForLogicalCluster(clusterKey logicalcluster.Name) (client.Client, error)
 	GetAllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error)
 }
 
@@ -25,8 +25,8 @@ func NewKcpHelper(config *rest.Config, scheme *runtime.Scheme) *KcpHelper {
 	return &KcpHelper{config: config, scheme: scheme}
 }
 
-func (f *KcpHelper) NewForLogicalCluster(clusterKey logicalcluster.Name) (client.Client, error) {
-	return NewForLogicalCluster(f.config, f.scheme, clusterKey)
+func (f *KcpHelper) NewClientForLogicalCluster(clusterKey logicalcluster.Name) (client.Client, error) {
+	return NewClientForLogicalCluster(f.config, f.scheme, clusterKey)
 }
 
 func (f *KcpHelper) GetAllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error) {

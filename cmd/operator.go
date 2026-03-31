@@ -4,12 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"net/url"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	platformeshcontext "github.com/platform-mesh/golang-commons/context"
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/golang-commons/sentry"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
@@ -48,28 +46,6 @@ var (
 	scheme = runtime.NewScheme()
 )
 
-type NewLogicalClusterClientFunc func(clusterKey logicalcluster.Name) (client.Client, error)
-
-func logicalClusterClientFromKey(config *rest.Config, log *logger.Logger) NewLogicalClusterClientFunc {
-	return func(clusterKey logicalcluster.Name) (client.Client, error) {
-		cfg := rest.CopyConfig(config)
-
-		parsed, err := url.Parse(cfg.Host)
-		if err != nil {
-			log.Error().Err(err).Msg("unable to parse host")
-			return nil, err
-		}
-
-		parsed.Path = fmt.Sprintf("/clusters/%s", clusterKey)
-
-		cfg.Host = parsed.String()
-
-		return client.New(cfg, client.Options{
-			Scheme: scheme,
-		})
-	}
-}
-
 var operatorCmd = &cobra.Command{
 	Use: "fga",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -85,7 +61,7 @@ var operatorCmd = &cobra.Command{
 		}
 
 		if operatorCfg.MigrateAuthorizationModels {
-			if err := migrateAuthorizationModels(ctx, restCfg, &operatorCfg, scheme, logicalClusterClientFromKey(restCfg, log)); err != nil {
+			if err := migrateAuthorizationModels(ctx, restCfg, &operatorCfg, scheme); err != nil {
 				log.Error().Err(err).Msg("migration failed")
 				return err
 			}
@@ -181,7 +157,7 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("Failed to create in cluster client")
 			return err
 		}
-		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
+		orgClient, err := iclient.NewClientForLogicalCluster(restCfg, scheme, logicalcluster.Name("root:orgs"))
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create org client")
 			return err
@@ -260,7 +236,7 @@ var operatorCmd = &cobra.Command{
 }
 
 // this function can be removed after the operator has migrated the authz models in all environments
-func migrateAuthorizationModels(ctx context.Context, config *rest.Config, operatorCfg *config.Config, scheme *runtime.Scheme, getClusterClient NewLogicalClusterClientFunc) error {
+func migrateAuthorizationModels(ctx context.Context, config *rest.Config, operatorCfg *config.Config, scheme *runtime.Scheme) error {
 	allClient, err := iclient.GetAllClient(ctx, config, scheme, operatorCfg.APIExportEndpointSlices.CorePlatformMeshIO)
 	if err != nil {
 		return fmt.Errorf("failed to create all-cluster client: %w", err)
@@ -283,7 +259,7 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, operat
 		}
 
 		clusterName := logicalcluster.From(item)
-		clusterClient, err := getClusterClient(clusterName)
+		clusterClient, err := iclient.NewClientForLogicalCluster(config, scheme, clusterName)
 		if err != nil {
 			return fmt.Errorf("failed to create cluster client for AuthorizationModel %s (cluster %s): %w", item.GetName(), clusterName, err)
 		}

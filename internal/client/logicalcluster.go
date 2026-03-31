@@ -12,9 +12,9 @@ import (
 	"github.com/kcp-dev/logicalcluster/v3"
 )
 
-// NewForLogicalCluster returns a client for a given logical cluster name or
+// NewClientForLogicalCluster returns a client for a given logical cluster name or
 // path, based on a KCP base config.
-func NewForLogicalCluster(config *rest.Config, scheme *runtime.Scheme, clusterKey logicalcluster.Name) (client.Client, error) {
+func NewClientForLogicalCluster(config *rest.Config, scheme *runtime.Scheme, clusterKey logicalcluster.Name) (client.Client, error) {
 	path := fmt.Sprintf("/clusters/%s", clusterKey)
 
 	return clientForPath(config, scheme, path)
