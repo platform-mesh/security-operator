@@ -74,7 +74,7 @@ func (w *workspaceInitializer) Process(ctx context.Context, obj client.Object) (
 
 func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
-	
+
 	cluster, err := w.mgr.ClusterFromContext(ctx)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to get cluster from context %w", err)

@@ -66,7 +66,7 @@ func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client,
 	lc := lifecycle.New(mgr, "OrgLogicalClusterReconciler", func() client.Object {
 		return &kcpcorev1alpha1.LogicalCluster{}
 	}, subs...)
-	
+
 	return &OrgLogicalClusterReconciler{
 		log:             log,
 		lifecycle:       lc,

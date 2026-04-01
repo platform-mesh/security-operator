@@ -17,7 +17,6 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/kcp-dev/logicalcluster/v3"
-	mcclient "github.com/kcp-dev/multicluster-provider/client"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
@@ -25,7 +24,6 @@ import (
 // "org"-type when initializing, and deletes them when terminating.
 type AccountTuplesSubroutine struct {
 	mgr             mcmanager.Manager
-	mcc             mcclient.ClusterClient
 	fga             openfgav1.OpenFGAServiceClient
 	storeIDGetter   fga.StoreIDGetter
 	objectType      string
