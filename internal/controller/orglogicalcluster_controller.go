@@ -10,6 +10,7 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
+	ipredicates "github.com/platform-mesh/security-operator/internal/predicates"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/subroutines"
 	"github.com/platform-mesh/subroutines/lifecycle"
@@ -27,9 +28,10 @@ import (
 )
 
 type OrgLogicalClusterReconciler struct {
-	log         *logger.Logger
-	lifecycle   *lifecycle.Lifecycle
-	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
+	log             *logger.Logger
+	lifecycle       *lifecycle.Lifecycle
+	rateLimiter     workqueue.TypedRateLimiter[mcreconcile.Request]
+	initializerName string
 }
 
 func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) (*OrgLogicalClusterReconciler, error) {
@@ -66,9 +68,10 @@ func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client,
 	}, subs...)
 	
 	return &OrgLogicalClusterReconciler{
-		log:         log,
-		lifecycle:   lc,
-		rateLimiter: rl,
+		log:             log,
+		lifecycle:       lc,
+		rateLimiter:     rl,
+		initializerName: cfg.InitializerName(),
 	}, nil
 }
 
@@ -81,7 +84,7 @@ func (r *OrgLogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager, cf
 		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
 		RateLimiter:             r.rateLimiter,
 	}
-	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
+	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue), ipredicates.HasInitializerPredicate(r.initializerName)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("LogicalCluster").
 		For(&kcpcorev1alpha1.LogicalCluster{}).

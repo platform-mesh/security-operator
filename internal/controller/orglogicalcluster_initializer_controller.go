@@ -62,9 +62,11 @@ func NewOrgLogicalClusterInitializer(log *logger.Logger, orgClient client.Client
 		subroutines = append(subroutines, subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, mgr, cfg))
 	}
 
-	lc := lifecycle.New(mgr, "OrgLogicalClusterReconciler", func() client.Object {
+	lc := lifecycle.New(mgr, "OrgLogicalClusterInitializer", func() client.Object {
 		return &kcpcorev1alpha1.LogicalCluster{}
-	}, subroutines...)
+	}, subroutines...).
+		WithInitializer(cfg.InitializerName()).
+		WithTerminator(cfg.TerminatorName())
 
 	return &OrgLogicalClusterInitializer{
 		log:         log,

@@ -12,6 +12,7 @@ import (
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/fga"
+	ipredicates "github.com/platform-mesh/security-operator/internal/predicates"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -29,9 +30,10 @@ import (
 
 // AccountLogicalClusterReconciler acts as an initializer for account workspaces.
 type AccountLogicalClusterReconciler struct {
-	log         *logger.Logger
-	lifecycle   *lifecycle.Lifecycle
-	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
+	log             *logger.Logger
+	lifecycle       *lifecycle.Lifecycle
+	rateLimiter     workqueue.TypedRateLimiter[mcreconcile.Request]
+	initializerName string
 }
 
 func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, fgaClient openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, mgr mcmanager.Manager) (*AccountLogicalClusterReconciler, error) {
@@ -46,9 +48,10 @@ func NewAccountLogicalClusterReconciler(log *logger.Logger, cfg config.Config, f
 	}, subroutine.NewAccountTuplesSubroutine(mgr, fgaClient, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType, kcpClientHelper))
 
 	return &AccountLogicalClusterReconciler{
-		log:         log,
-		lifecycle:   lc,
-		rateLimiter: rl,
+		log:             log,
+		lifecycle:       lc,
+		rateLimiter:     rl,
+		initializerName: cfg.InitializerName(),
 	}, nil
 }
 
@@ -61,7 +64,7 @@ func (r *AccountLogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager
 		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
 		RateLimiter:             r.rateLimiter,
 	}
-	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
+	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue), ipredicates.HasInitializerPredicate(r.initializerName)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("AccountLogicalCluster").
 		For(&kcpcorev1alpha1.LogicalCluster{}).
