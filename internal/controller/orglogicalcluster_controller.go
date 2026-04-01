@@ -86,7 +86,7 @@ func (r *OrgLogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager, cf
 	}
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue), ipredicates.HasInitializerPredicate(r.initializerName)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
-		Named("LogicalCluster").
+		Named("OrgLogicalClusterReconciler").
 		For(&kcpcorev1alpha1.LogicalCluster{}).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).

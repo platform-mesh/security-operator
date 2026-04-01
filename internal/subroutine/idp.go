@@ -99,6 +99,8 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj client.Object) (subro
 
 	idp := &v1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
 	_, err = controllerutil.CreateOrUpdate(ctx, i.orgsClient, idp, func() error {
+		idp.Spec.RegistrationAllowed = i.registrationAllowed
+
 		idp.Spec.Clients = []v1alpha1.IdentityProviderClientConfig{
 			{
 				ClientName:             workspaceName,

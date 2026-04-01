@@ -66,7 +66,7 @@ func (r *AccountLogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager
 	}
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue), ipredicates.HasInitializerPredicate(r.initializerName)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
-		Named("AccountLogicalCluster").
+		Named("AccountLogicalClusterReconciler").
 		For(&kcpcorev1alpha1.LogicalCluster{}).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
