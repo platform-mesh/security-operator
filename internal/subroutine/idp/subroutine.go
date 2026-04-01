@@ -291,7 +291,7 @@ func (s *subroutine) registerOrUpdateClient(ctx context.Context, ipc *v1alpha1.I
 	// Client exists, update it
 	registrationAccessToken, err := s.readRegistrationAccessToken(ctx, clientConfig.SecretRef)
 	if err != nil && !kerrors.IsNotFound(err) {
-			return clientreg.ClientInformation{}, fmt.Errorf("failed to get registration access token from secret: %w", err)
+		return clientreg.ClientInformation{}, fmt.Errorf("failed to get registration access token from secret: %w", err)
 	}
 
 	registrationClientURI := ipc.Status.ManagedClients[clientConfig.ClientName].RegistrationClientURI
