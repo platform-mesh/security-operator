@@ -3,11 +3,11 @@ package predicates
 import (
 	"slices"
 
+	"github.com/rs/zerolog/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	"github.com/rs/zerolog/log"
 )
 
 func HasInitializerPredicate(initializerName string) predicate.Predicate {
