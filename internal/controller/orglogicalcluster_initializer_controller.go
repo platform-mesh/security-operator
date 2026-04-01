@@ -66,8 +66,7 @@ func NewOrgLogicalClusterInitializer(log *logger.Logger, orgClient client.Client
 	lc := lifecycle.New(mgr, "OrgLogicalClusterInitializer", func() client.Object {
 		return &kcpcorev1alpha1.LogicalCluster{}
 	}, subroutines...).
-		WithInitializer(cfg.InitializerName()).
-		WithTerminator(cfg.TerminatorName())
+		WithInitializer(cfg.InitializerName())
 
 	return &OrgLogicalClusterInitializer{
 		log:         log,
