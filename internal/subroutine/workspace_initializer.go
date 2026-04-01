@@ -77,7 +77,7 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object)
 
 	cluster, err := w.mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return subroutines.OK(), fmt.Errorf("failed to get cluster from context %w", err)
+		return subroutines.OK(), fmt.Errorf("failed to get cluster from context: %w", err)
 	}
 
 	var ai accountsv1alpha1.AccountInfo

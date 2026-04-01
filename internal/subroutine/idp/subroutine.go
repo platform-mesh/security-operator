@@ -290,15 +290,8 @@ func (s *subroutine) registerOrUpdateClient(ctx context.Context, ipc *v1alpha1.I
 
 	// Client exists, update it
 	registrationAccessToken, err := s.readRegistrationAccessToken(ctx, clientConfig.SecretRef)
-	if err != nil {
-		if !kerrors.IsNotFound(err) {
+	if err != nil && !kerrors.IsNotFound(err) {
 			return clientreg.ClientInformation{}, fmt.Errorf("failed to get registration access token from secret: %w", err)
-		}
-		// if secret is deleted, keycloak will crash without registration token in request
-		registrationAccessToken, err = adminClient.RefreshToken(ctx, existingClient.ClientID)
-		if err != nil {
-			return clientreg.ClientInformation{}, fmt.Errorf("failed to regenerate registration access token for client %s: %w", clientConfig.ClientName, err)
-		}
 	}
 
 	registrationClientURI := ipc.Status.ManagedClients[clientConfig.ClientName].RegistrationClientURI
