@@ -492,27 +492,27 @@ type core_namespace
 			manager.EXPECT().GetLocalManager().Return(ctrlManager).Maybe()
 			ctrlManager.EXPECT().GetConfig().Return(&rest.Config{}).Maybe()
 
-		discoveryMock := mocks.NewMockDiscoveryInterface(t)
-		if test.discoveryMocks != nil {
-			test.discoveryMocks(discoveryMock)
-		} else {
-			discoveryMock.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{
-				APIResources: []metav1.APIResource{
-					{
-						Name:         "namespaces",
-						SingularName: "namespace",
-						Namespaced:   false,
-						Group:        "",
+			discoveryMock := mocks.NewMockDiscoveryInterface(t)
+			if test.discoveryMocks != nil {
+				test.discoveryMocks(discoveryMock)
+			} else {
+				discoveryMock.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{
+					APIResources: []metav1.APIResource{
+						{
+							Name:         "namespaces",
+							SingularName: "namespace",
+							Namespaced:   false,
+							Group:        "",
+						},
 					},
-				},
-			}, nil).Once().Maybe()
-			discoveryMock.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{}, nil).Maybe()
-		}
+				}, nil).Once().Maybe()
+				discoveryMock.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{}, nil).Maybe()
+			}
 
-		subroutine := subroutine.NewAuthorizationModelSubroutine(fga, manager, client, func(cfg *rest.Config) discovery.DiscoveryInterface { return discoveryMock }, logger.Logger)
-		ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("path")))
+			subroutine := subroutine.NewAuthorizationModelSubroutine(fga, manager, client, func(cfg *rest.Config) discovery.DiscoveryInterface { return discoveryMock }, logger.Logger)
+			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("path")))
 
-		_, err := subroutine.Process(ctx, test.store)
+			_, err := subroutine.Process(ctx, test.store)
 			if test.expectError {
 				assert.Error(t, err)
 			} else {
