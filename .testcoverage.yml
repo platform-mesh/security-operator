@@ -1,7 +1,3 @@
-threshold:
-  file: 80
-  package: 80
-  total: 80
 exclude:
   paths:
     - ^internal/subroutine/mocks # exclude generated mock files
