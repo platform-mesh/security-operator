@@ -27,11 +27,11 @@ func (f fakeRealmChecker) RealmExists(ctx context.Context, realmName string) (bo
 
 func TestIdentityProviderConfigurationValidator_ValidateCreate(t *testing.T) {
 	tests := []struct {
-		name          string
-		realmName     string
-		realmDenyList []string
-		checker       fakeRealmChecker
-		wantErr       bool
+		name            string
+		realmName       string
+		realmDenyList   []string
+		checker         fakeRealmChecker
+		wantErr         bool
 		wantErrContains string
 	}{
 		{
@@ -40,10 +40,10 @@ func TestIdentityProviderConfigurationValidator_ValidateCreate(t *testing.T) {
 			wantErr:   true,
 		},
 		{
-			name:            "realm from deny list is denied",
-			realmName:       "forbidden-realm",
-			realmDenyList:   []string{"orgs", "forbidden-realm"},
-			wantErr:         true,
+			name:          "realm from deny list is denied",
+			realmName:     "forbidden-realm",
+			realmDenyList: []string{"orgs", "forbidden-realm"},
+			wantErr:       true,
 		},
 		{
 			name:      "existing realm is denied",
@@ -52,10 +52,10 @@ func TestIdentityProviderConfigurationValidator_ValidateCreate(t *testing.T) {
 			wantErr:   true,
 		},
 		{
-			name:      "realm checker error",
-			realmName: "org-1",
-			checker:   fakeRealmChecker{err: fmt.Errorf("connection refused")},
-			wantErr:   true,
+			name:            "realm checker error",
+			realmName:       "org-1",
+			checker:         fakeRealmChecker{err: fmt.Errorf("connection refused")},
+			wantErr:         true,
 			wantErrContains: "failed to check realm existence",
 		},
 		{

@@ -377,7 +377,7 @@ func TestAdminClient_CreateOrUpdateRealm(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				return
-			}			
+			}
 			require.NoError(t, err)
 			assert.Equal(t, tt.wantCreated, created)
 		})

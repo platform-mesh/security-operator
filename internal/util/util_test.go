@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -27,7 +28,7 @@ func TestCapGroupToRelationLength(t *testing.T) {
 			want:      "core",
 		},
 		{
-			name: "long group is trimmed from the front to fit max length",
+			name:      "long group is trimmed from the front to fit max length",
 			gvr:       schema.GroupVersionResource{Group: "long-group-name", Version: "v1", Resource: "resource"},
 			maxLength: 20,
 			want:      "name",
