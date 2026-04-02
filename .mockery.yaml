@@ -49,3 +49,10 @@ packages:
       filename: mock_KcpHelper.go
     interfaces:
       KcpClientHelper:
+
+  github.com/platform-mesh/security-operator/pkg/clientreg:
+    config:
+      dir: internal/subroutine/mocks
+      filename: mock_TokenRefresher.go
+    interfaces:
+      TokenRefresher:
