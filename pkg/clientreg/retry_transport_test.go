@@ -98,7 +98,7 @@ func TestRetryTransport_RoundTrip(t *testing.T) {
 				}))
 			},
 			tokenRefresher: func(t *testing.T) *mocks.MockTokenRefresher {
-				return mocks.NewMockTokenRefresher(t) // no expectations — RefreshToken not called
+				return mocks.NewMockTokenRefresher(t)
 			},
 			ctx:        func() context.Context { return context.Background() },
 			wantStatus: http.StatusUnauthorized,

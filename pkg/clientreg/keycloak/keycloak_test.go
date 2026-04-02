@@ -171,7 +171,6 @@ func TestAdminClient_RefreshToken(t *testing.T) {
 						go srv.Close()
 						return
 					}
-					// unreachable: server is closed before second call
 				}))
 				return srv
 			},
