@@ -3,11 +3,13 @@ package platformmeshpath
 import (
 	"testing"
 
-	kcpcore "github.com/kcp-dev/sdk/apis/core"
-	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	kcpcore "github.com/kcp-dev/sdk/apis/core"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 func TestNewAccountPath(t *testing.T) {

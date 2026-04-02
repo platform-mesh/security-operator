@@ -19,7 +19,7 @@ import (
 )
 
 const (
-	accountLCPath = "root:orgs:myorg:myaccount"
+	accountLCPath   = "root:orgs:myorg:myaccount"
 	parentClusterID = "parent-cluster-id"
 )
 

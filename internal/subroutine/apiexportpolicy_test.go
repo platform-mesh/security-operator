@@ -842,13 +842,13 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 					tuple := req.Deletes.TupleKeys[0]
 					return tuple.Object == "core_platform-mesh_io_account:org2-cluster-id/org2-account" &&
 						tuple.Relation == "bind_inherited" &&
-					tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
-			}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
+						tuple.User == "apis_kcp_io_apiexport:provider-cluster-id/my-export"
+				}), mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
+			},
+			cfg:         &config.Config{},
+			expectError: false,
 		},
-		cfg:         &config.Config{},
-		expectError: false,
-	},
-}
+	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
