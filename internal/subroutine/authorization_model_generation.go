@@ -217,6 +217,7 @@ func (a *AuthorizationModelGenerationSubroutine) GetName() string {
 // Process implements lifecycle.Subroutine.
 func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
 	binding := instance.(*kcpapisv1alpha2.APIBinding)
+	log := logger.LoadLoggerFromContext(ctx)
 
 	internalAPIBindings := []string{"core.platform-mesh.io", "system.platform-mesh.io"}
 
@@ -247,6 +248,11 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 	var apiExport kcpapisv1alpha2.APIExport
 	err = apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: binding.Spec.Reference.Export.Name}, &apiExport)
 	if err != nil {
+		return ctrl.Result{},errors.NewOperatorError(err, true, true)
+	}
+
+	allAuthorizationModels := securityv1alpha1.AuthorizationModelList{}
+	if err := a.allClient.List(ctx, &allAuthorizationModels); err != nil {
 		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
 	}
 
@@ -255,6 +261,15 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 		err := apiExportCluster.GetClient().Get(ctx, types.NamespacedName{Name: latestResourceSchema.Schema}, &resourceSchema)
 		if err != nil {
 			return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		}
+
+		modelName := toK8sName(resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural, accountInfo.Spec.Organization.Name)
+
+		if slices.ContainsFunc(allAuthorizationModels.Items, func(m securityv1alpha1.AuthorizationModel) bool {
+			return m.Name == modelName
+		}) {
+			log.Warn().Msg(fmt.Sprintf("authorization model: %s already exist", modelName))
+			continue
 		}
 
 		longestRelationName := fmt.Sprintf("create_%s_%s", resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural)
@@ -278,7 +293,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, in
 
 		model := securityv1alpha1.AuthorizationModel{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: toK8sName(resourceSchema.Spec.Group, resourceSchema.Spec.Names.Plural, accountInfo.Spec.Organization.Name),
+				Name: modelName,
 			},
 		}
 
