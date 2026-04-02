@@ -26,7 +26,7 @@ func NewKcpHelper(config *rest.Config, scheme *runtime.Scheme) *KcpHelper {
 }
 
 func (f *KcpHelper) NewClientForLogicalCluster(clusterKey logicalcluster.Name) (client.Client, error) {
-	return NewClientForLogicalCluster(f.config, f.scheme, clusterKey)
+	return NewForLogicalCluster(f.config, f.scheme, clusterKey)
 }
 
 func (f *KcpHelper) GetAllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error) {

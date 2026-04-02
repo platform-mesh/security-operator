@@ -60,7 +60,7 @@ var terminatorCmd = &cobra.Command{
 			mgrOpts.LeaderElectionConfig = inClusterCfg
 		}
 
-		rootClient, err := iclient.NewClientForLogicalCluster(kcpCfg, scheme, logicalcluster.Name("root"))
+		rootClient, err := iclient.NewForLogicalCluster(kcpCfg, scheme, logicalcluster.Name("root"))
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed to get root client")
 			os.Exit(1)

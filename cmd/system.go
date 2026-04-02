@@ -92,7 +92,7 @@ var systemCmd = &cobra.Command{
 			log,
 		)
 
-		orgClient, err := iclient.NewClientForLogicalCluster(restCfg, scheme, logicalcluster.Name("root:orgs"))
+		orgClient, err := iclient.NewForLogicalCluster(restCfg, scheme, logicalcluster.Name("root:orgs"))
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create org client")
 			return err

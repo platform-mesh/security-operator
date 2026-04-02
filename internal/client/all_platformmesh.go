@@ -23,7 +23,7 @@ const (
 // of the APIExportEndpointSlice, based on a given KCP
 // base config and APIExportEndpointSlice name
 func GetAllClient(ctx context.Context, config *rest.Config, scheme *runtime.Scheme, apiexportEndpointSliceName string) (client.Client, error) {
-	platformMeshClient, err := NewClientForLogicalCluster(config, scheme, logicalcluster.Name(platformMeshSystemWorkspace))
+	platformMeshClient, err := NewForLogicalCluster(config, scheme, logicalcluster.Name(platformMeshSystemWorkspace))
 	if err != nil {
 		return nil, fmt.Errorf("creating %s client: %w", platformMeshSystemWorkspace, err)
 	}

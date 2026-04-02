@@ -157,7 +157,7 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("Failed to create in cluster client")
 			return err
 		}
-		orgClient, err := iclient.NewClientForLogicalCluster(restCfg, scheme, logicalcluster.Name("root:orgs"))
+		orgClient, err := iclient.NewForLogicalCluster(restCfg, scheme, logicalcluster.Name("root:orgs"))
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to create org client")
 			return err
@@ -259,7 +259,7 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, operat
 		}
 
 		clusterName := logicalcluster.From(item)
-		clusterClient, err := iclient.NewClientForLogicalCluster(config, scheme, clusterName)
+		clusterClient, err := iclient.NewForLogicalCluster(config, scheme, clusterName)
 		if err != nil {
 			return fmt.Errorf("failed to create cluster client for AuthorizationModel %s (cluster %s): %w", item.GetName(), clusterName, err)
 		}
