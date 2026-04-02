@@ -287,6 +287,154 @@ func TestIsTupleOfAccountFilter_deleteRemovesGeneratedTuples(t *testing.T) {
 	}
 }
 
+func TestTupleManager_ListWithFilter(t *testing.T) {
+	t.Run("nil filter returns error", func(t *testing.T) {
+		client := mocks.NewMockOpenFGAServiceClient(t)
+		log := testlogger.New()
+		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
+
+		result, err := mgr.ListWithFilter(context.Background(), nil)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("Read error returns error", func(t *testing.T) {
+		client := mocks.NewMockOpenFGAServiceClient(t)
+		client.EXPECT().Read(mock.Anything, mock.Anything).Return(nil, errors.New("read failed"))
+
+		log := testlogger.New()
+		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
+
+		result, err := mgr.ListWithFilter(context.Background(), func(t v1alpha1.Tuple) bool { return true })
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("skips tuples with nil key", func(t *testing.T) {
+		client := mocks.NewMockOpenFGAServiceClient(t)
+		client.EXPECT().Read(mock.Anything, mock.Anything).Return(&openfgav1.ReadResponse{
+			Tuples: []*openfgav1.Tuple{
+				{Key: nil},
+				{Key: &openfgav1.TupleKey{Object: "doc:1", Relation: "viewer", User: "user:alice"}},
+			},
+		}, nil)
+
+		log := testlogger.New()
+		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
+
+		result, err := mgr.ListWithFilter(context.Background(), func(t v1alpha1.Tuple) bool { return true })
+		assert.NoError(t, err)
+		assert.Len(t, result, 1)
+		assert.Equal(t, "doc:1", result[0].Object)
+	})
+
+	t.Run("pagination: reads all pages", func(t *testing.T) {
+		client := mocks.NewMockOpenFGAServiceClient(t)
+		callCount := 0
+		client.EXPECT().Read(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, req *openfgav1.ReadRequest, opts ...grpc.CallOption) (*openfgav1.ReadResponse, error) {
+			callCount++
+			if callCount == 1 {
+				return &openfgav1.ReadResponse{
+					Tuples:            []*openfgav1.Tuple{{Key: &openfgav1.TupleKey{Object: "doc:1", Relation: "viewer", User: "user:alice"}}},
+					ContinuationToken: "page2-token",
+				}, nil
+			}
+			return &openfgav1.ReadResponse{
+				Tuples: []*openfgav1.Tuple{{Key: &openfgav1.TupleKey{Object: "doc:2", Relation: "owner", User: "user:bob"}}},
+			}, nil
+		}).Times(2)
+
+		log := testlogger.New()
+		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
+
+		result, err := mgr.ListWithFilter(context.Background(), func(t v1alpha1.Tuple) bool { return true })
+		assert.NoError(t, err)
+		assert.Len(t, result, 2)
+	})
+}
+
+func TestTupleManager_ListWithKey(t *testing.T) {
+	t.Run("returns matching tuples", func(t *testing.T) {
+		client := mocks.NewMockOpenFGAServiceClient(t)
+		client.EXPECT().Read(mock.Anything, mock.MatchedBy(func(req *openfgav1.ReadRequest) bool {
+			return req.StoreId == "store-id" && req.TupleKey != nil && req.TupleKey.Object == "doc:1"
+		})).Return(&openfgav1.ReadResponse{
+			Tuples: []*openfgav1.Tuple{
+				{Key: &openfgav1.TupleKey{Object: "doc:1", Relation: "viewer", User: "user:alice"}},
+				{Key: &openfgav1.TupleKey{Object: "doc:1", Relation: "viewer", User: "user:bob"}},
+			},
+		}, nil)
+
+		log := testlogger.New()
+		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
+
+		key := &openfgav1.ReadRequestTupleKey{Object: "doc:1"}
+		result, err := mgr.ListWithKey(context.Background(), key)
+		assert.NoError(t, err)
+		assert.Len(t, result, 2)
+		assert.Equal(t, "doc:1", result[0].Object)
+		assert.Equal(t, "user:alice", result[0].User)
+	})
+
+	t.Run("Read error returns error", func(t *testing.T) {
+		client := mocks.NewMockOpenFGAServiceClient(t)
+		client.EXPECT().Read(mock.Anything, mock.Anything).Return(nil, errors.New("read failed"))
+
+		log := testlogger.New()
+		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
+
+		result, err := mgr.ListWithKey(context.Background(), nil)
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("skips tuples with nil key", func(t *testing.T) {
+		client := mocks.NewMockOpenFGAServiceClient(t)
+		client.EXPECT().Read(mock.Anything, mock.Anything).Return(&openfgav1.ReadResponse{
+			Tuples: []*openfgav1.Tuple{
+				{Key: nil},
+				{Key: &openfgav1.TupleKey{Object: "doc:1", Relation: "viewer", User: "user:alice"}},
+			},
+		}, nil)
+
+		log := testlogger.New()
+		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
+
+		result, err := mgr.ListWithKey(context.Background(), nil)
+		assert.NoError(t, err)
+		assert.Len(t, result, 1)
+		assert.Equal(t, "doc:1", result[0].Object)
+	})
+
+	t.Run("pagination: reads all pages", func(t *testing.T) {
+		client := mocks.NewMockOpenFGAServiceClient(t)
+		callCount := 0
+		client.EXPECT().Read(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, req *openfgav1.ReadRequest, opts ...grpc.CallOption) (*openfgav1.ReadResponse, error) {
+			callCount++
+			if callCount == 1 {
+				assert.Equal(t, "", req.ContinuationToken)
+				return &openfgav1.ReadResponse{
+					Tuples:            []*openfgav1.Tuple{{Key: &openfgav1.TupleKey{Object: "doc:1", Relation: "viewer", User: "user:alice"}}},
+					ContinuationToken: "page2-token",
+				}, nil
+			}
+			assert.Equal(t, "page2-token", req.ContinuationToken)
+			return &openfgav1.ReadResponse{
+				Tuples: []*openfgav1.Tuple{{Key: &openfgav1.TupleKey{Object: "doc:2", Relation: "owner", User: "user:bob"}}},
+			}, nil
+		}).Times(2)
+
+		log := testlogger.New()
+		mgr := NewTupleManager(client, "store-id", "model-id", log.Logger)
+
+		result, err := mgr.ListWithKey(context.Background(), nil)
+		assert.NoError(t, err)
+		assert.Len(t, result, 2)
+		assert.Equal(t, "doc:1", result[0].Object)
+		assert.Equal(t, "doc:2", result[1].Object)
+	})
+}
+
 func testAccountAndInfo(accountName, clusterID string) (accountv1alpha1.Account, accountv1alpha1.AccountInfo) {
 	creator := "user:alice"
 	acc := accountv1alpha1.Account{
