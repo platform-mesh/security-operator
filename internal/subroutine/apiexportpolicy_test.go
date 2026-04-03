@@ -14,6 +14,7 @@ import (
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -846,6 +847,577 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 			},
 			cfg:         &config.Config{},
 			expectError: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fga := mocks.NewMockOpenFGAServiceClient(t)
+			mgr := mocks.NewMockManager(t)
+			storeIDGetter := mocks.NewMockStoreIDGetter(t)
+			kcpHelper := mocks.NewMockKcpHelper(t)
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(t, fga, mgr, storeIDGetter, kcpHelper)
+			}
+
+			l := testlogger.New()
+			ctx := l.WithContext(context.Background())
+
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
+
+			_, err := sub.Finalize(ctx, tt.policy)
+
+			if tt.expectError {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
+func newProviderClient(scheme *runtime.Scheme) client.Client {
+	return fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(&kcpcorev1alpha1.LogicalCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "cluster",
+				Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
+			},
+		}).
+		Build()
+}
+
+func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
+	tests := []struct {
+		name        string
+		policy      *corev1alpha1.APIExportPolicy
+		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockManager, *mocks.MockStoreIDGetter, *mocks.MockCluster, *mocks.MockKcpHelper)
+		cfg         *config.Config
+		expectError bool
+	}{
+		{
+			name: "getClusterIDFromPath: Get LogicalCluster fails",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:acme"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				providerClient := mocks.NewMockClient(t)
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(providerClient, nil).Once()
+				providerClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "getClusterIDFromPath: kcp.io/cluster annotation missing",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:acme"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				noAnnotationClient := fake.NewClientBuilder().
+					WithScheme(scheme).
+					WithObjects(&kcpcorev1alpha1.LogicalCluster{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}).
+					Build()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(noAnnotationClient, nil).Once()
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "deleteRemovedExpressions: internal getClusterIDFromPath fails",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:acme"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				providerClient := newProviderClient(scheme)
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(providerClient, nil).Once()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(nil, assert.AnError).Once()
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "deleteRemovedExpressions: removed expression triggers delete failure",
+			policy: &corev1alpha1.APIExportPolicy{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:other"},
+				},
+				Status: corev1alpha1.APIExportPolicyStatus{
+					// "root:orgs:other" is still in spec → continue; "root:orgs:acme" is removed → delete
+					ManagedAllowExpressions: []string{"root:orgs:other", "root:orgs:acme"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:providers:my-provider"
+				})).Return(newProviderClient(scheme), nil).Maybe()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:orgs:acme"
+				})).Return(nil, assert.AnError).Once()
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "orgs: List AccountInfo fails",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:*"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				allClient := mocks.NewMockClient(t)
+				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+				allClient.EXPECT().List(mock.Anything, mock.Anything).Return(assert.AnError)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "orgs: non-org type skipped, storeIDGetter fails for org account",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:*"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				allClient := mocks.NewMockClient(t)
+				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+				allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
+					list := ol.(*accountsv1alpha1.AccountInfoList)
+					list.Items = []accountsv1alpha1.AccountInfo{
+						{Spec: accountsv1alpha1.AccountInfoSpec{
+							Account: accountsv1alpha1.AccountLocation{Type: accountsv1alpha1.AccountTypeAccount},
+						}},
+						{Spec: accountsv1alpha1.AccountInfoSpec{
+							Account:      accountsv1alpha1.AccountLocation{Type: accountsv1alpha1.AccountTypeOrg},
+							Organization: accountsv1alpha1.AccountLocation{Name: "org1"},
+						}},
+					}
+					return nil
+				})
+				storeIDGetter.EXPECT().Get(mock.Anything, "org1").Return("", assert.AnError)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "orgs: fga.Write fails when applying tuple",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:*"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				allClient := mocks.NewMockClient(t)
+				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+				allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
+					list := ol.(*accountsv1alpha1.AccountInfoList)
+					list.Items = []accountsv1alpha1.AccountInfo{
+						{Spec: accountsv1alpha1.AccountInfoSpec{
+							Account:      accountsv1alpha1.AccountLocation{Type: accountsv1alpha1.AccountTypeOrg, Name: "org1"},
+							Organization: accountsv1alpha1.AccountLocation{Name: "org1"},
+						}},
+					}
+					return nil
+				})
+				storeIDGetter.EXPECT().Get(mock.Anything, "org1").Return("store-id", nil)
+				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, assert.AnError)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "non-orgs: NewForLogicalCluster fails for workspace",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:acme"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:providers:my-provider"
+				})).Return(newProviderClient(scheme), nil).Maybe()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:orgs:acme"
+				})).Return(nil, assert.AnError).Once()
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "non-orgs: Get AccountInfo fails",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:acme"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				targetClient := mocks.NewMockClient(t)
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:providers:my-provider"
+				})).Return(newProviderClient(scheme), nil).Maybe()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:orgs:acme"
+				})).Return(targetClient, nil).Once()
+				targetClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "non-orgs: storeIDGetter fails",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:acme"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				targetClient := fake.NewClientBuilder().WithScheme(scheme).
+					WithObjects(&accountsv1alpha1.AccountInfo{
+						ObjectMeta: metav1.ObjectMeta{Name: "account"},
+						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
+					}).Build()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:providers:my-provider"
+				})).Return(newProviderClient(scheme), nil).Maybe()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:orgs:acme"
+				})).Return(targetClient, nil).Once()
+				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("", assert.AnError)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "non-orgs: fga.Write fails when applying tuple",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:acme"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				targetClient := fake.NewClientBuilder().WithScheme(scheme).
+					WithObjects(&accountsv1alpha1.AccountInfo{
+						ObjectMeta: metav1.ObjectMeta{Name: "account"},
+						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
+					}).Build()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:providers:my-provider"
+				})).Return(newProviderClient(scheme), nil).Maybe()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:orgs:acme"
+				})).Return(targetClient, nil).Once()
+				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("store-id", nil)
+				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, assert.AnError)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "ClusterFromContext fails",
+			policy: &corev1alpha1.APIExportPolicy{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:acme"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				targetClient := fake.NewClientBuilder().WithScheme(scheme).
+					WithObjects(&accountsv1alpha1.AccountInfo{
+						ObjectMeta: metav1.ObjectMeta{Name: "account"},
+						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
+					}).Build()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:providers:my-provider"
+				})).Return(newProviderClient(scheme), nil).Maybe()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:orgs:acme"
+				})).Return(targetClient, nil).Once()
+				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("store-id", nil)
+				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
+				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "Status Patch fails",
+			policy: &corev1alpha1.APIExportPolicy{
+				ObjectMeta: metav1.ObjectMeta{Name: "test-policy"},
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:acme"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				targetClient := fake.NewClientBuilder().WithScheme(scheme).
+					WithObjects(&accountsv1alpha1.AccountInfo{
+						ObjectMeta: metav1.ObjectMeta{Name: "account"},
+						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
+					}).Build()
+				// Empty cluster client — Status().Patch will fail with NotFound for "test-policy"
+				clusterClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:providers:my-provider"
+				})).Return(newProviderClient(scheme), nil).Maybe()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:orgs:acme"
+				})).Return(targetClient, nil).Once()
+				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("store-id", nil)
+				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
+				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				cluster.EXPECT().GetClient().Return(clusterClient)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fga := mocks.NewMockOpenFGAServiceClient(t)
+			mgr := mocks.NewMockManager(t)
+			storeIDGetter := mocks.NewMockStoreIDGetter(t)
+			cluster := mocks.NewMockCluster(t)
+			kcpHelper := mocks.NewMockKcpHelper(t)
+
+			if tt.setupMocks != nil {
+				tt.setupMocks(t, fga, mgr, storeIDGetter, cluster, kcpHelper)
+			}
+
+			l := testlogger.New()
+			ctx := l.WithContext(context.Background())
+
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
+
+			_, err := sub.Process(ctx, tt.policy)
+
+			if tt.expectError {
+				assert.NotNil(t, err)
+			} else {
+				assert.Nil(t, err)
+			}
+		})
+	}
+}
+
+func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
+	tests := []struct {
+		name        string
+		policy      *corev1alpha1.APIExportPolicy
+		setupMocks  func(*testing.T, *mocks.MockOpenFGAServiceClient, *mocks.MockManager, *mocks.MockStoreIDGetter, *mocks.MockKcpHelper)
+		cfg         *config.Config
+		expectError bool
+	}{
+		{
+			name: "deleteTuplesForExpression: parseAllowExpression fails for invalid expression",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"wrong:path:expression"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "deleteTuplesForExpression orgs: GetAllClient fails",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:*"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(nil, assert.AnError)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "deleteTuplesForExpression orgs: List AccountInfo fails",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:*"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				allClient := mocks.NewMockClient(t)
+				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+				allClient.EXPECT().List(mock.Anything, mock.Anything).Return(assert.AnError)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "deleteTuplesForExpression orgs: storeIDGetter fails",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:*"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				allClient := mocks.NewMockClient(t)
+				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+				allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
+					list := ol.(*accountsv1alpha1.AccountInfoList)
+					list.Items = []accountsv1alpha1.AccountInfo{
+						{Spec: accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "org1"}}},
+					}
+					return nil
+				})
+				storeIDGetter.EXPECT().Get(mock.Anything, "org1").Return("", assert.AnError)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "deleteTuplesForExpression orgs: fga.Write (Delete) fails",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:*"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				allClient := mocks.NewMockClient(t)
+				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+				allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
+					list := ol.(*accountsv1alpha1.AccountInfoList)
+					list.Items = []accountsv1alpha1.AccountInfo{
+						{Spec: accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "org1"}}},
+					}
+					return nil
+				})
+				storeIDGetter.EXPECT().Get(mock.Anything, "org1").Return("store-id", nil)
+				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, assert.AnError)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "deleteTuplesForExpression non-orgs: NewForLogicalCluster fails",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:acme"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:providers:my-provider"
+				})).Return(newProviderClient(scheme), nil).Maybe()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:orgs:acme"
+				})).Return(nil, assert.AnError).Once()
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "deleteTuplesForExpression non-orgs: storeIDGetter fails",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:acme"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				targetClient := fake.NewClientBuilder().WithScheme(scheme).
+					WithObjects(&accountsv1alpha1.AccountInfo{
+						ObjectMeta: metav1.ObjectMeta{Name: "account"},
+						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
+					}).Build()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:providers:my-provider"
+				})).Return(newProviderClient(scheme), nil).Maybe()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:orgs:acme"
+				})).Return(targetClient, nil).Once()
+				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("", assert.AnError)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
+		},
+		{
+			name: "deleteTuplesForExpression non-orgs: fga.Write (Delete) fails",
+			policy: &corev1alpha1.APIExportPolicy{
+				Spec: corev1alpha1.APIExportPolicySpec{
+					APIExportRef:         corev1alpha1.APIExportRef{Name: "my-export", ClusterPath: "root:providers:my-provider"},
+					AllowPathExpressions: []string{"root:orgs:acme"},
+				},
+			},
+			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
+				scheme := getAPIExportPolicyTestScheme()
+				targetClient := fake.NewClientBuilder().WithScheme(scheme).
+					WithObjects(&accountsv1alpha1.AccountInfo{
+						ObjectMeta: metav1.ObjectMeta{Name: "account"},
+						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
+					}).Build()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:providers:my-provider"
+				})).Return(newProviderClient(scheme), nil).Maybe()
+				kcpHelper.EXPECT().NewForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
+					return n.String() == "root:orgs:acme"
+				})).Return(targetClient, nil).Once()
+				storeIDGetter.EXPECT().Get(mock.Anything, "acme-org").Return("store-id", nil)
+				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, assert.AnError)
+			},
+			cfg:         &config.Config{},
+			expectError: true,
 		},
 	}
 

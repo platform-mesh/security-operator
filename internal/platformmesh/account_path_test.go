@@ -5,6 +5,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	kcpcore "github.com/kcp-dev/sdk/apis/core"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
 func TestNewAccountPath(t *testing.T) {
@@ -83,6 +88,40 @@ func TestAccountPath_Org(t *testing.T) {
 		require.NoError(t, err)
 		org := path.Org()
 		assert.Equal(t, "root:orgs:default", org.String())
+	})
+}
+
+func TestNewAccountPathFromLogicalCluster(t *testing.T) {
+	t.Run("returns error when annotation is missing", func(t *testing.T) {
+		lc := &kcpcorev1alpha1.LogicalCluster{
+			ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+		}
+		_, err := NewAccountPathFromLogicalCluster(lc)
+		assert.Error(t, err)
+		assert.Contains(t, err.Error(), kcpcore.LogicalClusterPathAnnotationKey)
+	})
+
+	t.Run("returns error when annotation value is not a valid account path", func(t *testing.T) {
+		lc := &kcpcorev1alpha1.LogicalCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "cluster",
+				Annotations: map[string]string{kcpcore.LogicalClusterPathAnnotationKey: "root:orgs"},
+			},
+		}
+		_, err := NewAccountPathFromLogicalCluster(lc)
+		assert.Error(t, err)
+	})
+
+	t.Run("returns AccountPath for valid annotation", func(t *testing.T) {
+		lc := &kcpcorev1alpha1.LogicalCluster{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:        "cluster",
+				Annotations: map[string]string{kcpcore.LogicalClusterPathAnnotationKey: "root:orgs:myorg:myaccount"},
+			},
+		}
+		path, err := NewAccountPathFromLogicalCluster(lc)
+		require.NoError(t, err)
+		assert.Equal(t, "root:orgs:myorg:myaccount", path.String())
 	})
 }
 
