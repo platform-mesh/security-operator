@@ -321,7 +321,6 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 						idp := obj.(*secopv1alpha1.IdentityProviderConfiguration)
 						idp.Spec.Clients = []secopv1alpha1.IdentityProviderClientConfig{{ClientName: "eta"}, {ClientName: kubectlClientName}}
 						idp.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
-						// "eta" has an empty ClientID
 						idp.Status.ManagedClients = map[string]secopv1alpha1.ManagedClient{
 							"eta":             {ClientID: ""},
 							kubectlClientName: {ClientID: "kubectl-id"},
@@ -436,7 +435,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 						return nil
 					}).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo")).
-					Return(nil).Once() // empty accountInfo → OIDC differs from desired
+					Return(nil).Once()
 				orgsClient.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					Return(assert.AnError).Once()
 			},
@@ -456,7 +455,6 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 						obj.(*accountv1alpha1.Account).Spec.Type = accountv1alpha1.AccountTypeOrg
 						return nil
 					}).Once()
-				// CreateOrPatch: Get returns existing IDP with stale clients
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "lambda"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
 						idp := obj.(*secopv1alpha1.IdentityProviderConfiguration)
@@ -465,10 +463,8 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 						}
 						return nil
 					}).Once()
-				// ensureClient updates "lambda" in-place and appends "kubectl" → object changed → Patch
 				orgsClient.EXPECT().Patch(mock.Anything, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration"), mock.Anything).
 					Return(nil).Once()
-				// Second Get after CreateOrPatch
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "lambda"}, mock.AnythingOfType("*v1alpha1.IdentityProviderConfiguration")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
 						idp := obj.(*secopv1alpha1.IdentityProviderConfiguration)
