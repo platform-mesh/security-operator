@@ -51,7 +51,25 @@ func TestAccountTuplesSubroutine_GetName(t *testing.T) {
 }
 
 func TestAccountTuplesSubroutine_Process(t *testing.T) {
-	sub := subroutine.NewAccountTuplesSubroutine(nil, nil, nil, "creator", "parent", "type", nil)
+	storeIDGetter := mocks.NewMockStoreIDGetter(t)
+	kcpHelper := mocks.NewMockKcpHelper(t)
+	parentClient := mocks.NewMockClient(t)
+	fgaClient := mocks.NewMockOpenFGAServiceClient(t)
+
+	storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
+	mockParentLogicalCluster(kcpHelper, parentClient)
+	kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
+	creator := "user@example.com"
+	parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "myaccount"}, mock.Anything).
+		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+			if acc, ok := o.(*accountsv1alpha1.Account); ok {
+				acc.Spec.Creator = &creator
+			}
+			return nil
+		}).Once()
+	fgaClient.EXPECT().Write(mock.Anything, mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
+
+	sub := subroutine.NewAccountTuplesSubroutine(nil, fgaClient, storeIDGetter, "creator", "parent", "account", kcpHelper)
 	_, err := sub.Process(context.Background(), newAccountLogicalCluster())
 	assert.NoError(t, err)
 }
