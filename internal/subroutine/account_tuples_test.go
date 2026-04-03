@@ -34,7 +34,7 @@ func newAccountLogicalCluster() *kcpcorev1alpha1.LogicalCluster {
 }
 
 func mockParentLogicalCluster(kcpHelper *mocks.MockKcpHelper, parentClient *mocks.MockClient) {
-	kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
+	kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
 	parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "cluster"}, mock.Anything).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 			if lc, ok := o.(*kcpcorev1alpha1.LogicalCluster); ok {
@@ -46,12 +46,12 @@ func mockParentLogicalCluster(kcpHelper *mocks.MockKcpHelper, parentClient *mock
 }
 
 func TestAccountTuplesSubroutine_GetName(t *testing.T) {
-	sub := subroutine.NewAccountTuplesSubroutine(nil, nil, nil, nil, "creator", "parent", "type", nil)
+	sub := subroutine.NewAccountTuplesSubroutine(nil, nil, nil, "creator", "parent", "type", nil)
 	assert.Equal(t, "AccountTuplesSubroutine", sub.GetName())
 }
 
 func TestAccountTuplesSubroutine_Process(t *testing.T) {
-	sub := subroutine.NewAccountTuplesSubroutine(nil, nil, nil, nil, "creator", "parent", "type", nil)
+	sub := subroutine.NewAccountTuplesSubroutine(nil, nil, nil, "creator", "parent", "type", nil)
 	_, err := sub.Process(context.Background(), newAccountLogicalCluster())
 	assert.NoError(t, err)
 }
@@ -83,7 +83,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 			obj:  newAccountLogicalCluster(),
 			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
-				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(nil, assert.AnError).Once()
+				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(nil, assert.AnError).Once()
 			},
 			expectError: true,
 		},
@@ -92,7 +92,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 			obj:  newAccountLogicalCluster(),
 			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
-				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
+				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
 				parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "cluster"}, mock.Anything).Return(assert.AnError).Once()
 			},
 			expectError: true,
@@ -102,7 +102,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 			obj:  newAccountLogicalCluster(),
 			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
-				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
+				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
 				parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "cluster"}, mock.Anything).Return(nil).Once()
 			},
 			expectError: true,
@@ -113,7 +113,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				mockParentLogicalCluster(kcpHelper, parentClient)
-				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(nil, assert.AnError).Once()
+				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(nil, assert.AnError).Once()
 			},
 			expectError: true,
 		},
@@ -123,7 +123,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				mockParentLogicalCluster(kcpHelper, parentClient)
-				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
+				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
 				parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "myaccount"}, mock.Anything).Return(assert.AnError).Once()
 			},
 			expectError: true,
@@ -134,7 +134,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				mockParentLogicalCluster(kcpHelper, parentClient)
-				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
+				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
 				parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "myaccount"}, mock.Anything).Return(nil).Once()
 			},
 			expectError: true,
@@ -145,7 +145,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				mockParentLogicalCluster(kcpHelper, parentClient)
-				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
+				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
 				creator := "user@example.com"
 				parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "myaccount"}, mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
@@ -164,7 +164,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				mockParentLogicalCluster(kcpHelper, parentClient)
-				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
+				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(parentClient, nil).Once()
 				creator := "user@example.com"
 				parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "myaccount"}, mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
@@ -188,7 +188,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 
 			test.mockSetup(storeIDGetter, kcpHelper, parentClient, fgaClient)
 
-			sub := subroutine.NewAccountTuplesSubroutine(nil, nil, fgaClient, storeIDGetter, "creator", "parent", "account", kcpHelper)
+			sub := subroutine.NewAccountTuplesSubroutine(nil, fgaClient, storeIDGetter, "creator", "parent", "account", kcpHelper)
 			_, err := sub.Initialize(context.Background(), test.obj)
 			if test.expectError {
 				assert.Error(t, err)
@@ -217,7 +217,7 @@ func TestAccountTuplesSubroutine_Terminate(t *testing.T) {
 			name: "error: NewForLogicalCluster fails",
 			obj:  newAccountLogicalCluster(),
 			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
-				kcpHelper.EXPECT().NewForLogicalCluster(mock.Anything).Return(nil, assert.AnError).Once()
+				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(nil, assert.AnError).Once()
 			},
 			expectError: true,
 		},
@@ -317,7 +317,7 @@ func TestAccountTuplesSubroutine_Terminate(t *testing.T) {
 
 			test.mockSetup(storeIDGetter, kcpHelper, parentClient, fgaClient)
 
-			sub := subroutine.NewAccountTuplesSubroutine(nil, nil, fgaClient, storeIDGetter, "creator", "parent", "account", kcpHelper)
+			sub := subroutine.NewAccountTuplesSubroutine(nil, fgaClient, storeIDGetter, "creator", "parent", "account", kcpHelper)
 			_, err := sub.Terminate(context.Background(), test.obj)
 			if test.expectError {
 				assert.Error(t, err)
