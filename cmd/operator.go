@@ -184,22 +184,32 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		orgReconciler, err := controller.NewOrgLogicalClusterReconciler(log, orgClient, operatorCfg, runtimeClient, mgr)
+		orgReconciler, err := controller.NewOrgLogicalClusterController(log, orgClient, operatorCfg, runtimeClient, mgr, controller.ControllerOptions{
+			Name: "OrgLogicalClusterReconciler",
+		})
 		if err != nil {
-			log.Error().Err(err).Str("controller", "logicalcluster").Msg("unable to create reconciler")
+			log.Error().Err(err).Str("controller", "logicalcluster").Msg("unable to create initializer")
 			return err
 		}
-		if err = orgReconciler.SetupWithManager(mgr, defaultCfg, predicates.LogicalClusterIsAccountTypeOrg()); err != nil {
+		if err = orgReconciler.SetupWithManager(mgr, defaultCfg,
+			predicates.LogicalClusterIsAccountTypeOrg(),
+			predicates.HasInitializerPredicate(operatorCfg.InitializerName()),
+		); err != nil {
 			log.Error().Err(err).Str("controller", "logicalcluster").Msg("unable to create controller")
 			return err
 		}
 
-		alcReconciler, err := controller.NewAccountLogicalClusterReconciler(log, operatorCfg, fga, storeIDGetter, mgr)
+		alcReconciler, err := controller.NewAccountLogicalClusterController(log, operatorCfg, fga, storeIDGetter, mgr, controller.ControllerOptions{
+			Name: "AccountLogicalClusterReconciler",
+		})
 		if err != nil {
 			log.Error().Err(err).Str("controller", "accounttypelogicalcluster").Msg("unable to create reconciler")
 			return err
 		}
-		if err = alcReconciler.SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
+		if err = alcReconciler.SetupWithManager(mgr, defaultCfg,
+			predicate.Not(predicates.LogicalClusterIsAccountTypeOrg()),
+			predicates.HasInitializerPredicate(operatorCfg.InitializerName()),
+		); err != nil {
 			log.Error().Err(err).Str("controller", "accounttypelogicalcluster").Msg("unable to create controller")
 			return err
 		}
