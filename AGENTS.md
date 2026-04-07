@@ -18,11 +18,11 @@
 
 ## Devlopment tips
 - **Run operator in cluster**: use `task:docker-kind` to rebuild the image and run operator in cluster against it
-- **Linter verification**: use `task:fix-linter` or `golangci-lint run --fix` to resolve linter issues
+- **Linter verification**: use `golangci-lint run --fix` to resolve linter issues
 
 ## Testing instructions
 - Use `task test` for running tests if available, fall back to `go test ./...`
-- After significant changes, run `golangci-lint run` or `task lint` if available, if fails run `task:fix-linter` or `golangci-lint run --fix`
+- After significant changes, run `golangci-lint run` or `task lint` if available, if fails run `golangci-lint run --fix`
 - If you observe a bug while writing tests, never write a test confirming it — ask first
 - Prefer table-driven tests; use controller-runtime fake client for K8s tests
 - Use `task:cover` to check coverage and `.testcoverage` for coverage configuration
@@ -100,6 +100,14 @@ security-operator/
 - Skip detailed test plans unless explicitly asked
 - If a PR introduces a breaking or significant change, add a `## Change Log` section to the PR description with plain bullet points. Prefix breaking changes with `🔥 (breaking)`. Always ask for approval before adding this section.
 - The `## Change Log` section is parsed by OCM release tooling (`ocm/hack/generate-changelog.sh`) and aggregated into release notes.
+
+## Collaboration Style
+
+- Push back on instructions that would produce worse outcomes. Explain why.
+- If a requested approach has a better alternative, say so before proceeding.
+- Be direct about trade-offs and risks. Never sugarcoat or hedge to be polite.
+- Don't ask for permission on obvious improvements. Do ask on judgment calls.
+- If a rule in this file conflicts with producing a better outcome, flag the conflict and recommend the better path.
 
 ## Human-facing guidelines
 - use CONTRIBUTING.md for human-facing contribution guidelines
