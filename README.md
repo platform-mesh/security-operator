@@ -5,19 +5,22 @@
 ![build status](https://github.com/platform-mesh/security-operator/actions/workflows/pipeline.yaml/badge.svg)
 
 ## Description
-The platform-mesh security-operator is the component responsible for security configuration. It automaticly configures and updates isolated authorization models for platform mesh utializing OpenFGA, KeyClock and KCP.
+Security-operator is responsible for security related configuration in Platform-mesh. 
 
-It consists of 3 parts: initializer, generator and security-operator.
-- Initializer will be triggered when a new workspace with workspace type which extends "security" workspace type appears. It reconciles this new workspase and creates store in OpenFGA, add a new realm with a client, etc.
-- Generator reconciles apibinding resource from kcp and generates OpenFGA model for it
-- Security-operator reconciles store and authorization model resources from kcp
-
+## API description
+- **Store** - serves as CRD representation of OpenFGA store entity. Stores are created during logical clusters initialization phase or at deployment phase of Platform-mesh installation. When created, dedicated controller will create a **store** in OpenFGA.
+- **AuthorizationModel** - serves as CRD representaiton of OpenFGA Authorization model entity. AuthorizationModels are created when not default ApiBinding is created in the user's workspace. When created, dedicated controller will update Authorization model in the related store in OpenFGA.
+- **Invite** - serves as a mechanism for inviting people in your organization by their email
+- **IdentityProviderConfiguration (IDP)** - CRD for realm configuration in Keycloak and OIDC clients management. IDP is created during logical clusters initialization phase or at deployment phase of Platform-mesh installation.
+- **ApiExportPolicy** - CRD for granting **bind** permissions. When provider creates an API to share this API with other customers of Platform-mesh, he needs to get **bind** permissions and after this other users will be able to bind provider's API and use it
 
 ## Features
-- Stores, tupels and authorization models management in OpenFGA
-- Instantiation of Stores and authorization models resources in KCP
-- KeyClock realms and clients management in Keyclock
-- Instantiation of Realms and Clients resources in deployment cluster
+- **Initialization of logical clusters** - This feature consist of 2 parts:
+    - **organization level logical clusters** - operator creates **Store**, **IDP**, **Invite**, **WorkspaceAuthenticationConfiguration** resources to initialize an organization
+    - **account level logical clusters** - operator creates additional tuples in organization's store for accounts hieracy 
+- **Authorization Model generation** - to execute authorization checks in OpenFGA against custom resource which are created by the use, operator generatos Authorization Model for each resource in ApiExport when the ApiExport is bound (ApiBinding is created). The model is created in the workspace where **ApiExport** and **ApiResourceSchema** resource live.
+- **OIDC management** - Keycloak serves as the internal Identity Provider within Platform Mesh. After IDP resource is created and reconciled successfully, **WorkspaceAuthenticationConfiguration** resource is created and configured to use keycloak as identity provider for kcp authentication
+- **ApiExport bindability control** - ApiExportPolicy controller creates all necessary tuples in OpenFGA to support authorization checks for **bind** kcp's verb. More information about this [ApiExportPolicy ADR](https://github.com/platform-mesh/architecture/blob/main/adr/002-apiexport-binding-access-control.md)
 
 ## Getting started
 
