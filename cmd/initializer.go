@@ -7,6 +7,7 @@ import (
 	helmv2 "github.com/fluxcd/helm-controller/api/v2"
 	sourcev1 "github.com/fluxcd/source-controller/api/v1"
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/security-operator/internal/predicates"
@@ -25,7 +26,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/kcp-dev/logicalcluster/v3"
-	mcclient "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/initializingworkspaces"
 )
 
@@ -83,7 +83,7 @@ var initializerCmd = &cobra.Command{
 		utilruntime.Must(sourcev1.AddToScheme(runtimeScheme))
 		utilruntime.Must(helmv2.AddToScheme(runtimeScheme))
 
-		orgClient, err := logicalClusterClientFromKey(mgr.GetLocalManager().GetConfig(), log)(logicalcluster.Name("root:orgs"))
+		orgClient, err := iclient.NewForLogicalCluster(restCfg, scheme, logicalcluster.Name("root:orgs"))
 		if err != nil {
 			setupLog.Error(err, "Failed to create org client")
 			os.Exit(1)
@@ -101,20 +101,17 @@ var initializerCmd = &cobra.Command{
 			initializerCfg.IDP.AdditionalRedirectURLs = []string{}
 		}
 
-		orgReconciler, err := controller.NewOrgLogicalClusterReconciler(log, orgClient, initializerCfg, runtimeClient, mgr)
+		orgReconciler, err := controller.NewOrgLogicalClusterController(log, orgClient, initializerCfg, runtimeClient, mgr, controller.ControllerOptions{
+			Name:            "OrgLogicalClusterInitializer",
+			InitializerName: initializerCfg.InitializerName(),
+		})
 		if err != nil {
-			setupLog.Error(err, "unable to create LogicalCluster reconciler")
+			setupLog.Error(err, "unable to create LogicalCluster initializer")
 			os.Exit(1)
 		}
 		if err := orgReconciler.SetupWithManager(mgr, defaultCfg, predicates.LogicalClusterIsAccountTypeOrg()); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "LogicalCluster")
 			os.Exit(1)
-		}
-
-		kcpCfg, err := getKubeconfigFromPath(initializerCfg.KCP.Kubeconfig)
-		if err != nil {
-			log.Error().Err(err).Msg("unable to get KCP kubeconfig")
-			return err
 		}
 
 		conn, err := grpc.NewClient(initializerCfg.FGA.Target, grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -131,12 +128,11 @@ var initializerCmd = &cobra.Command{
 			log,
 		)
 
-		mcc, err := mcclient.New(kcpCfg, client.Options{Scheme: scheme})
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create multicluster client")
-			os.Exit(1)
-		}
-		alcReconciler, err := controller.NewAccountLogicalClusterReconciler(log, initializerCfg, fgaClient, storeIDGetter, mcc, mgr)
+		alcReconciler, err := controller.NewAccountLogicalClusterController(log, initializerCfg, fgaClient, storeIDGetter, mgr, controller.ControllerOptions{
+			Name:            "AccountLogicalClusterInitializer",
+			InitializerName: initializerCfg.InitializerName(),
+			TerminatorName:  initializerCfg.TerminatorName(),
+		})
 		if err != nil {
 			setupLog.Error(err, "unable to create AccountLogicalCluster reconciler")
 			os.Exit(1)

@@ -17,7 +17,6 @@ import (
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"github.com/kcp-dev/logicalcluster/v3"
-	mcclient "github.com/kcp-dev/multicluster-provider/client"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
@@ -25,7 +24,6 @@ import (
 // "org"-type when initializing, and deletes them when terminating.
 type AccountTuplesSubroutine struct {
 	mgr             mcmanager.Manager
-	mcc             mcclient.ClusterClient
 	fga             openfgav1.OpenFGAServiceClient
 	storeIDGetter   fga.StoreIDGetter
 	objectType      string
@@ -34,14 +32,17 @@ type AccountTuplesSubroutine struct {
 	kcpHelper       iclient.KcpClientHelper
 }
 
-// Process implements lifecycle.Subroutine as no-op since Initialize handles the
-// work when not in deletion.
+// Process implements subroutines.Processor.
 func (s *AccountTuplesSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
-	return subroutines.OK(), nil
+	return s.reconcile(ctx, obj)
 }
 
 // Initialize implements subroutines.Initializer.
 func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	return s.reconcile(ctx, obj)
+}
+
+func (s *AccountTuplesSubroutine) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	accountPath, err := platformmeshpath.NewAccountPathFromLogicalCluster(lc)
@@ -64,7 +65,7 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, obj client.Obj
 
 	// Retrieve the Account resource out of the parent workspace to determine
 	// the creator
-	parentAccountClient, err := s.kcpHelper.NewForLogicalCluster(logicalcluster.Name(parentPath.String()))
+	parentAccountClient, err := s.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(parentPath.String()))
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting client for parent account cluster: %w", err)
 	}
@@ -154,10 +155,9 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, obj client.Obje
 // GetName implements subroutines.Subroutine.
 func (s *AccountTuplesSubroutine) GetName() string { return "AccountTuplesSubroutine" }
 
-func NewAccountTuplesSubroutine(mcc mcclient.ClusterClient, mgr mcmanager.Manager, fga openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, creatorRelation, parentRelation, objectType string, kcpHelper iclient.KcpClientHelper) *AccountTuplesSubroutine {
+func NewAccountTuplesSubroutine(mgr mcmanager.Manager, fga openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, creatorRelation, parentRelation, objectType string, kcpHelper iclient.KcpClientHelper) *AccountTuplesSubroutine {
 	return &AccountTuplesSubroutine{
 		mgr:             mgr,
-		mcc:             mcc,
 		fga:             fga,
 		storeIDGetter:   storeIDGetter,
 		creatorRelation: creatorRelation,
@@ -169,6 +169,7 @@ func NewAccountTuplesSubroutine(mcc mcclient.ClusterClient, mgr mcmanager.Manage
 
 var (
 	_ subroutines.Initializer = &AccountTuplesSubroutine{}
+	_ subroutines.Processor   = &AccountTuplesSubroutine{}
 	_ subroutines.Terminator  = &AccountTuplesSubroutine{}
 )
 
@@ -177,7 +178,7 @@ var (
 func (s *AccountTuplesSubroutine) clusterAndIDFromLogicalClusterForPath(ctx context.Context, p logicalcluster.Path) (string, kcpcorev1alpha1.LogicalCluster, error) {
 	var lc kcpcorev1alpha1.LogicalCluster
 
-	clusterClient, err := s.kcpHelper.NewForLogicalCluster(logicalcluster.Name(p.String()))
+	clusterClient, err := s.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(p.String()))
 	if err != nil {
 		return "", lc, fmt.Errorf("getting account cluster client: %w", err)
 	}

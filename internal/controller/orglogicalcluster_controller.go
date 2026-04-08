@@ -26,20 +26,30 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-type OrgLogicalClusterReconciler struct {
+// ControllerOptions configures optional lifecycle behaviour
+type ControllerOptions struct {
+	Name            string
+	InitializerName string
+	TerminatorName  string
+}
+
+type OrgLogicalClusterController struct {
 	log         *logger.Logger
+	name        string
 	lifecycle   *lifecycle.Lifecycle
 	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
 }
 
-func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager) (*OrgLogicalClusterReconciler, error) {
+func NewOrgLogicalClusterController(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager, opts ControllerOptions) (*OrgLogicalClusterController, error) {
 	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[mcreconcile.Request](ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 
 	kcpClientHelper := iclient.NewKcpHelper(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
+
 	var subs []subroutines.Subroutine
+
 	if cfg.Initializer.WorkspaceInitializerEnabled {
 		subs = append(subs, subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr, cfg.FGA.CreatorRelation, cfg.FGA.ObjectType, kcpClientHelper))
 	}
@@ -61,30 +71,37 @@ func NewOrgLogicalClusterReconciler(log *logger.Logger, orgClient client.Client,
 		subs = append(subs, subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, mgr, cfg))
 	}
 
-	lc := lifecycle.New(mgr, "OrgLogicalClusterReconciler", func() client.Object {
+	lc := lifecycle.New(mgr, opts.Name, func() client.Object {
 		return &kcpcorev1alpha1.LogicalCluster{}
-	}, subs...).
-		WithInitializer(cfg.InitializerName())
+	}, subs...)
 
-	return &OrgLogicalClusterReconciler{
+	if opts.InitializerName != "" {
+		lc = lc.WithInitializer(opts.InitializerName)
+	}
+	if opts.TerminatorName != "" {
+		lc = lc.WithTerminator(opts.TerminatorName)
+	}
+
+	return &OrgLogicalClusterController{
 		log:         log,
+		name:        opts.Name,
 		lifecycle:   lc,
 		rateLimiter: rl,
 	}, nil
 }
 
-func (r *OrgLogicalClusterReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
+func (r *OrgLogicalClusterController) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
 	return r.lifecycle.Reconcile(ctx, req)
 }
 
-func (r *OrgLogicalClusterReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
+func (r *OrgLogicalClusterController) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
 	opts := controller.TypedOptions[mcreconcile.Request]{
 		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
 		RateLimiter:             r.rateLimiter,
 	}
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
-		Named("LogicalCluster").
+		Named(r.name).
 		For(&kcpcorev1alpha1.LogicalCluster{}).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).

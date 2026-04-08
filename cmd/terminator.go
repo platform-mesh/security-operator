@@ -23,7 +23,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/kcp-dev/logicalcluster/v3"
-	mcclient "github.com/kcp-dev/multicluster-provider/client"
 	kcptenancyv1alphav1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
@@ -61,11 +60,6 @@ var terminatorCmd = &cobra.Command{
 			mgrOpts.LeaderElectionConfig = inClusterCfg
 		}
 
-		mcc, err := mcclient.New(kcpCfg, client.Options{Scheme: scheme})
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create multicluster client")
-			os.Exit(1)
-		}
 		rootClient, err := iclient.NewForLogicalCluster(kcpCfg, scheme, logicalcluster.Name("root"))
 		if err != nil {
 			log.Error().Err(err).Msgf("Failed to get root client")
@@ -113,12 +107,16 @@ var terminatorCmd = &cobra.Command{
 			log,
 		)
 
-		alcReconciler, err := controller.NewAccountLogicalClusterReconciler(log, terminatorCfg, fgaClient, storeIDGetter, mcc, mgr)
+		alcReconciler, err := controller.NewAccountLogicalClusterController(log, terminatorCfg, fgaClient, storeIDGetter, mgr, controller.ControllerOptions{
+			Name: "AccountLogicalClusterTerminator",
+		})
 		if err != nil {
 			log.Error().Err(err).Msg("unable to create AccountLogicalCluster reconciler")
 			os.Exit(1)
 		}
-		if err := alcReconciler.SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
+		if err := alcReconciler.SetupWithManager(mgr, defaultCfg,
+			predicate.Not(predicates.LogicalClusterIsAccountTypeOrg()),
+		); err != nil {
 			log.Error().Err(err).Msg("Unable to create AccountLogicalClusterTerminator")
 			os.Exit(1)
 		}

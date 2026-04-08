@@ -4,17 +4,17 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"net/url"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	platformeshcontext "github.com/platform-mesh/golang-commons/context"
-	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/golang-commons/sentry"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/controller"
+	fga2 "github.com/platform-mesh/security-operator/internal/fga"
+	"github.com/platform-mesh/security-operator/internal/predicates"
 	internalwebhook "github.com/platform-mesh/security-operator/internal/webhook"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
@@ -45,28 +46,6 @@ var (
 	scheme = runtime.NewScheme()
 )
 
-type NewLogicalClusterClientFunc func(clusterKey logicalcluster.Name) (client.Client, error)
-
-func logicalClusterClientFromKey(config *rest.Config, log *logger.Logger) NewLogicalClusterClientFunc {
-	return func(clusterKey logicalcluster.Name) (client.Client, error) {
-		cfg := rest.CopyConfig(config)
-
-		parsed, err := url.Parse(cfg.Host)
-		if err != nil {
-			log.Error().Err(err).Msg("unable to parse host")
-			return nil, err
-		}
-
-		parsed.Path = fmt.Sprintf("/clusters/%s", clusterKey)
-
-		cfg.Host = parsed.String()
-
-		return client.New(cfg, client.Options{
-			Scheme: scheme,
-		})
-	}
-}
-
 var operatorCmd = &cobra.Command{
 	Use: "fga",
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -82,7 +61,7 @@ var operatorCmd = &cobra.Command{
 		}
 
 		if operatorCfg.MigrateAuthorizationModels {
-			if err := migrateAuthorizationModels(ctx, restCfg, &operatorCfg, scheme, logicalClusterClientFromKey(restCfg, log)); err != nil {
+			if err := migrateAuthorizationModels(ctx, restCfg, &operatorCfg, scheme); err != nil {
 				log.Error().Err(err).Msg("migration failed")
 				return err
 			}
@@ -161,8 +140,28 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("unable to create grpc client")
 			return err
 		}
+		defer func() { _ = conn.Close() }()
 
 		fga := openfgav1.NewOpenFGAServiceClient(conn)
+		storeIDGetter := fga2.NewCachingStoreIDGetter(
+			fga,
+			operatorCfg.FGA.StoreIDCacheTTL,
+			ctx,
+			log,
+		)
+
+		k8sCfg := ctrl.GetConfigOrDie()
+
+		runtimeClient, err := client.New(k8sCfg, client.Options{Scheme: scheme})
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create in cluster client")
+			return err
+		}
+		orgClient, err := iclient.NewForLogicalCluster(restCfg, scheme, logicalcluster.Name("root:orgs"))
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to create org client")
+			return err
+		}
 
 		if err = controller.NewStoreReconciler(ctx, log, fga, mgr, &operatorCfg).
 			SetupWithManager(mgr, defaultCfg); err != nil {
@@ -182,6 +181,36 @@ var operatorCmd = &cobra.Command{
 		}
 		if err = inviteReconciler.SetupWithManager(mgr, defaultCfg, log); err != nil {
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
+			return err
+		}
+
+		orgReconciler, err := controller.NewOrgLogicalClusterController(log, orgClient, operatorCfg, runtimeClient, mgr, controller.ControllerOptions{
+			Name: "OrgLogicalClusterReconciler",
+		})
+		if err != nil {
+			log.Error().Err(err).Str("controller", "logicalcluster").Msg("unable to create initializer")
+			return err
+		}
+		if err = orgReconciler.SetupWithManager(mgr, defaultCfg,
+			predicates.LogicalClusterIsAccountTypeOrg(),
+			predicates.HasInitializerPredicate(operatorCfg.InitializerName()),
+		); err != nil {
+			log.Error().Err(err).Str("controller", "logicalcluster").Msg("unable to create controller")
+			return err
+		}
+
+		alcReconciler, err := controller.NewAccountLogicalClusterController(log, operatorCfg, fga, storeIDGetter, mgr, controller.ControllerOptions{
+			Name: "AccountLogicalClusterReconciler",
+		})
+		if err != nil {
+			log.Error().Err(err).Str("controller", "accounttypelogicalcluster").Msg("unable to create reconciler")
+			return err
+		}
+		if err = alcReconciler.SetupWithManager(mgr, defaultCfg,
+			predicate.Not(predicates.LogicalClusterIsAccountTypeOrg()),
+			predicates.HasInitializerPredicate(operatorCfg.InitializerName()),
+		); err != nil {
+			log.Error().Err(err).Str("controller", "accounttypelogicalcluster").Msg("unable to create controller")
 			return err
 		}
 		if err = controller.NewAccountInfoReconciler(log, mgr).SetupWithManager(mgr, defaultCfg); err != nil {
@@ -217,7 +246,7 @@ var operatorCmd = &cobra.Command{
 }
 
 // this function can be removed after the operator has migrated the authz models in all environments
-func migrateAuthorizationModels(ctx context.Context, config *rest.Config, operatorCfg *config.Config, scheme *runtime.Scheme, getClusterClient NewLogicalClusterClientFunc) error {
+func migrateAuthorizationModels(ctx context.Context, config *rest.Config, operatorCfg *config.Config, scheme *runtime.Scheme) error {
 	allClient, err := iclient.GetAllClient(ctx, config, scheme, operatorCfg.APIExportEndpointSlices.CorePlatformMeshIO)
 	if err != nil {
 		return fmt.Errorf("failed to create all-cluster client: %w", err)
@@ -240,7 +269,7 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, operat
 		}
 
 		clusterName := logicalcluster.From(item)
-		clusterClient, err := getClusterClient(clusterName)
+		clusterClient, err := iclient.NewForLogicalCluster(config, scheme, clusterName)
 		if err != nil {
 			return fmt.Errorf("failed to create cluster client for AuthorizationModel %s (cluster %s): %w", item.GetName(), clusterName, err)
 		}

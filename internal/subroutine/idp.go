@@ -47,7 +47,10 @@ func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg confi
 	}, nil
 }
 
-var _ subroutines.Initializer = &IDPSubroutine{}
+var (
+	_ subroutines.Initializer = &IDPSubroutine{}
+	_ subroutines.Processor   = &IDPSubroutine{}
+)
 
 type IDPSubroutine struct {
 	orgsClient                client.Client
@@ -63,6 +66,15 @@ func (i *IDPSubroutine) GetName() string { return "IDPSubroutine" }
 
 // Initialize implements subroutines.Initializer.
 func (i *IDPSubroutine) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	return i.reconcile(ctx, obj)
+}
+
+// Process implements subroutines.Processor.
+func (i *IDPSubroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	return i.reconcile(ctx, obj)
+}
+
+func (i *IDPSubroutine) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
 	workspaceName := getWorkspaceName(lc)
@@ -191,8 +203,7 @@ func (i *IDPSubroutine) patchAccountInfo(ctx context.Context, cl client.Client, 
 	return nil
 }
 
-// ensureClient updates only fields managed by this subroutine, preserving ClientID and RegistrationClientURI
-// that are set by reconciling an idp resource
+// ensureClient updates only clients managed by this subroutine
 func ensureClient(existing []v1alpha1.IdentityProviderClientConfig, desired v1alpha1.IdentityProviderClientConfig) []v1alpha1.IdentityProviderClientConfig {
 	idx := slices.IndexFunc(existing, func(c v1alpha1.IdentityProviderClientConfig) bool {
 		return c.ClientName == desired.ClientName

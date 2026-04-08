@@ -16,14 +16,11 @@ import (
 	"github.com/platform-mesh/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/kcp-dev/logicalcluster/v3"
-	kcpcore "github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
@@ -46,7 +43,10 @@ func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mc
 	}
 }
 
-var _ subroutines.Initializer = &workspaceInitializer{}
+var (
+	_ subroutines.Initializer = &workspaceInitializer{}
+	_ subroutines.Processor   = &workspaceInitializer{}
+)
 
 type workspaceInitializer struct {
 	orgsClient      client.Client
@@ -64,20 +64,24 @@ func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" 
 
 // Initialize implements subroutines.Initializer.
 func (w *workspaceInitializer) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
-	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
-	p := lc.Annotations[kcpcore.LogicalClusterPathAnnotationKey]
-	if p == "" {
-		return subroutines.OK(), fmt.Errorf("annotation on LogicalCluster is not set")
-	}
-	lcID, _ := mccontext.ClusterFrom(ctx)
+	return w.reconcile(ctx, obj)
+}
 
-	lcClient, err := w.kcpHelper.NewForLogicalCluster(logicalcluster.Name(lcID))
+// Process implements subroutines.Processor.
+func (w *workspaceInitializer) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	return w.reconcile(ctx, obj)
+}
+
+func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
+
+	cluster, err := w.mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return subroutines.OK(), fmt.Errorf("getting client: %w", err)
+		return subroutines.OK(), fmt.Errorf("failed to get cluster from context: %w", err)
 	}
 
 	var ai accountsv1alpha1.AccountInfo
-	if err := lcClient.Get(ctx, client.ObjectKey{
+	if err := cluster.GetClient().Get(ctx, client.ObjectKey{
 		Name: "account",
 	}, &ai); err != nil && !kerrors.IsNotFound(err) {
 		return subroutines.OK(), fmt.Errorf("getting AccountInfo for LogicalCluster: %w", err)
@@ -85,13 +89,8 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, obj client.Object
 		return subroutines.StopWithRequeue(5*time.Second, "AccountInfo not found yet, requeueing"), nil
 	}
 
-	orgsClient, err := w.kcpHelper.NewForLogicalCluster(logicalcluster.Name("root:orgs"))
-	if err != nil {
-		return subroutines.OK(), fmt.Errorf("getting parent organisation client: %w", err)
-	}
-
 	var acc accountsv1alpha1.Account
-	if err := orgsClient.Get(ctx, client.ObjectKey{
+	if err := w.orgsClient.Get(ctx, client.ObjectKey{
 		Name: ai.Spec.Account.Name,
 	}, &acc); err != nil {
 		return subroutines.OK(), fmt.Errorf("getting Account in platform-mesh-system: %w", err)
@@ -130,6 +129,7 @@ func (w *workspaceInitializer) Initialize(ctx context.Context, obj client.Object
 			},
 		}...)
 	}
+
 	if result, err := controllerutil.CreateOrUpdate(ctx, w.orgsClient, &store, func() error {
 		store.Spec = v1alpha1.StoreSpec{
 			CoreModule: w.coreModule,
