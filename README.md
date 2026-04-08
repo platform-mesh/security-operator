@@ -21,6 +21,7 @@ Security-operator is responsible for security related configuration in Platform-
 - **Authorization Model generation** - to execute authorization checks in OpenFGA against custom resource which are created by the use, operator generatos Authorization Model for each resource in ApiExport when the ApiExport is bound (ApiBinding is created). The model is created in the workspace where **ApiExport** and **ApiResourceSchema** resource live.
 - **OIDC management** - Keycloak serves as the internal Identity Provider within Platform Mesh. After IDP resource is created and reconciled successfully, **WorkspaceAuthenticationConfiguration** resource is created and configured to use keycloak as identity provider for kcp authentication
 - **ApiExport bindability control** - ApiExportPolicy controller creates all necessary tuples in OpenFGA to support authorization checks for **bind** kcp's verb. More information about this [ApiExportPolicy ADR](https://github.com/platform-mesh/architecture/blob/main/adr/002-apiexport-binding-access-control.md)
+- **Reconcile logical cluster** - securtity-operator reconciles logical clusters after they are initialized and applies the same logic as initializer does. It keeps already initialized logical clusters up to date if something has been changed in initializing flow.
 
 ## Getting started
 
