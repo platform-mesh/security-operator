@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
@@ -13,6 +14,7 @@ import (
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -50,6 +52,7 @@ func mockAccountInfo(cl *mocks.MockClient, orgName, originCluster string) {
 		return nil
 	}).Once()
 }
+
 
 func TestAuthorizationModelGeneration_Process(t *testing.T) {
 	tests := []struct {
@@ -115,6 +118,12 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					}
 					return nil
 				}).Once()
+				allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					if list, ok := ol.(*securityv1alpha1.AuthorizationModelList); ok {
+						list.Items = []securityv1alpha1.AuthorizationModel{}
+					}
+					return nil
+				}).Once()
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					if rs, ok := o.(*kcpapisv1alpha1.APIResourceSchema); ok {
 						rs.Spec.Group = "group"
@@ -154,6 +163,12 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					}
 					return nil
 				}).Once()
+				allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					if list, ok := ol.(*securityv1alpha1.AuthorizationModelList); ok {
+						list.Items = []securityv1alpha1.AuthorizationModel{}
+					}
+					return nil
+				}).Once()
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					if rs, ok := o.(*kcpapisv1alpha1.APIResourceSchema); ok {
 						rs.Spec.Group = "group"
@@ -181,6 +196,12 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
 						return nil
+					}
+					return nil
+				}).Once()
+				allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					if list, ok := ol.(*securityv1alpha1.AuthorizationModelList); ok {
+						list.Items = []securityv1alpha1.AuthorizationModel{}
 					}
 					return nil
 				}).Once()
@@ -227,6 +248,12 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					}
 					return nil
 				}).Once()
+				allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					if list, ok := ol.(*securityv1alpha1.AuthorizationModelList); ok {
+						list.Items = []securityv1alpha1.AuthorizationModel{}
+					}
+					return nil
+				}).Once()
 				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 			},
 		},
@@ -242,6 +269,12 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
 						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
 						return nil
+					}
+					return nil
+				}).Once()
+				allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					if list, ok := ol.(*securityv1alpha1.AuthorizationModelList); ok {
+						list.Items = []securityv1alpha1.AuthorizationModel{}
 					}
 					return nil
 				}).Once()
@@ -279,6 +312,61 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 				cluster.EXPECT().GetClient().Return(kcpClient)
 				mockAccountInfo(kcpClient, "org", "origin")
 				manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(nil, assert.AnError)
+			},
+		},
+		{
+			name:        "error on List AuthorizationModels in Process",
+			binding:     newApiBinding("foo", "bar"),
+			expectError: true,
+			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockClient, cluster *mocks.MockCluster, kcpClient *mocks.MockClient) {
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				cluster.EXPECT().GetClient().Return(kcpClient)
+				mockAccountInfo(kcpClient, "org", "origin")
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil)
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
+						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
+						return nil
+					}
+					return nil
+				}).Once()
+				allClient.EXPECT().List(mock.Anything, mock.Anything).Return(assert.AnError).Once()
+			},
+		},
+		{
+			name:    "skip model creation when model already exists in Process",
+			binding: newApiBinding("foo", "bar"),
+			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockClient, cluster *mocks.MockCluster, kcpClient *mocks.MockClient) {
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+				cluster.EXPECT().GetClient().Return(kcpClient)
+				mockAccountInfo(kcpClient, "org", "origin")
+				manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil)
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
+						ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
+						return nil
+					}
+					return nil
+				}).Once()
+				// model "group-foos-org" already exists — creation must be skipped
+				allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					if list, ok := ol.(*securityv1alpha1.AuthorizationModelList); ok {
+						list.Items = []securityv1alpha1.AuthorizationModel{
+							{ObjectMeta: metav1.ObjectMeta{Name: "group-foos-org"}},
+						}
+					}
+					return nil
+				}).Once()
+				kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					if rs, ok := o.(*kcpapisv1alpha1.APIResourceSchema); ok {
+						rs.Spec.Group = "group"
+						rs.Spec.Names.Plural = "foos"
+						rs.Spec.Names.Singular = "foo"
+						rs.Spec.Scope = apiextensionsv1.ClusterScoped
+						return nil
+					}
+					return nil
+				}).Once()
 			},
 		},
 	}
