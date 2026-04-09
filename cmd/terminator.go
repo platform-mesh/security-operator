@@ -108,7 +108,8 @@ var terminatorCmd = &cobra.Command{
 		)
 
 		alcReconciler, err := controller.NewAccountLogicalClusterController(log, terminatorCfg, fgaClient, storeIDGetter, mgr, controller.ControllerOptions{
-			Name: "AccountLogicalClusterTerminator",
+			Name:           "AccountLogicalClusterTerminator",
+			TerminatorName: terminatorCfg.TerminatorName(),
 		})
 		if err != nil {
 			log.Error().Err(err).Msg("unable to create AccountLogicalCluster reconciler")
