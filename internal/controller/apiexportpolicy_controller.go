@@ -116,6 +116,7 @@ func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Cont
 			trimmedExpr := strings.TrimPrefix(expr, ":")
 
 			if trimmedExpr == "root:orgs:*" {
+				// apiExportPolicies are engaged by system provider
 				clusterName := multiProviderName(config.SystemProviderName, logicalcluster.From(&policy).String())
 
 				requests = append(requests, mcreconcile.Request{
