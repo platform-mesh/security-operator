@@ -92,6 +92,8 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 					if !ok {
 						return nil
 					}
+					// stores are engaged by system provider, to trigger a reconciliation with multi provider
+					// it's required to use provider's prefix for request
 					storeClusterName := multiProviderName(config.SystemProviderName, model.Spec.StoreRef.Cluster)
 
 					return []mcreconcile.Request{
@@ -113,6 +115,8 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 		).Complete(r)
 }
 
-func multiProviderName(providerName, clusterID string) string {
-	return providerName + config.ProviderSeparator + clusterID
+// multiProviderName returns a cluster name with provider prefix and separator for multi provider.
+// The multi.Provider prefixes cluster names as "providerName#clusterName"
+func multiProviderName(providerName, clusterName string) string {
+	return providerName + config.ProviderSeparator + clusterName
 }
