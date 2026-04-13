@@ -95,12 +95,6 @@ var _ subroutines.Processor = &authorizationModelSubroutine{}
 func (a *authorizationModelSubroutine) GetName() string { return "AuthorizationModel" }
 
 func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store *securityv1alpha1.Store) (securityv1alpha1.AuthorizationModelList, error) {
-
-	storeClusterKey, ok := mccontext.ClusterFrom(ctx)
-	if !ok {
-		return securityv1alpha1.AuthorizationModelList{}, fmt.Errorf("unable to get cluster key from context")
-	}
-
 	allCtx := mccontext.WithCluster(ctx, "")
 	allAuthorizationModels := securityv1alpha1.AuthorizationModelList{}
 
@@ -110,7 +104,7 @@ func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store
 
 	var extendingModules securityv1alpha1.AuthorizationModelList
 	for _, model := range allAuthorizationModels.Items {
-		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Cluster != storeClusterKey {
+		if model.Spec.StoreRef.Name != store.Name {
 			continue
 		}
 

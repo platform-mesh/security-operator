@@ -8,6 +8,7 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -25,9 +26,10 @@ type AuthorizationModelReconciler struct {
 }
 
 func NewAuthorizationModelReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *AuthorizationModelReconciler {
+	kcpClientHelper := iclient.NewKcpHelper(mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme())
 	lc := lifecycle.New(mcMgr, "AuthorizationModelReconciler", func() client.Object {
 		return &corev1alpha1.AuthorizationModel{}
-	}, subroutine.NewTupleSubroutine(fga, mcMgr))
+	}, subroutine.NewTupleSubroutine(fga, mcMgr, kcpClientHelper))
 
 	return &AuthorizationModelReconciler{
 		log:       log,

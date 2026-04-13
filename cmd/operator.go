@@ -163,11 +163,6 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewStoreReconciler(ctx, log, fga, mgr, &operatorCfg).
-			SetupWithManager(mgr, defaultCfg); err != nil {
-			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
-			return err
-		}
 		if err = controller.
 			NewAuthorizationModelReconciler(log, fga, mgr).
 			SetupWithManager(mgr, defaultCfg); err != nil {
