@@ -48,7 +48,7 @@ func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.O
 		subroutine.NewAuthorizationModelSubroutine(fga, mcMgr, lister, func(cfg *rest.Config) discovery.DiscoveryInterface {
 			return discovery.NewDiscoveryClientForConfigOrDie(cfg)
 		}, log),
-		subroutine.NewTupleSubroutine(fga, mcMgr),
+		subroutine.NewTupleSubroutine(fga, mcMgr, kcpClientHelper),
 	).WithConditions(conditions.NewManager())
 
 	return &StoreReconciler{
@@ -75,7 +75,11 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	b := mcbuilder.ControllerManagedBy(mgr).
 		Named("store").
-		For(&corev1alpha1.Store{}).
+		For(&corev1alpha1.Store{},
+			mcbuilder.WithClusterFilter(func(clusterName string, _ cluster.Cluster) bool {
+				return strings.HasPrefix(clusterName, config.SystemProviderName)
+			}),
+		).
 		WithOptions(controller.TypedOptions[mcreconcile.Request]{MaxConcurrentReconciles: cfg.MaxConcurrentReconciles}).
 		WithEventFilter(predicate.And(predicates...))
 
@@ -88,6 +92,7 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 					if !ok {
 						return nil
 					}
+					storeClusterName := multiProviderName(config.SystemProviderName, model.Spec.StoreRef.Cluster)
 
 					return []mcreconcile.Request{
 						{
@@ -102,5 +107,12 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 				})
 			},
 			mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{}),
+			mcbuilder.WithClusterFilter(func(clusterName string, _ cluster.Cluster) bool {
+				return strings.HasPrefix(clusterName, config.CoreProviderName)
+			}),
 		).Complete(r)
+}
+
+func multiProviderName(providerName, clusterID string) string {
+	return providerName + config.ProviderSeparator + clusterID
 }

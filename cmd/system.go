@@ -65,22 +65,21 @@ var systemCmd = &cobra.Command{
 			opts.LeaderElectionConfig = inClusterCfg
 		}
 
-		systemProvider, err := pathaware.New(restCfg, systemCfg.APIExportEndpointSlices.SystemPlatformMeshIO, apiexport.Options{
+		systemProvider, err := apiexport.New(restCfg, systemCfg.APIExportEndpointSlices.SystemPlatformMeshIO, apiexport.Options{
 			Scheme: scheme,
 		})
 		if err != nil {
-			setupLog.Error(err, "unable to create apiexport provider")
+			setupLog.Error(err, "unable to create system apiexport provider")
 			return err
 		}
 
-		coreProvider, err := pathaware.New(restCfg, systemCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
+		coreProvider, err := apiexport.New(restCfg, systemCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
 			Scheme: scheme,
 		})
 		if err != nil {
 			setupLog.Error(err, "unable to create core apiexport provider")
 			return err
 		}
-
 		multiProv := multiprovider.New(multiprovider.Options{})
 		if err := multiProv.AddProvider(config.SystemProviderName, systemProvider); err != nil {
 			return err
@@ -128,6 +127,12 @@ var systemCmd = &cobra.Command{
 
 		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, kcpClientGetterWithCongig, providerLister, &systemCfg, storeIDGetter).SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
+			return err
+		}
+
+		if err = controller.NewStoreReconciler(ctx, log, fgaClient, mgr, &operatorCfg).
+			SetupWithManager(mgr, defaultCfg); err != nil {
+			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
 			return err
 		}
 

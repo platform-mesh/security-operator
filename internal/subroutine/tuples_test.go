@@ -14,16 +14,18 @@ import (
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 )
 
 func TestTupleGetName(t *testing.T) {
-	subroutine := subroutine.NewTupleSubroutine(nil, nil)
+	subroutine := subroutine.NewTupleSubroutine(nil, nil, nil)
 	assert.Equal(t, "TupleSubroutine", subroutine.GetName())
 }
 
 func TestTupleFinalizers(t *testing.T) {
-	subroutine := subroutine.NewTupleSubroutine(nil, nil)
+	subroutine := subroutine.NewTupleSubroutine(nil, nil, nil)
 	assert.Equal(t, []string{"core.platform-mesh.io/fga-tuples"}, subroutine.Finalizers(nil))
 }
 
@@ -165,7 +167,13 @@ func TestTupleProcessWithStore(t *testing.T) {
 				test.mgrMocks(manager)
 			}
 
-			subroutine := subroutine.NewTupleSubroutine(fga, manager)
+			// Mock GetLocalManager for Store tests
+			localMgr := mocks.NewCTRLManager(t)
+			manager.EXPECT().GetLocalManager().Return(localMgr).Maybe()
+			localMgr.EXPECT().GetConfig().Return(&rest.Config{}).Maybe()
+			localMgr.EXPECT().GetScheme().Return(runtime.NewScheme()).Maybe()
+
+			subroutine := subroutine.NewTupleSubroutine(fga, manager, nil)
 
 			_, err := subroutine.Process(context.Background(), test.store)
 			if test.expectError {
@@ -181,12 +189,11 @@ func TestTupleProcessWithStore(t *testing.T) {
 
 func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 	tests := []struct {
-		name        string
-		store       *securityv1alpha1.AuthorizationModel
-		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
-		k8sMocks    func(*mocks.MockClient)
-		mgrMocks    func(*mocks.MockManager)
-		expectError bool
+		name           string
+		store          *securityv1alpha1.AuthorizationModel
+		fgaMocks       func(*mocks.MockOpenFGAServiceClient)
+		kcpHelperMocks func(*mocks.MockKcpHelper)
+		expectError    bool
 	}{
 		{
 			name: "should process and add tuples to the authorization model",
@@ -223,11 +230,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
 				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil)
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				// Not used for AuthorizationModel
-			},
-			mgrMocks: func(mgr *mocks.MockManager) {
-				storeCluster := mocks.NewMockCluster(t)
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
 				storeClient := mocks.NewMockClient(t)
 				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
@@ -288,11 +291,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				// Apply (batch write) + Delete (batch delete)
 				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil).Twice()
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				// Not used for AuthorizationModel
-			},
-			mgrMocks: func(mgr *mocks.MockManager) {
-				storeCluster := mocks.NewMockCluster(t)
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
 				storeClient := mocks.NewMockClient(t)
 				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
@@ -316,15 +315,12 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				test.fgaMocks(fga)
 			}
 
-			manager := mocks.NewMockManager(t)
-			if test.mgrMocks != nil {
-				test.mgrMocks(manager)
-			}
-			if test.k8sMocks != nil {
-				test.k8sMocks(mocks.NewMockClient(t))
+			kcpHelper := mocks.NewMockKcpHelper(t)
+			if test.kcpHelperMocks != nil {
+				test.kcpHelperMocks(kcpHelper)
 			}
 
-			subroutine := subroutine.NewTupleSubroutine(fga, manager)
+			subroutine := subroutine.NewTupleSubroutine(fga, nil, kcpHelper)
 
 			ctx := context.Background()
 
@@ -342,12 +338,11 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 
 func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 	tests := []struct {
-		name        string
-		store       *securityv1alpha1.AuthorizationModel
-		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
-		k8sMocks    func(*mocks.MockClient)
-		mgrMocks    func(*mocks.MockManager)
-		expectError bool
+		name           string
+		store          *securityv1alpha1.AuthorizationModel
+		fgaMocks       func(*mocks.MockOpenFGAServiceClient)
+		kcpHelperMocks func(*mocks.MockKcpHelper)
+		expectError    bool
 	}{
 		{
 			name: "should finalize the authorization model",
@@ -377,11 +372,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 				// delete call
 				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil)
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				// Not used for AuthorizationModel
-			},
-			mgrMocks: func(mgr *mocks.MockManager) {
-				storeCluster := mocks.NewMockCluster(t)
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
 				storeClient := mocks.NewMockClient(t)
 				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
@@ -405,15 +396,12 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 				test.fgaMocks(fga)
 			}
 
-			manager := mocks.NewMockManager(t)
-			if test.mgrMocks != nil {
-				test.mgrMocks(manager)
-			}
-			if test.k8sMocks != nil {
-				test.k8sMocks(mocks.NewMockClient(t))
+			kcpHelper := mocks.NewMockKcpHelper(t)
+			if test.kcpHelperMocks != nil {
+				test.kcpHelperMocks(kcpHelper)
 			}
 
-			subroutine := subroutine.NewTupleSubroutine(fga, manager)
+			subroutine := subroutine.NewTupleSubroutine(fga, nil, kcpHelper)
 
 			ctx := context.Background()
 
@@ -488,7 +476,13 @@ func TestTupleFinalizationWithStore(t *testing.T) {
 				test.mgrMocks(manager)
 			}
 
-			subroutine := subroutine.NewTupleSubroutine(fga, manager)
+			// Mock GetLocalManager for Store tests
+			localMgr := mocks.NewCTRLManager(t)
+			manager.EXPECT().GetLocalManager().Return(localMgr).Maybe()
+			localMgr.EXPECT().GetConfig().Return(&rest.Config{}).Maybe()
+			localMgr.EXPECT().GetScheme().Return(runtime.NewScheme()).Maybe()
+
+			subroutine := subroutine.NewTupleSubroutine(fga, manager, nil)
 
 			_, err := subroutine.Finalize(context.Background(), test.store)
 			if test.expectError {
