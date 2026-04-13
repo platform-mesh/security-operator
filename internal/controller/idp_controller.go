@@ -68,7 +68,7 @@ func (r *IdentityProviderConfigurationReconciler) SetupWithManager(mgr mcmanager
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("identityprovider").
 		For(&corev1alpha1.IdentityProviderConfiguration{}, mcbuilder.WithClusterFilter(func(clusterName string, _ cluster.Cluster) bool {
-			return strings.HasPrefix(clusterName, "system")
+			return strings.HasPrefix(clusterName, config.SystemProviderName)
 		})).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
