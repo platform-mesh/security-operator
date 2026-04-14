@@ -679,6 +679,109 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			expectError:    true,
 			expectedResult: subroutines.OK(),
 		},
+		{
+			name: "success - additional audiences are appended",
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kcp.io/path": "root:orgs:test-workspace",
+					},
+				},
+			},
+			cfg: config.Config{
+				BaseDomain:          "test.domain",
+				GroupClaim:          "groups",
+				UserClaim:           "email",
+				AdditionalAudiences: []string{"extra-aud-1", "extra-aud-2"},
+			},
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"test-workspace": {ClientID: "test-workspace-client"},
+										"kubectl":        {ClientID: "kubectl-client"},
+									},
+								},
+							},
+						}
+						return nil
+					}).Once()
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
+					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
+				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+						wac := obj.(*kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration)
+						assert.Equal(t, "test-workspace", wac.Name)
+						assert.ElementsMatch(t, []string{"test-workspace-client", "kubectl-client", "extra-aud-1", "extra-aud-2"}, wac.Spec.JWT[0].Issuer.Audiences)
+						return nil
+					}).Once()
+
+				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{}
+						return nil
+					}).Once()
+			},
+			expectError:    false,
+			expectedResult: subroutines.OK(),
+		},
+		{
+			name: "success - empty additional audiences does not change behavior",
+			logicalCluster: &kcpcorev1alpha1.LogicalCluster{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"kcp.io/path": "root:orgs:test-workspace",
+					},
+				},
+			},
+			cfg: config.Config{
+				BaseDomain:          "test.domain",
+				GroupClaim:          "groups",
+				UserClaim:           "email",
+				AdditionalAudiences: []string{},
+			},
+			setupMocks: func(m *mocks.MockClient, mgrClient *mocks.MockClient) {
+				mgrClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+						*obj.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							ObjectMeta: metav1.ObjectMeta{Name: "account"},
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{
+										"test-workspace": {ClientID: "test-workspace-client"},
+										"kubectl":        {ClientID: "kubectl-client"},
+									},
+								},
+							},
+						}
+						return nil
+					}).Once()
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test-workspace"}, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
+					Return(apierrors.NewNotFound(kcptenancyv1alphav1.Resource("workspaceauthenticationconfigurations"), "test-workspace")).Once()
+				m.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceAuthenticationConfiguration"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+						wac := obj.(*kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration)
+						assert.Equal(t, "test-workspace", wac.Name)
+						assert.ElementsMatch(t, []string{"test-workspace-client", "kubectl-client"}, wac.Spec.JWT[0].Issuer.Audiences)
+						assert.Len(t, wac.Spec.JWT[0].Issuer.Audiences, 2)
+						return nil
+					}).Once()
+
+				m.EXPECT().List(mock.Anything, mock.AnythingOfType("*v1alpha1.WorkspaceTypeList"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+						wtList := list.(*kcptenancyv1alphav1.WorkspaceTypeList)
+						wtList.Items = []kcptenancyv1alphav1.WorkspaceType{}
+						return nil
+					}).Once()
+			},
+			expectError:    false,
+			expectedResult: subroutines.OK(),
+		},
 	}
 
 	for _, tt := range tests {

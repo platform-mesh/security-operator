@@ -17,6 +17,7 @@ func TestNewConfig(t *testing.T) {
 	assert.Equal(t, "security-operator", cfg.Keycloak.ClientID)
 	assert.Equal(t, 9443, cfg.Webhooks.Port)
 	assert.Equal(t, []string{"http://localhost:8000", "http://localhost:18000"}, cfg.IDP.KubectlClientRedirectURLs)
+	assert.Nil(t, cfg.AdditionalAudiences)
 }
 
 func TestConfigAddFlags(t *testing.T) {
@@ -30,6 +31,7 @@ func TestConfigAddFlags(t *testing.T) {
 		"--idp-kubectl-client-redirect-urls=http://localhost:7000,http://localhost:17000",
 		"--webhooks-enabled=true",
 		"--webhooks-port=10443",
+		"--additional-audiences=aud-a,aud-b",
 	})
 
 	assert.NoError(t, err)
@@ -38,6 +40,7 @@ func TestConfigAddFlags(t *testing.T) {
 	assert.Equal(t, []string{"http://localhost:7000", "http://localhost:17000"}, cfg.IDP.KubectlClientRedirectURLs)
 	assert.True(t, cfg.Webhooks.Enabled)
 	assert.Equal(t, 10443, cfg.Webhooks.Port)
+	assert.Equal(t, []string{"aud-a", "aud-b"}, cfg.AdditionalAudiences)
 }
 
 func TestInitContainerConfigAddFlags(t *testing.T) {
