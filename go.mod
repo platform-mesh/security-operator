@@ -16,7 +16,7 @@ require (
 	github.com/openfga/language/pkg/go v0.2.1
 	github.com/platform-mesh/account-operator v0.12.37
 	github.com/platform-mesh/golang-commons v0.14.0
-	github.com/platform-mesh/subroutines v0.3.0
+	github.com/platform-mesh/subroutines v0.3.1
 	github.com/rs/zerolog v1.35.0
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
