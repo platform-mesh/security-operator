@@ -86,13 +86,14 @@ func (r *workspaceAuthSubroutine) reconcile(ctx context.Context, obj client.Obje
 		return subroutines.OK(), fmt.Errorf("AccountInfo %s has no OIDC clients", workspaceName)
 	}
 
-	audiences := make([]string, 0, len(accountInfo.Spec.OIDC.Clients))
+	audiences := make([]string, 0, len(accountInfo.Spec.OIDC.Clients)+len(r.cfg.AdditionalAudiences))
 	for clientName, clientInfo := range accountInfo.Spec.OIDC.Clients {
 		if clientInfo.ClientID == "" {
 			return subroutines.OK(), fmt.Errorf("OIDC client %s has empty ClientID in AccountInfo", clientName)
 		}
 		audiences = append(audiences, clientInfo.ClientID)
 	}
+	audiences = append(audiences, r.cfg.AdditionalAudiences...)
 
 	jwtAuthenticationConfiguration := kcptenancyv1alphav1.JWTAuthenticator{
 		Issuer: kcptenancyv1alphav1.Issuer{
