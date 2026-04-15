@@ -329,16 +329,16 @@ func TestAuthorizationModelGeneration_Process_UsesGeneratedClusterForStoreRef(t 
 	}).Once()
 	kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 		if rs, ok := o.(*kcpapisv1alpha1.APIResourceSchema); ok {
-			rs.Spec.Group = "operations.openkcm.io"
-			rs.Spec.Names.Plural = "servicekeys"
-			rs.Spec.Names.Singular = "servicekey"
+			rs.Spec.Group = "example.io"
+			rs.Spec.Names.Plural = "widgets"
+			rs.Spec.Names.Singular = "widget"
 			rs.Spec.Scope = apiextensionsv1.NamespaceScoped
 			return nil
 		}
 		return nil
 	}).Once()
 	kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(
-		kerrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "authorizationmodels"}, "servicekeys-org"),
+		kerrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "authorizationmodels"}, "widgets-org"),
 	).Once()
 	kcpClient.EXPECT().Create(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
 		model := obj.(*securityv1alpha1.AuthorizationModel)
@@ -348,7 +348,7 @@ func TestAuthorizationModelGeneration_Process_UsesGeneratedClusterForStoreRef(t 
 	}).Once()
 
 	sub := subroutine.NewAuthorizationModelGenerationSubroutine(manager, allClient)
-	_, err := sub.Process(context.Background(), newApiBinding("operations.openkcm.io", "root:providers:openkcm-provider"))
+	_, err := sub.Process(context.Background(), newApiBinding("example.io", "root:providers:example"))
 	assert.Nil(t, err)
 }
 
