@@ -2,33 +2,39 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
-
-	"github.com/kcp-dev/logicalcluster/v3"
 )
 
-type KcpClientHelper interface {
-	NewClientForLogicalCluster(clusterKey logicalcluster.Name) (client.Client, error)
+type KCPHelper interface {
+	NewClientForLogicalCluster(ctx context.Context, cluster string) (client.Client, error)
 	GetAllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error)
 }
 
-type KcpHelper struct {
+type ManagerKcpHelper struct {
 	config *rest.Config
 	scheme *runtime.Scheme
+	mgr    mcmanager.Manager
 }
 
-func NewKcpHelper(config *rest.Config, scheme *runtime.Scheme) *KcpHelper {
-	return &KcpHelper{config: config, scheme: scheme}
+func NewKcpHelper(mgr mcmanager.Manager) *ManagerKcpHelper {
+	return &ManagerKcpHelper{config: mgr.GetLocalManager().GetConfig(), scheme: mgr.GetLocalManager().GetScheme(), mgr: mgr}
 }
 
-func (f *KcpHelper) NewClientForLogicalCluster(clusterKey logicalcluster.Name) (client.Client, error) {
-	return NewForLogicalCluster(f.config, f.scheme, clusterKey)
+func (f *ManagerKcpHelper) NewClientForLogicalCluster(ctx context.Context, cluster string) (client.Client, error) {
+	kcpCluster, err := f.mgr.GetCluster(ctx, cluster)
+	if err != nil {
+		return nil, fmt.Errorf("getting cluster: %w", err)
+	}
+
+	return kcpCluster.GetClient(), nil
 }
 
-func (f *KcpHelper) GetAllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error) {
+func (f *ManagerKcpHelper) GetAllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error) {
 	return GetAllClient(ctx, f.config, f.scheme, apiexportEndpointSliceName)
 }

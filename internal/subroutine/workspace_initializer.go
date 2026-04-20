@@ -24,7 +24,7 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mcmanager.Manager, creatorRelation, objectType string, kcpHelper iclient.KcpClientHelper) *workspaceInitializer {
+func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mcmanager.Manager, creatorRelation, objectType string, kcpHelper iclient.KCPHelper) *workspaceInitializer {
 	// read file from path
 	res, err := os.ReadFile(cfg.CoreModulePath)
 	if err != nil {
@@ -39,7 +39,6 @@ func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mc
 		cfg:             cfg,
 		creatorRelation: creatorRelation,
 		objectType:      objectType,
-		kcpHelper:       kcpHelper,
 	}
 }
 
@@ -57,7 +56,6 @@ type workspaceInitializer struct {
 
 	objectType      string
 	creatorRelation string
-	kcpHelper       iclient.KcpClientHelper
 }
 
 func (w *workspaceInitializer) GetName() string { return "WorkspaceInitializer" }

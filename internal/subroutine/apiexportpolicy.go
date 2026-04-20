@@ -17,7 +17,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
@@ -32,10 +31,10 @@ type APIExportPolicySubroutine struct {
 	mgr           mcmanager.Manager
 	cfg           *config.Config
 	storeIDGetter fga.StoreIDGetter
-	kcpHelper     iclient.KcpClientHelper
+	kcpHelper     iclient.KCPHelper
 }
 
-func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpHelper iclient.KcpClientHelper) *APIExportPolicySubroutine {
+func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpHelper iclient.KCPHelper) *APIExportPolicySubroutine {
 	return &APIExportPolicySubroutine{
 		fga:           fgaClient,
 		mgr:           mgr,
@@ -115,7 +114,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Obje
 		// for all valid expressions except of :root:orgs:*
 		// e.g :root:orgs:A:B, find store id
 		// and clusterID of logical cluster where account B lives (logical cluster A)
-		lcClient, err := a.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(workspacePath))
+		lcClient, err := a.kcpHelper.NewClientForLogicalCluster(ctx, workspacePath)
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("getting client: %w", err)
 		}
@@ -182,7 +181,7 @@ func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, obj client.Obj
 }
 
 func (a *APIExportPolicySubroutine) getClusterIDFromPath(ctx context.Context, clusterPath string) (string, error) {
-	lcClient, err := a.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(clusterPath))
+	lcClient, err := a.kcpHelper.NewClientForLogicalCluster(ctx, clusterPath)
 	if err != nil {
 		return "", fmt.Errorf("getting client for workspace %s: %w", clusterPath, err)
 	}
@@ -279,7 +278,7 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 		return nil
 	}
 
-	lcClient, err := a.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(workspacePath))
+	lcClient, err := a.kcpHelper.NewClientForLogicalCluster(ctx, workspacePath)
 	if err != nil {
 		return fmt.Errorf("getting client for workspace %s: %w", workspacePath, err)
 	}

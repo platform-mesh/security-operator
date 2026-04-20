@@ -40,7 +40,7 @@ func NewAccountLogicalClusterController(log *logger.Logger, cfg config.Config, f
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 
-	kcpClientHelper := iclient.NewKcpHelper(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
+	kcpClientHelper := iclient.NewKcpHelper(mgr)
 	lc := lifecycle.New(mgr, opts.Name, func() client.Object {
 		return &kcpcorev1alpha1.LogicalCluster{}
 	}, subroutine.NewAccountTuplesSubroutine(mgr, fgaClient, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType, kcpClientHelper))

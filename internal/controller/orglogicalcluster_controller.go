@@ -46,7 +46,7 @@ func NewOrgLogicalClusterController(log *logger.Logger, orgClient client.Client,
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 
-	kcpClientHelper := iclient.NewKcpHelper(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
+	kcpClientHelper := iclient.NewKcpHelper(mgr)
 
 	var subs []subroutines.Subroutine
 
