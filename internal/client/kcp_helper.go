@@ -25,15 +25,15 @@ type KCPCombinedClientGetter interface {
 	KCPAllClientGetter
 }
 
-type ManagerKcpHelper struct {
+type ManagerKCPClientGetter struct {
 	mgr mcmanager.Manager
 }
 
-func NewKcpHelper(mgr mcmanager.Manager) *ManagerKcpHelper {
-	return &ManagerKcpHelper{mgr: mgr}
+func NewManagerKCPClientGetter(mgr mcmanager.Manager) *ManagerKCPClientGetter {
+	return &ManagerKCPClientGetter{mgr: mgr}
 }
 
-func (f *ManagerKcpHelper) NewClientForLogicalCluster(ctx context.Context, cluster string) (client.Client, error) {
+func (f *ManagerKCPClientGetter) NewClientForLogicalCluster(ctx context.Context, cluster string) (client.Client, error) {
 	kcpCluster, err := f.mgr.GetCluster(ctx, cluster)
 	if err != nil {
 		return nil, fmt.Errorf("getting cluster: %w", err)
@@ -42,7 +42,7 @@ func (f *ManagerKcpHelper) NewClientForLogicalCluster(ctx context.Context, clust
 	return kcpCluster.GetClient(), nil
 }
 
-func (f *ManagerKcpHelper) AllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error) {
+func (f *ManagerKCPClientGetter) AllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error) {
 	return NewAll(ctx, f.mgr.GetLocalManager().GetConfig(), f.mgr.GetLocalManager().GetScheme(), apiexportEndpointSliceName)
 }
 

@@ -23,7 +23,7 @@ import (
 )
 
 func NewAPIBindingReconciler(ctx context.Context, logger *logger.Logger, mcMgr mcmanager.Manager, cfg *config.Config) *APIBindingReconciler {
-	allclient, err := iclient.GetAllClient(ctx, mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme(), cfg.APIExportEndpointSlices.CorePlatformMeshIO)
+	allclient, err := iclient.NewAll(ctx, mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme(), cfg.APIExportEndpointSlices.CorePlatformMeshIO)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create new client")
 	}

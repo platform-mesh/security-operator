@@ -24,7 +24,7 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mcmanager.Manager, creatorRelation, objectType string, kcpHelper iclient.KCPHelper) *workspaceInitializer {
+func NewWorkspaceInitializer(cfg config.Config, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, creatorRelation, objectType string, kcpHelper iclient.KCPClientGetter) *workspaceInitializer {
 	// read file from path
 	res, err := os.ReadFile(cfg.CoreModulePath)
 	if err != nil {
@@ -32,7 +32,7 @@ func NewWorkspaceInitializer(orgsClient client.Client, cfg config.Config, mgr mc
 	}
 
 	return &workspaceInitializer{
-		orgsClient:      orgsClient,
+		kcpClientGetter: kcpClientGetter,
 		coreModule:      string(res),
 		initializerName: cfg.InitializerName(),
 		mgr:             mgr,
@@ -48,8 +48,8 @@ var (
 )
 
 type workspaceInitializer struct {
-	orgsClient      client.Client
 	mgr             mcmanager.Manager
+	kcpClientGetter iclient.KCPClientGetter
 	cfg             config.Config
 	coreModule      string
 	initializerName string
@@ -87,8 +87,12 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object)
 		return subroutines.StopWithRequeue(5*time.Second, "AccountInfo not found yet, requeueing"), nil
 	}
 
+	orgsClient, err := w.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
+	}
 	var acc accountsv1alpha1.Account
-	if err := w.orgsClient.Get(ctx, client.ObjectKey{
+	if err := orgsClient.Get(ctx, client.ObjectKey{
 		Name: ai.Spec.Account.Name,
 	}, &acc); err != nil {
 		return subroutines.OK(), fmt.Errorf("getting Account in platform-mesh-system: %w", err)
@@ -128,7 +132,7 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object)
 		}...)
 	}
 
-	if result, err := controllerutil.CreateOrUpdate(ctx, w.orgsClient, &store, func() error {
+	if result, err := controllerutil.CreateOrUpdate(ctx, orgsClient, &store, func() error {
 		store.Spec = v1alpha1.StoreSpec{
 			CoreModule: w.coreModule,
 		}

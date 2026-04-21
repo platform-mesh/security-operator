@@ -38,7 +38,7 @@ type StoreReconciler struct {
 }
 
 func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config) *StoreReconciler {
-	allClient, err := iclient.GetAllClient(ctx, mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme(), cfg.APIExportEndpointSlices.CorePlatformMeshIO)
+	allClient, err := iclient.NewAll(ctx, mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme(), cfg.APIExportEndpointSlices.CorePlatformMeshIO)
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create new client")
 	}

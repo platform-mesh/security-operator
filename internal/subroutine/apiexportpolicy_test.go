@@ -128,7 +128,7 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 					}).
 					Build()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(providerClient, nil).Maybe()
-				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(nil, errors.New("unable to create all client")).Maybe()
+				kcpHelper.EXPECT().AllClient(mock.Anything, mock.Anything).Return(nil, errors.New("unable to create all client")).Maybe()
 			},
 			cfg:         &config.Config{},
 			expectError: true,
@@ -516,7 +516,7 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.MatchedBy(func(cluster string) bool {
 					return cluster == "root:providers:my-provider"
 				})).Return(providerClient, nil)
-				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+				kcpHelper.EXPECT().AllClient(mock.Anything, mock.Anything).Return(allClient, nil)
 
 				storeIDGetter.EXPECT().Get(mock.Anything, "org1").Return("store-id-org1", nil)
 				storeIDGetter.EXPECT().Get(mock.Anything, "org2").Return("store-id-org2", nil)
@@ -811,7 +811,7 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.MatchedBy(func(cluster string) bool {
 					return cluster == "root:providers:my-provider"
 				})).Return(providerClient, nil)
-				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+				kcpHelper.EXPECT().AllClient(mock.Anything, mock.Anything).Return(allClient, nil)
 
 				storeIDGetter.EXPECT().Get(mock.Anything, "org1").Return("store-id-org1", nil)
 				storeIDGetter.EXPECT().Get(mock.Anything, "org2").Return("store-id-org2", nil)
@@ -985,7 +985,7 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 				scheme := getAPIExportPolicyTestScheme()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
 				allClient := mocks.NewMockClient(t)
-				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+				kcpHelper.EXPECT().AllClient(mock.Anything, mock.Anything).Return(allClient, nil)
 				allClient.EXPECT().List(mock.Anything, mock.Anything).Return(assert.AnError)
 			},
 			cfg:         &config.Config{},
@@ -1003,7 +1003,7 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 				scheme := getAPIExportPolicyTestScheme()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
 				allClient := mocks.NewMockClient(t)
-				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+				kcpHelper.EXPECT().AllClient(mock.Anything, mock.Anything).Return(allClient, nil)
 				allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
 					list := ol.(*accountsv1alpha1.AccountInfoList)
 					list.Items = []accountsv1alpha1.AccountInfo{
@@ -1034,7 +1034,7 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 				scheme := getAPIExportPolicyTestScheme()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
 				allClient := mocks.NewMockClient(t)
-				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+				kcpHelper.EXPECT().AllClient(mock.Anything, mock.Anything).Return(allClient, nil)
 				allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
 					list := ol.(*accountsv1alpha1.AccountInfoList)
 					list.Items = []accountsv1alpha1.AccountInfo{
@@ -1271,7 +1271,7 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper) {
 				scheme := getAPIExportPolicyTestScheme()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
-				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(nil, assert.AnError)
+				kcpHelper.EXPECT().AllClient(mock.Anything, mock.Anything).Return(nil, assert.AnError)
 			},
 			cfg:         &config.Config{},
 			expectError: true,
@@ -1288,7 +1288,7 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 				scheme := getAPIExportPolicyTestScheme()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
 				allClient := mocks.NewMockClient(t)
-				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+				kcpHelper.EXPECT().AllClient(mock.Anything, mock.Anything).Return(allClient, nil)
 				allClient.EXPECT().List(mock.Anything, mock.Anything).Return(assert.AnError)
 			},
 			cfg:         &config.Config{},
@@ -1306,7 +1306,7 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 				scheme := getAPIExportPolicyTestScheme()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
 				allClient := mocks.NewMockClient(t)
-				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+				kcpHelper.EXPECT().AllClient(mock.Anything, mock.Anything).Return(allClient, nil)
 				allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
 					list := ol.(*accountsv1alpha1.AccountInfoList)
 					list.Items = []accountsv1alpha1.AccountInfo{
@@ -1331,7 +1331,7 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 				scheme := getAPIExportPolicyTestScheme()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
 				allClient := mocks.NewMockClient(t)
-				kcpHelper.EXPECT().GetAllClient(mock.Anything, mock.Anything).Return(allClient, nil)
+				kcpHelper.EXPECT().AllClient(mock.Anything, mock.Anything).Return(allClient, nil)
 				allClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
 					list := ol.(*accountsv1alpha1.AccountInfoList)
 					list.Items = []accountsv1alpha1.AccountInfo{

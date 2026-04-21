@@ -43,11 +43,10 @@ type APIExportPolicyReconciler struct {
 	lifecycle *lifecycle.Lifecycle
 }
 
-func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter) *APIExportPolicyReconciler {
-	kcpClientHelper := iclient.NewKcpHelper(mcMgr)
+func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, kcpClientGetter iclient.KCPCombinedClientGetter, cfg *config.Config, storeIDGetter fga.StoreIDGetter) *APIExportPolicyReconciler {
 	lc := lifecycle.New(mcMgr, "APIExportPolicyReconciler", func() client.Object {
 		return &corev1alpha1.APIExportPolicy{}
-	}, subroutine.NewAPIExportPolicySubroutine(fgaClient, mcMgr, cfg, storeIDGetter, kcpClientHelper)).
+	}, subroutine.NewAPIExportPolicySubroutine(fgaClient, mcMgr, cfg, storeIDGetter, kcpClientGetter)).
 		WithConditions(conditions.NewManager())
 
 	return &APIExportPolicyReconciler{
@@ -93,7 +92,7 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 }
 
 func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Context, mgr mcmanager.Manager, cfg *config.Config) []mcreconcile.Request {
-	allClient, err := iclient.GetAllClient(ctx, mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), cfg.APIExportEndpointSlices.SystemPlatformMeshIO)
+	allClient, err := iclient.NewAll(ctx, mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), cfg.APIExportEndpointSlices.SystemPlatformMeshIO)
 	if err != nil {
 		r.log.Error().Err(err).Msg("failed to create all-cluster client for APIExportPolicy listing")
 		return nil
