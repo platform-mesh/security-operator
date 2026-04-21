@@ -29,7 +29,7 @@ type AccountTuplesSubroutine struct {
 	objectType      string
 	parentRelation  string
 	creatorRelation string
-	kcpHelper       iclient.KCPHelper
+	kcpHelper       iclient.KCPClientGetter
 }
 
 // Process implements subroutines.Processor.

@@ -31,7 +31,7 @@ type APIExportPolicySubroutine struct {
 	mgr           mcmanager.Manager
 	cfg           *config.Config
 	storeIDGetter fga.StoreIDGetter
-	kcpHelper     iclient.KCPHelper
+	kcpHelper     iclient.KCPCombinedClientGetter
 }
 
 func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpHelper iclient.KCPHelper) *APIExportPolicySubroutine {
