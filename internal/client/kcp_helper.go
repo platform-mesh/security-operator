@@ -4,6 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
+
+	"github.com/kcp-dev/logicalcluster/v3"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 )
@@ -13,7 +17,7 @@ type KCPClientGetter interface {
 }
 
 type KCPAllClientGetter interface {
-	GetAllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error)
+	AllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error)
 }
 
 type KCPCombinedClientGetter interface {
@@ -38,6 +42,27 @@ func (f *ManagerKcpHelper) NewClientForLogicalCluster(ctx context.Context, clust
 	return kcpCluster.GetClient(), nil
 }
 
-func (f *ManagerKcpHelper) GetAllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error) {
-	return GetAllClient(ctx, f.mgr.GetLocalManager().GetConfig(), f.mgr.GetLocalManager().GetScheme(), apiexportEndpointSliceName)
+func (f *ManagerKcpHelper) AllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error) {
+	return NewAll(ctx, f.mgr.GetLocalManager().GetConfig(), f.mgr.GetLocalManager().GetScheme(), apiexportEndpointSliceName)
+}
+
+type ConfigSchemeKCPClientGetter struct {
+	config *rest.Config
+	scheme *runtime.Scheme
+}
+
+func NewConfigSchemeKCPClientGetter(config *rest.Config, scheme *runtime.Scheme) *ConfigSchemeKCPClientGetter {
+	return &ConfigSchemeKCPClientGetter{
+		config: config,
+		scheme: scheme,
+	}
+}
+
+func (f *ConfigSchemeKCPClientGetter) NewClientForLogicalCluster(ctx context.Context, cluster string) (client.Client, error) {
+	_ = ctx
+	return NewForLogicalCluster(f.config, f.scheme, logicalcluster.Name(cluster))
+}
+
+func (f *ConfigSchemeKCPClientGetter) AllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error) {
+	return NewAll(ctx, f.config, f.scheme, apiexportEndpointSliceName)
 }
