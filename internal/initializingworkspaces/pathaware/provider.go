@@ -4,17 +4,17 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
-	"github.com/kcp-dev/logicalcluster/v3"
-	kcpcore "github.com/kcp-dev/sdk/apis/core"
+	"k8s.io/client-go/rest"
 
+	"github.com/kcp-dev/logicalcluster/v3"
 	provider "github.com/kcp-dev/multicluster-provider/initializingworkspaces"
 	"github.com/kcp-dev/multicluster-provider/pkg/handlers"
 	"github.com/kcp-dev/multicluster-provider/pkg/paths"
+	kcpcore "github.com/kcp-dev/sdk/apis/core"
 )
 
 var _ multicluster.Provider = &Provider{}

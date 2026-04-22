@@ -10,6 +10,7 @@ import (
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/platform-mesh/security-operator/internal/fga"
+	"github.com/platform-mesh/security-operator/internal/initializingworkspaces/pathaware"
 	"github.com/platform-mesh/security-operator/internal/predicates"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -26,7 +27,6 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/kcp-dev/multicluster-provider/initializingworkspaces"
-	"github.com/platform-mesh/security-operator/internal/initializingworkspaces/pathaware"
 )
 
 var initializerCmd = &cobra.Command{
