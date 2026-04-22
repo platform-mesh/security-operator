@@ -47,9 +47,10 @@ packages:
   github.com/platform-mesh/security-operator/internal/client:
     config:
       dir: internal/subroutine/mocks
-      filename: mock_KcpHelper.go
+      filename: mock_KCPGetters.go
     interfaces:
-      KCPHelper:
+      KCPClientGetter:
+      KCPCombinedClientGetter:
 
   github.com/platform-mesh/security-operator/pkg/clientreg:
     config:
