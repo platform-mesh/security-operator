@@ -10,7 +10,6 @@ import (
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/subroutines/lifecycle"
-	"github.com/rs/zerolog/log"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -22,15 +21,10 @@ import (
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 )
 
-func NewAPIBindingReconciler(ctx context.Context, logger *logger.Logger, mcMgr mcmanager.Manager, cfg *config.Config) *APIBindingReconciler {
-	allclient, err := iclient.NewAll(ctx, mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme(), cfg.APIExportEndpointSlices.CorePlatformMeshIO)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to create new client")
-	}
-
+func NewAPIBindingReconciler(logger *logger.Logger, mcMgr mcmanager.Manager, clientGetter iclient.KCPCombinedClientGetter, cfg *config.Config) *APIBindingReconciler {
 	lc := lifecycle.New(mcMgr, "APIBindingReconciler", func() client.Object {
 		return &kcpapisv1alpha2.APIBinding{}
-	}, subroutine.NewAuthorizationModelGenerationSubroutine(mcMgr, allclient))
+	}, subroutine.NewAuthorizationModelGenerationSubroutine(mcMgr, clientGetter, cfg.APIExportEndpointSlices.CorePlatformMeshIO))
 
 	return &APIBindingReconciler{
 		log:       logger,
