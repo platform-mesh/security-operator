@@ -1,0 +1,721 @@
+model
+  schema 1.2
+
+type apis_kcp_io_apibinding # module: apibindings, file: internal_core_types_apibindings.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type apis_kcp_io_apiconversion # module: apiconversions, file: internal_core_types_apiconversions.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type tadata_dxp_sap_com_apidefinitionautomation # module: apidefinitionautomations, file: /metadata-dxp-sap-com-apidefinitionautomations-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type metadata_dxp_sap_com_apidefinition # module: apidefinitions, file: /metadata-dxp-sap-com-apidefinitions-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type apis_kcp_io_apiexportendpointslice # module: apiexportendpointslices, file: internal_core_types_apiexportendpointslices.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type apis_kcp_io_apiexport # module: apiexports, file: internal_core_types_apiexports.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type apis_kcp_io_apiresourceschema # module: apiresourceschemas, file: internal_core_types_apiresourceschemas.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type adata_dxp_sap_com_boundedcontextautomation # module: boundedcontextautomations, file: /metadata-dxp-sap-com-boundedcontextautomations-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type metadata_dxp_sap_com_boundedcontext # module: boundedcontexts, file: /metadata-dxp-sap-com-boundedcontexts-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type metadata_dxp_sap_com_commit # module: commits, file: /metadata-dxp-sap-com-commits-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type metadata_dxp_sap_com_componentautomation # module: componentautomations, file: /metadata-dxp-sap-com-componentautomations-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type metadata_dxp_sap_com_component # module: components, file: /metadata-dxp-sap-com-components-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type core_configmap # module: configmaps, file: internal_core_types_configmaps.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_namespace]
+    define patch: member
+    define update: member
+    define watch: member
+
+type ui_platform-mesh_io_contentconfiguration # module: contentconfigurations, file: internal_core_types_contentconfigurations.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type core_kcp_io_logicalcluster # module: core, file: /sap.fga
+  relations
+    define get: member
+    define member: member from parent
+    define parent: [core_platform-mesh_io_account]
+    define watch: member
+
+type core_platform-mesh_io_account # module: core, file: /sap.fga
+  relations
+    define bind: [apis_kcp_io_apiexport] or bind_inherited
+    define bind_inherited: [apis_kcp_io_apiexport] or bind_inherited from parent
+    define create_core_platform-mesh_io_accountinfos: member
+    define create_core_platform-mesh_io_accounts: member
+    define delete: owner
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define list_core_kcp_io_logicalclusters: member
+    define list_core_platform-mesh_io_accountinfos: member
+    define list_core_platform-mesh_io_accounts: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+    define watch_core_kcp_io_logicalclusters: member
+    define watch_core_platform-mesh_io_accountinfos: member
+    define watch_core_platform-mesh_io_accounts: member
+    define create_apis_kcp_io_apibindings: owner # extended by: module: apibindings, file: internal_core_types_apibindings.fga
+    define list_apis_kcp_io_apibindings: member # extended by: module: apibindings, file: internal_core_types_apibindings.fga
+    define watch_apis_kcp_io_apibindings: member # extended by: module: apibindings, file: internal_core_types_apibindings.fga
+    define create_apis_kcp_io_apiconversions: owner # extended by: module: apiconversions, file: internal_core_types_apiconversions.fga
+    define list_apis_kcp_io_apiconversions: member # extended by: module: apiconversions, file: internal_core_types_apiconversions.fga
+    define watch_apis_kcp_io_apiconversions: member # extended by: module: apiconversions, file: internal_core_types_apiconversions.fga
+    define create_tadata_dxp_sap_com_apidefinitionautomations: owner # extended by: module: apidefinitionautomations, file: /metadata-dxp-sap-com-apidefinitionautomations-sap.fga
+    define list_tadata_dxp_sap_com_apidefinitionautomations: member # extended by: module: apidefinitionautomations, file: /metadata-dxp-sap-com-apidefinitionautomations-sap.fga
+    define watch_tadata_dxp_sap_com_apidefinitionautomations: member # extended by: module: apidefinitionautomations, file: /metadata-dxp-sap-com-apidefinitionautomations-sap.fga
+    define create_metadata_dxp_sap_com_apidefinitions: owner # extended by: module: apidefinitions, file: /metadata-dxp-sap-com-apidefinitions-sap.fga
+    define list_metadata_dxp_sap_com_apidefinitions: member # extended by: module: apidefinitions, file: /metadata-dxp-sap-com-apidefinitions-sap.fga
+    define watch_metadata_dxp_sap_com_apidefinitions: member # extended by: module: apidefinitions, file: /metadata-dxp-sap-com-apidefinitions-sap.fga
+    define create_apis_kcp_io_apiexportendpointslices: owner # extended by: module: apiexportendpointslices, file: internal_core_types_apiexportendpointslices.fga
+    define list_apis_kcp_io_apiexportendpointslices: member # extended by: module: apiexportendpointslices, file: internal_core_types_apiexportendpointslices.fga
+    define watch_apis_kcp_io_apiexportendpointslices: member # extended by: module: apiexportendpointslices, file: internal_core_types_apiexportendpointslices.fga
+    define create_apis_kcp_io_apiexports: owner # extended by: module: apiexports, file: internal_core_types_apiexports.fga
+    define list_apis_kcp_io_apiexports: member # extended by: module: apiexports, file: internal_core_types_apiexports.fga
+    define watch_apis_kcp_io_apiexports: member # extended by: module: apiexports, file: internal_core_types_apiexports.fga
+    define create_apis_kcp_io_apiresourceschemas: owner # extended by: module: apiresourceschemas, file: internal_core_types_apiresourceschemas.fga
+    define list_apis_kcp_io_apiresourceschemas: member # extended by: module: apiresourceschemas, file: internal_core_types_apiresourceschemas.fga
+    define watch_apis_kcp_io_apiresourceschemas: member # extended by: module: apiresourceschemas, file: internal_core_types_apiresourceschemas.fga
+    define create_adata_dxp_sap_com_boundedcontextautomations: owner # extended by: module: boundedcontextautomations, file: /metadata-dxp-sap-com-boundedcontextautomations-sap.fga
+    define list_adata_dxp_sap_com_boundedcontextautomations: member # extended by: module: boundedcontextautomations, file: /metadata-dxp-sap-com-boundedcontextautomations-sap.fga
+    define watch_adata_dxp_sap_com_boundedcontextautomations: member # extended by: module: boundedcontextautomations, file: /metadata-dxp-sap-com-boundedcontextautomations-sap.fga
+    define create_metadata_dxp_sap_com_boundedcontexts: owner # extended by: module: boundedcontexts, file: /metadata-dxp-sap-com-boundedcontexts-sap.fga
+    define list_metadata_dxp_sap_com_boundedcontexts: member # extended by: module: boundedcontexts, file: /metadata-dxp-sap-com-boundedcontexts-sap.fga
+    define watch_metadata_dxp_sap_com_boundedcontexts: member # extended by: module: boundedcontexts, file: /metadata-dxp-sap-com-boundedcontexts-sap.fga
+    define create_metadata_dxp_sap_com_commits: owner # extended by: module: commits, file: /metadata-dxp-sap-com-commits-sap.fga
+    define list_metadata_dxp_sap_com_commits: member # extended by: module: commits, file: /metadata-dxp-sap-com-commits-sap.fga
+    define watch_metadata_dxp_sap_com_commits: member # extended by: module: commits, file: /metadata-dxp-sap-com-commits-sap.fga
+    define create_metadata_dxp_sap_com_componentautomations: owner # extended by: module: componentautomations, file: /metadata-dxp-sap-com-componentautomations-sap.fga
+    define list_metadata_dxp_sap_com_componentautomations: member # extended by: module: componentautomations, file: /metadata-dxp-sap-com-componentautomations-sap.fga
+    define watch_metadata_dxp_sap_com_componentautomations: member # extended by: module: componentautomations, file: /metadata-dxp-sap-com-componentautomations-sap.fga
+    define create_metadata_dxp_sap_com_components: owner # extended by: module: components, file: /metadata-dxp-sap-com-components-sap.fga
+    define list_metadata_dxp_sap_com_components: member # extended by: module: components, file: /metadata-dxp-sap-com-components-sap.fga
+    define watch_metadata_dxp_sap_com_components: member # extended by: module: components, file: /metadata-dxp-sap-com-components-sap.fga
+    define create_ui_platform-mesh_io_contentconfigurations: owner # extended by: module: contentconfigurations, file: internal_core_types_contentconfigurations.fga
+    define list_ui_platform-mesh_io_contentconfigurations: member # extended by: module: contentconfigurations, file: internal_core_types_contentconfigurations.fga
+    define watch_ui_platform-mesh_io_contentconfigurations: member # extended by: module: contentconfigurations, file: internal_core_types_contentconfigurations.fga
+    define create_accountextension_dxp_sap_com_dxpextensions: owner # extended by: module: dxpextensions, file: /accountextension-dxp-sap-com-dxpextensions-sap.fga
+    define list_accountextension_dxp_sap_com_dxpextensions: member # extended by: module: dxpextensions, file: /accountextension-dxp-sap-com-dxpextensions-sap.fga
+    define watch_accountextension_dxp_sap_com_dxpextensions: member # extended by: module: dxpextensions, file: /accountextension-dxp-sap-com-dxpextensions-sap.fga
+    define create_ac_authorization_k8s_io_clusterrolebindings: owner # extended by: module: internal_core_types_clusterrolebindings, file: internal_core_types_clusterrolebindings.fga
+    define list_ac_authorization_k8s_io_clusterrolebindings: member # extended by: module: internal_core_types_clusterrolebindings, file: internal_core_types_clusterrolebindings.fga
+    define watch_ac_authorization_k8s_io_clusterrolebindings: member # extended by: module: internal_core_types_clusterrolebindings, file: internal_core_types_clusterrolebindings.fga
+    define create_rbac_authorization_k8s_io_clusterroles: owner # extended by: module: internal_core_types_clusterroles, file: internal_core_types_clusterroles.fga
+    define list_rbac_authorization_k8s_io_clusterroles: member # extended by: module: internal_core_types_clusterroles, file: internal_core_types_clusterroles.fga
+    define watch_rbac_authorization_k8s_io_clusterroles: member # extended by: module: internal_core_types_clusterroles, file: internal_core_types_clusterroles.fga
+    define create_automaticd_sap_jenxs: owner # extended by: module: jenxs, file: /automaticd-sap-jenxs-sap.fga
+    define list_automaticd_sap_jenxs: member # extended by: module: jenxs, file: /automaticd-sap-jenxs-sap.fga
+    define watch_automaticd_sap_jenxs: member # extended by: module: jenxs, file: /automaticd-sap-jenxs-sap.fga
+    define create_automaticd_sap_jiraprojects: owner # extended by: module: jiraprojects, file: /automaticd-sap-jiraprojects-sap.fga
+    define list_automaticd_sap_jiraprojects: member # extended by: module: jiraprojects, file: /automaticd-sap-jiraprojects-sap.fga
+    define watch_automaticd_sap_jiraprojects: member # extended by: module: jiraprojects, file: /automaticd-sap-jiraprojects-sap.fga
+    define create_core_namespaces: owner # extended by: module: namespaces, file: internal_core_types_namespaces.fga
+    define list_core_namespaces: member # extended by: module: namespaces, file: internal_core_types_namespaces.fga
+    define watch_core_namespaces: member # extended by: module: namespaces, file: internal_core_types_namespaces.fga
+    define create_data_dxp_sap_com_projectmetadataautomations: owner # extended by: module: projectmetadataautomations, file: /metadata-dxp-sap-com-projectmetadataautomations-sap.fga
+    define list_data_dxp_sap_com_projectmetadataautomations: member # extended by: module: projectmetadataautomations, file: /metadata-dxp-sap-com-projectmetadataautomations-sap.fga
+    define watch_data_dxp_sap_com_projectmetadataautomations: member # extended by: module: projectmetadataautomations, file: /metadata-dxp-sap-com-projectmetadataautomations-sap.fga
+    define create_metadata_dxp_sap_com_projectmetadatas: owner # extended by: module: projectmetadatas, file: /metadata-dxp-sap-com-projectmetadatas-sap.fga
+    define list_metadata_dxp_sap_com_projectmetadatas: member # extended by: module: projectmetadatas, file: /metadata-dxp-sap-com-projectmetadatas-sap.fga
+    define watch_metadata_dxp_sap_com_projectmetadatas: member # extended by: module: projectmetadatas, file: /metadata-dxp-sap-com-projectmetadatas-sap.fga
+    define create_ui_platform-mesh_io_providermetadatas: owner # extended by: module: providermetadatas, file: internal_core_types_providermetadatas.fga
+    define list_ui_platform-mesh_io_providermetadatas: member # extended by: module: providermetadatas, file: internal_core_types_providermetadatas.fga
+    define watch_ui_platform-mesh_io_providermetadatas: member # extended by: module: providermetadatas, file: internal_core_types_providermetadatas.fga
+    define create_metadata_dxp_sap_com_reprocessrequests: owner # extended by: module: reprocessrequests, file: /metadata-dxp-sap-com-reprocessrequests-sap.fga
+    define list_metadata_dxp_sap_com_reprocessrequests: member # extended by: module: reprocessrequests, file: /metadata-dxp-sap-com-reprocessrequests-sap.fga
+    define watch_metadata_dxp_sap_com_reprocessrequests: member # extended by: module: reprocessrequests, file: /metadata-dxp-sap-com-reprocessrequests-sap.fga
+    define create_search_platform-mesh_io_searchindexes: owner # extended by: module: searchindexes, file: /search-platform-mesh-io-searchindexes-sap.fga
+    define list_search_platform-mesh_io_searchindexes: member # extended by: module: searchindexes, file: /search-platform-mesh-io-searchindexes-sap.fga
+    define watch_search_platform-mesh_io_searchindexes: member # extended by: module: searchindexes, file: /search-platform-mesh-io-searchindexes-sap.fga
+    define create_thorization_k8s_io_selfsubjectaccessreviews: owner # extended by: module: selfsubjectaccessreviews, file: internal_core_types_selfsubjectaccessreviews.fga
+    define list_thorization_k8s_io_selfsubjectaccessreviews: member # extended by: module: selfsubjectaccessreviews, file: internal_core_types_selfsubjectaccessreviews.fga
+    define watch_thorization_k8s_io_selfsubjectaccessreviews: member # extended by: module: selfsubjectaccessreviews, file: internal_core_types_selfsubjectaccessreviews.fga
+    define create_authentication_k8s_io_selfsubjectreviews: owner # extended by: module: selfsubjectreviews, file: internal_core_types_selfsubjectreviews.fga
+    define list_authentication_k8s_io_selfsubjectreviews: member # extended by: module: selfsubjectreviews, file: internal_core_types_selfsubjectreviews.fga
+    define watch_authentication_k8s_io_selfsubjectreviews: member # extended by: module: selfsubjectreviews, file: internal_core_types_selfsubjectreviews.fga
+    define create_uthorization_k8s_io_selfsubjectrulesreviews: owner # extended by: module: selfsubjectrulesreviews, file: internal_core_types_selfsubjectrulesreviews.fga
+    define list_uthorization_k8s_io_selfsubjectrulesreviews: member # extended by: module: selfsubjectrulesreviews, file: internal_core_types_selfsubjectrulesreviews.fga
+    define watch_uthorization_k8s_io_selfsubjectrulesreviews: member # extended by: module: selfsubjectrulesreviews, file: internal_core_types_selfsubjectrulesreviews.fga
+    define create_authorization_k8s_io_subjectaccessreviews: owner # extended by: module: subjectaccessreviews, file: internal_core_types_subjectaccessreviews.fga
+    define list_authorization_k8s_io_subjectaccessreviews: member # extended by: module: subjectaccessreviews, file: internal_core_types_subjectaccessreviews.fga
+    define watch_authorization_k8s_io_subjectaccessreviews: member # extended by: module: subjectaccessreviews, file: internal_core_types_subjectaccessreviews.fga
+    define create_etadata_dxp_sap_com_teammetadataautomations: owner # extended by: module: teammetadataautomations, file: /metadata-dxp-sap-com-teammetadataautomations-sap.fga
+    define list_etadata_dxp_sap_com_teammetadataautomations: member # extended by: module: teammetadataautomations, file: /metadata-dxp-sap-com-teammetadataautomations-sap.fga
+    define watch_etadata_dxp_sap_com_teammetadataautomations: member # extended by: module: teammetadataautomations, file: /metadata-dxp-sap-com-teammetadataautomations-sap.fga
+    define create_metadata_dxp_sap_com_teammetadatas: owner # extended by: module: teammetadatas, file: /metadata-dxp-sap-com-teammetadatas-sap.fga
+    define list_metadata_dxp_sap_com_teammetadatas: member # extended by: module: teammetadatas, file: /metadata-dxp-sap-com-teammetadatas-sap.fga
+    define watch_metadata_dxp_sap_com_teammetadatas: member # extended by: module: teammetadatas, file: /metadata-dxp-sap-com-teammetadatas-sap.fga
+    define create_authentication_k8s_io_tokenreviews: owner # extended by: module: tokenreviews, file: internal_core_types_tokenreviews.fga
+    define list_authentication_k8s_io_tokenreviews: member # extended by: module: tokenreviews, file: internal_core_types_tokenreviews.fga
+    define watch_authentication_k8s_io_tokenreviews: member # extended by: module: tokenreviews, file: internal_core_types_tokenreviews.fga
+
+type core_platform-mesh_io_accountinfo # module: core, file: /sap.fga
+  relations
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: member from parent
+    define owner: owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define watch: member
+
+type role # module: core, file: /sap.fga
+  relations
+    define assignee: [user, user:*]
+
+type user # module: core, file: /sap.fga
+
+type accountextension_dxp_sap_com_dxpextension # module: dxpextensions, file: /accountextension-dxp-sap-com-dxpextensions-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type core_event # module: events, file: internal_core_types_events.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_namespace]
+    define patch: member
+    define update: member
+    define watch: member
+
+type ac_authorization_k8s_io_clusterrolebinding # module: internal_core_types_clusterrolebindings, file: internal_core_types_clusterrolebindings.fga
+  relations
+    define bind: owner
+    define delete: owner
+    define escalate: owner
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: owner
+    define update: owner
+    define watch: member
+
+type rbac_authorization_k8s_io_clusterrole # module: internal_core_types_clusterroles, file: internal_core_types_clusterroles.fga
+  relations
+    define bind: owner
+    define delete: owner
+    define escalate: owner
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: owner
+    define update: owner
+    define watch: member
+
+type rbac_authorization_k8s_io_rolebinding # module: internal_core_types_rolebindings, file: internal_core_types_rolebindings.fga
+  relations
+    define bind: owner
+    define delete: owner
+    define escalate: owner
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_namespace]
+    define patch: owner
+    define update: owner
+    define watch: member
+
+type rbac_authorization_k8s_io_role # module: internal_core_types_roles, file: internal_core_types_roles.fga
+  relations
+    define bind: owner
+    define delete: owner
+    define escalate: owner
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_namespace]
+    define patch: owner
+    define update: owner
+    define watch: member
+
+type automaticd_sap_jenx # module: jenxs, file: /automaticd-sap-jenxs-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type automaticd_sap_jiraproject # module: jiraprojects, file: /automaticd-sap-jiraprojects-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type horization_k8s_io_localsubjectaccessreview # module: localsubjectaccessreviews, file: internal_core_types_localsubjectaccessreviews.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_namespace]
+    define patch: member
+    define update: member
+    define watch: member
+
+type core_namespace # module: namespaces, file: internal_core_types_namespaces.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+    define create_core_configmaps: owner # extended by: module: configmaps, file: internal_core_types_configmaps.fga
+    define list_core_configmaps: member # extended by: module: configmaps, file: internal_core_types_configmaps.fga
+    define watch_core_configmaps: member # extended by: module: configmaps, file: internal_core_types_configmaps.fga
+    define create_core_events: owner # extended by: module: events, file: internal_core_types_events.fga
+    define list_core_events: member # extended by: module: events, file: internal_core_types_events.fga
+    define watch_core_events: member # extended by: module: events, file: internal_core_types_events.fga
+    define create_rbac_authorization_k8s_io_rolebindings: owner # extended by: module: internal_core_types_rolebindings, file: internal_core_types_rolebindings.fga
+    define list_rbac_authorization_k8s_io_rolebindings: member # extended by: module: internal_core_types_rolebindings, file: internal_core_types_rolebindings.fga
+    define watch_rbac_authorization_k8s_io_rolebindings: member # extended by: module: internal_core_types_rolebindings, file: internal_core_types_rolebindings.fga
+    define create_rbac_authorization_k8s_io_roles: owner # extended by: module: internal_core_types_roles, file: internal_core_types_roles.fga
+    define list_rbac_authorization_k8s_io_roles: member # extended by: module: internal_core_types_roles, file: internal_core_types_roles.fga
+    define watch_rbac_authorization_k8s_io_roles: member # extended by: module: internal_core_types_roles, file: internal_core_types_roles.fga
+    define create_horization_k8s_io_localsubjectaccessreviews: owner # extended by: module: localsubjectaccessreviews, file: internal_core_types_localsubjectaccessreviews.fga
+    define list_horization_k8s_io_localsubjectaccessreviews: member # extended by: module: localsubjectaccessreviews, file: internal_core_types_localsubjectaccessreviews.fga
+    define watch_horization_k8s_io_localsubjectaccessreviews: member # extended by: module: localsubjectaccessreviews, file: internal_core_types_localsubjectaccessreviews.fga
+    define create_core_resourcequotas: owner # extended by: module: resourcequotas, file: internal_core_types_resourcequotas.fga
+    define list_core_resourcequotas: member # extended by: module: resourcequotas, file: internal_core_types_resourcequotas.fga
+    define watch_core_resourcequotas: member # extended by: module: resourcequotas, file: internal_core_types_resourcequotas.fga
+    define create_core_secrets: owner # extended by: module: secrets, file: internal_core_types_secrets.fga
+    define list_core_secrets: member # extended by: module: secrets, file: internal_core_types_secrets.fga
+    define watch_core_secrets: member # extended by: module: secrets, file: internal_core_types_secrets.fga
+    define create_core_serviceaccounts: owner # extended by: module: serviceaccounts, file: internal_core_types_serviceaccounts.fga
+    define list_core_serviceaccounts: member # extended by: module: serviceaccounts, file: internal_core_types_serviceaccounts.fga
+    define watch_core_serviceaccounts: member # extended by: module: serviceaccounts, file: internal_core_types_serviceaccounts.fga
+
+type data_dxp_sap_com_projectmetadataautomation # module: projectmetadataautomations, file: /metadata-dxp-sap-com-projectmetadataautomations-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type metadata_dxp_sap_com_projectmetadata # module: projectmetadatas, file: /metadata-dxp-sap-com-projectmetadatas-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type ui_platform-mesh_io_providermetadata # module: providermetadatas, file: internal_core_types_providermetadatas.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type metadata_dxp_sap_com_reprocessrequest # module: reprocessrequests, file: /metadata-dxp-sap-com-reprocessrequests-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type core_resourcequota # module: resourcequotas, file: internal_core_types_resourcequotas.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_namespace]
+    define patch: member
+    define update: member
+    define watch: member
+
+type search_platform-mesh_io_searchindex # module: searchindexes, file: /search-platform-mesh-io-searchindexes-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type core_secret # module: secrets, file: internal_core_types_secrets.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_namespace]
+    define patch: member
+    define update: member
+    define watch: member
+
+type thorization_k8s_io_selfsubjectaccessreview # module: selfsubjectaccessreviews, file: internal_core_types_selfsubjectaccessreviews.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type authentication_k8s_io_selfsubjectreview # module: selfsubjectreviews, file: internal_core_types_selfsubjectreviews.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type uthorization_k8s_io_selfsubjectrulesreview # module: selfsubjectrulesreviews, file: internal_core_types_selfsubjectrulesreviews.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type core_serviceaccount # module: serviceaccounts, file: internal_core_types_serviceaccounts.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_namespace]
+    define patch: member
+    define update: member
+    define watch: member
+
+type authorization_k8s_io_subjectaccessreview # module: subjectaccessreviews, file: internal_core_types_subjectaccessreviews.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type etadata_dxp_sap_com_teammetadataautomation # module: teammetadataautomations, file: /metadata-dxp-sap-com-teammetadataautomations-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type metadata_dxp_sap_com_teammetadata # module: teammetadatas, file: /metadata-dxp-sap-com-teammetadatas-sap.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
+
+type authentication_k8s_io_tokenreview # module: tokenreviews, file: internal_core_types_tokenreviews.fga
+  relations
+    define delete: member
+    define get: member
+    define get_iam_roles: member
+    define get_iam_users: member
+    define manage_iam_roles: owner
+    define member: [role#assignee] or owner or member from parent
+    define owner: [role#assignee] or owner from parent
+    define parent: [core_platform-mesh_io_account]
+    define patch: member
+    define update: member
+    define watch: member
