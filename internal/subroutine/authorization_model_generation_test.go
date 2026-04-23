@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
@@ -42,9 +43,14 @@ func bindingWithApiExportCluster(name, path, exportCluster string) *kcpapisv1alp
 }
 
 func mockAccountInfo(cl *mocks.MockClient, orgName, originCluster string) {
+	mockAccountInfoWithClusters(cl, orgName, originCluster, originCluster)
+}
+
+func mockAccountInfoWithClusters(cl *mocks.MockClient, orgName, generatedCluster, originCluster string) {
 	cl.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 		if acc, ok := o.(*accountv1alpha1.AccountInfo); ok {
 			acc.Spec.Organization.Name = orgName
+			acc.Spec.Organization.GeneratedClusterId = generatedCluster
 			acc.Spec.Organization.OriginClusterId = originCluster
 		}
 		return nil
@@ -302,6 +308,48 @@ func TestAuthorizationModelGeneration_Process(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAuthorizationModelGeneration_Process_UsesGeneratedClusterForStoreRef(t *testing.T) {
+	manager := mocks.NewMockManager(t)
+	allClient := mocks.NewMockClient(t)
+	cluster := mocks.NewMockCluster(t)
+	kcpClient := mocks.NewMockClient(t)
+
+	manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
+	cluster.EXPECT().GetClient().Return(kcpClient)
+	mockAccountInfoWithClusters(kcpClient, "org", "generated-org-cluster", "origin-org-cluster")
+	manager.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil)
+	kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+		if ae, ok := o.(*kcpapisv1alpha2.APIExport); ok {
+			ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
+			return nil
+		}
+		return nil
+	}).Once()
+	kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+		if rs, ok := o.(*kcpapisv1alpha1.APIResourceSchema); ok {
+			rs.Spec.Group = "example.io"
+			rs.Spec.Names.Plural = "widgets"
+			rs.Spec.Names.Singular = "widget"
+			rs.Spec.Scope = apiextensionsv1.NamespaceScoped
+			return nil
+		}
+		return nil
+	}).Once()
+	kcpClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(
+		kerrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "authorizationmodels"}, "widgets-org"),
+	).Once()
+	kcpClient.EXPECT().Create(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
+		model := obj.(*securityv1alpha1.AuthorizationModel)
+		assert.Equal(t, "generated-org-cluster", model.Spec.StoreRef.Cluster)
+		assert.Equal(t, "org", model.Spec.StoreRef.Name)
+		return nil
+	}).Once()
+
+	sub := subroutine.NewAuthorizationModelGenerationSubroutine(manager, allClient)
+	_, err := sub.Process(context.Background(), newApiBinding("example.io", "root:providers:example"))
+	assert.Nil(t, err)
 }
 
 func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
