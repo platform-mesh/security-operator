@@ -14,7 +14,7 @@ require (
 	github.com/kcp-dev/sdk v0.31.0
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
 	github.com/openfga/language/pkg/go v0.2.1
-	github.com/platform-mesh/account-operator v0.14.5
+	github.com/platform-mesh/account-operator v0.14.6
 	github.com/platform-mesh/golang-commons v0.15.7
 	github.com/platform-mesh/subroutines v0.3.3
 	github.com/rs/zerolog v1.35.0
@@ -26,7 +26,7 @@ require (
 	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.11
 	k8s.io/api v0.35.4
-	k8s.io/apiextensions-apiserver v0.35.3
+	k8s.io/apiextensions-apiserver v0.35.4
 	k8s.io/apimachinery v0.35.4
 	k8s.io/client-go v0.35.4
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5
