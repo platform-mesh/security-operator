@@ -26,6 +26,8 @@ type KCPCombinedClientGetter interface {
 	KCPAllClientGetter
 }
 
+// ManagerKCPClientGetter retrieves cluster clients via the manager and builds
+// all-Clients via the manager's config and scheme.
 type ManagerKCPClientGetter struct {
 	mgr mcmanager.Manager
 }
@@ -47,6 +49,8 @@ func (f *ManagerKCPClientGetter) AllClient(ctx context.Context, apiexportEndpoin
 	return NewAll(ctx, f.mgr.GetLocalManager().GetConfig(), f.mgr.GetLocalManager().GetScheme(), apiexportEndpointSliceName)
 }
 
+// ConfigSchemeKCPClientGetter builds cluster and all-Clients via a given config
+// and scheme.
 type ConfigSchemeKCPClientGetter struct {
 	config *rest.Config
 	scheme *runtime.Scheme
