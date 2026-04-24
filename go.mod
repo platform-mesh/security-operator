@@ -14,8 +14,8 @@ require (
 	github.com/kcp-dev/sdk v0.31.0
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
 	github.com/openfga/language/pkg/go v0.2.1
-	github.com/platform-mesh/account-operator v0.14.3
-	github.com/platform-mesh/golang-commons v0.15.6
+	github.com/platform-mesh/account-operator v0.14.7
+	github.com/platform-mesh/golang-commons v0.16.0
 	github.com/platform-mesh/subroutines v0.3.3
 	github.com/rs/zerolog v1.35.0
 	github.com/spf13/cobra v1.10.2
@@ -25,10 +25,10 @@ require (
 	golang.org/x/oauth2 v0.36.0
 	google.golang.org/grpc v1.80.0
 	google.golang.org/protobuf v1.36.11
-	k8s.io/api v0.35.3
-	k8s.io/apiextensions-apiserver v0.35.3
+	k8s.io/api v0.35.4
+	k8s.io/apiextensions-apiserver v0.35.4
 	k8s.io/apimachinery v0.35.4
-	k8s.io/client-go v0.35.3
+	k8s.io/client-go v0.35.4
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5
 	sigs.k8s.io/controller-runtime v0.23.3
 	sigs.k8s.io/multicluster-runtime v0.23.1
@@ -50,7 +50,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.25.1 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
-	github.com/getsentry/sentry-go v0.44.1 // indirect
+	github.com/getsentry/sentry-go v0.45.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zerologr v1.2.3 // indirect
