@@ -68,7 +68,7 @@ func (w *inviteSubroutine) reconcile(ctx context.Context, obj client.Object) (su
 		return subroutines.OK(), fmt.Errorf("failed to get workspace name")
 	}
 
-	client, err := w.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
+	client, err := w.kcpClientGetter.NewClientFromContext(ctx)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting client: %w", err)
 	}
