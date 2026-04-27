@@ -787,7 +787,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockClient := mocks.NewMockClient(t)
-			kcpHelper := mocks.NewMockKCPHelper(t)
+			kcpHelper := mocks.NewMockKCPClientGetter(t)
 			mgr := mocks.NewMockManager(t)
 			cluster := mocks.NewMockCluster(t)
 			mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Maybe()

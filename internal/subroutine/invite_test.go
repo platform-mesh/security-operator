@@ -25,7 +25,7 @@ import (
 
 func TestNewInviteSubroutine(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
-	kcpHelper := mocks.NewMockKCPHelper(t)
+	kcpHelper := mocks.NewMockKCPClientGetter(t)
 
 	subroutine, err := NewInviteSubroutine(mgr, kcpHelper)
 	require.NoError(t, err)
@@ -36,7 +36,7 @@ func TestNewInviteSubroutine(t *testing.T) {
 
 func TestInviteSubroutine_GetName(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
-	kcpHelper := mocks.NewMockKCPHelper(t)
+	kcpHelper := mocks.NewMockKCPClientGetter(t)
 	subroutine, err := NewInviteSubroutine(mgr, kcpHelper)
 	require.NoError(t, err)
 
@@ -47,7 +47,7 @@ func TestInviteSubroutine_GetName(t *testing.T) {
 func TestInviteSubroutine_Initialize(t *testing.T) {
 	tests := []struct {
 		name                   string
-		setupMocks             func(*mocks.MockClient, *mocks.MockManager, *mocks.MockKCPHelper)
+		setupMocks             func(*mocks.MockClient, *mocks.MockManager, *mocks.MockKCPClientGetter)
 		lc                     *kcpcorev1alpha1.LogicalCluster
 		expectedErr            bool
 		expectedResult         subroutines.Result
@@ -55,7 +55,7 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 	}{
 		{
 			name:       "Empty workspace name - early return",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPHelper) {},
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPClientGetter) {},
 			lc: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{},
@@ -66,7 +66,7 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "KCP client getter error",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPHelper) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPClientGetter) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(nil, assert.AnError).Once()
 			},
 			lc: &kcpcorev1alpha1.LogicalCluster{
@@ -81,7 +81,7 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "Account Get error",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPHelper) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPClientGetter) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Twice()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test"}, mock.AnythingOfType("*v1alpha1.Account")).
 					Return(assert.AnError).Once()
@@ -98,7 +98,7 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "Account not of type organization - skip invite creation",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPHelper) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPClientGetter) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Twice()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
@@ -121,7 +121,7 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "CreateOrUpdate Ready",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPHelper) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPClientGetter) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Twice()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
@@ -160,7 +160,7 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "CreateOrUpdate NotReady",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPHelper) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPClientGetter) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Twice()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
@@ -203,7 +203,7 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			orgsClient := mocks.NewMockClient(t)
 			mgr := mocks.NewMockManager(t)
-			kcpHelper := mocks.NewMockKCPHelper(t)
+			kcpHelper := mocks.NewMockKCPClientGetter(t)
 			subroutine, err := NewInviteSubroutine(mgr, kcpHelper)
 			require.NoError(t, err)
 

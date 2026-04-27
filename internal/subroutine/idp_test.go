@@ -26,7 +26,7 @@ import (
 
 func TestNewIDPSubroutine(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
-	kcpHelper := mocks.NewMockKCPHelper(t)
+	kcpHelper := mocks.NewMockKCPClientGetter(t)
 	cfg := config.Config{}
 	cfg.IDP.AdditionalRedirectURLs = []string{"https://example.com/callback"}
 	cfg.BaseDomain = "example.com"
@@ -43,7 +43,7 @@ func TestNewIDPSubroutine(t *testing.T) {
 
 func TestIDPSubroutine_GetName(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
-	kcpHelper := mocks.NewMockKCPHelper(t)
+	kcpHelper := mocks.NewMockKCPClientGetter(t)
 	cfg := config.Config{}
 	cfg.BaseDomain = "example.com"
 	subroutine, err := NewIDPSubroutine(mgr, kcpHelper, cfg)
@@ -56,14 +56,14 @@ func TestIDPSubroutine_GetName(t *testing.T) {
 func TestIDPSubroutine_Initialize(t *testing.T) {
 	tests := []struct {
 		name           string
-		setupMocks     func(*mocks.MockClient, *mocks.MockManager, *mocks.MockCluster, *mocks.MockKCPHelper, config.Config)
+		setupMocks     func(*mocks.MockClient, *mocks.MockManager, *mocks.MockCluster, *mocks.MockKCPClientGetter, config.Config)
 		lc             *kcpv1alpha1.LogicalCluster
 		expectedErr    bool
 		expectedResult subroutines.Result
 	}{
 		{
 			name: "Empty workspace name - early return",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 			},
 			lc: &kcpv1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
@@ -75,7 +75,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "ClusterFromContext error",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError).Once()
 			},
 			lc: &kcpv1alpha1.LogicalCluster{
@@ -90,7 +90,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "Account Get error",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test"}, mock.AnythingOfType("*v1alpha1.Account")).
@@ -108,7 +108,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "Account not of type organization - skip idp creation",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test"}, mock.AnythingOfType("*v1alpha1.Account")).
@@ -130,7 +130,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "CreateOrUpdate and Ready",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Account")).
@@ -191,7 +191,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "CreateOrUpdate NotReady",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Account")).
@@ -235,7 +235,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "CreateOrPatch create error",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "delta"}, mock.AnythingOfType("*v1alpha1.Account")).
@@ -256,7 +256,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "IDP ready but no managed clients",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "epsilon"}, mock.AnythingOfType("*v1alpha1.Account")).
@@ -284,7 +284,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "managed client not found in status",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "zeta"}, mock.AnythingOfType("*v1alpha1.Account")).
@@ -313,7 +313,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "managed client has empty ClientID",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "eta"}, mock.AnythingOfType("*v1alpha1.Account")).
@@ -344,7 +344,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "patchAccountInfo Get error",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
@@ -378,7 +378,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "accountInfo already up to date - no patch",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
@@ -422,7 +422,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "patchAccountInfo Patch error",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
@@ -458,7 +458,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "ensureClient updates existing client in IDP spec",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
@@ -501,7 +501,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "Get IDP resource error",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPHelper, cfg config.Config) {
+			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster, kcpHelper *mocks.MockKCPClientGetter, cfg config.Config) {
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "gamma"}, mock.AnythingOfType("*v1alpha1.Account")).
@@ -535,7 +535,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 			orgsClient := mocks.NewMockClient(t)
 			mgr := mocks.NewMockManager(t)
 			cluster := mocks.NewMockCluster(t)
-			kcpHelper := mocks.NewMockKCPHelper(t)
+			kcpHelper := mocks.NewMockKCPClientGetter(t)
 			cfg := config.Config{}
 			cfg.IDP.AdditionalRedirectURLs = []string{}
 			cfg.IDP.KubectlClientRedirectURLs = []string{"http://localhost:8000", "http://localhost:18000"}
@@ -562,7 +562,7 @@ func TestIDPSubroutine_Initialize(t *testing.T) {
 
 func TestIDPSubroutine_Process(t *testing.T) {
 	mgr := mocks.NewMockManager(t)
-	kcpHelper := mocks.NewMockKCPHelper(t)
+	kcpHelper := mocks.NewMockKCPClientGetter(t)
 	cfg := config.Config{}
 	cfg.IDP.KubectlClientRedirectURLs = []string{"http://localhost:8000"}
 	cfg.BaseDomain = "example.com"

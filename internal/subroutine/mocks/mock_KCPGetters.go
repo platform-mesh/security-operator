@@ -11,18 +11,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// MockKCPHelper is a backward-compatible alias for tests that still
-// reference the old helper mock name.
-type MockKCPHelper = MockKCPCombinedClientGetter
-
-// NewMockKCPHelper creates a backward-compatible combined getter mock.
-func NewMockKCPHelper(t interface {
-	mock.TestingT
-	Cleanup(func())
-}) *MockKCPHelper {
-	return NewMockKCPCombinedClientGetter(t)
-}
-
 // NewMockKCPClientGetter creates a new instance of MockKCPClientGetter. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockKCPClientGetter(t interface {
@@ -118,6 +106,68 @@ func (_c *MockKCPClientGetter_NewClientForLogicalCluster_Call) RunAndReturn(run 
 	return _c
 }
 
+// NewClientFromContext provides a mock function for the type MockKCPClientGetter
+func (_mock *MockKCPClientGetter) NewClientFromContext(ctx context.Context) (client.Client, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NewClientFromContext")
+	}
+
+	var r0 client.Client
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (client.Client, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) client.Client); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(client.Client)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockKCPClientGetter_NewClientFromContext_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NewClientFromContext'
+type MockKCPClientGetter_NewClientFromContext_Call struct {
+	*mock.Call
+}
+
+// NewClientFromContext is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockKCPClientGetter_Expecter) NewClientFromContext(ctx interface{}) *MockKCPClientGetter_NewClientFromContext_Call {
+	return &MockKCPClientGetter_NewClientFromContext_Call{Call: _e.mock.On("NewClientFromContext", ctx)}
+}
+
+func (_c *MockKCPClientGetter_NewClientFromContext_Call) Run(run func(ctx context.Context)) *MockKCPClientGetter_NewClientFromContext_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockKCPClientGetter_NewClientFromContext_Call) Return(client1 client.Client, err error) *MockKCPClientGetter_NewClientFromContext_Call {
+	_c.Call.Return(client1, err)
+	return _c
+}
+
+func (_c *MockKCPClientGetter_NewClientFromContext_Call) RunAndReturn(run func(ctx context.Context) (client.Client, error)) *MockKCPClientGetter_NewClientFromContext_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // NewMockKCPCombinedClientGetter creates a new instance of MockKCPCombinedClientGetter. It also registers a testing interface on the mock and a cleanup function to assert the mocks expectations.
 // The first argument is typically a *testing.T value.
 func NewMockKCPCombinedClientGetter(t interface {
@@ -145,24 +195,12 @@ func (_m *MockKCPCombinedClientGetter) EXPECT() *MockKCPCombinedClientGetter_Exp
 	return &MockKCPCombinedClientGetter_Expecter{mock: &_m.Mock}
 }
 
-// AllClient provides compatibility with the renamed interface method.
+// AllClient provides a mock function for the type MockKCPCombinedClientGetter
 func (_mock *MockKCPCombinedClientGetter) AllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error) {
-	return _mock.GetAllClient(ctx, apiexportEndpointSliceName)
-}
-
-// AllClient is a helper method to define mock.On call
-//   - ctx context.Context
-//   - apiexportEndpointSliceName string
-func (_e *MockKCPCombinedClientGetter_Expecter) AllClient(ctx interface{}, apiexportEndpointSliceName interface{}) *MockKCPCombinedClientGetter_GetAllClient_Call {
-	return _e.GetAllClient(ctx, apiexportEndpointSliceName)
-}
-
-// GetAllClient provides a mock function for the type MockKCPCombinedClientGetter
-func (_mock *MockKCPCombinedClientGetter) GetAllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error) {
 	ret := _mock.Called(ctx, apiexportEndpointSliceName)
 
 	if len(ret) == 0 {
-		panic("no return value specified for GetAllClient")
+		panic("no return value specified for AllClient")
 	}
 
 	var r0 client.Client
@@ -185,19 +223,19 @@ func (_mock *MockKCPCombinedClientGetter) GetAllClient(ctx context.Context, apie
 	return r0, r1
 }
 
-// MockKCPCombinedClientGetter_GetAllClient_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetAllClient'
-type MockKCPCombinedClientGetter_GetAllClient_Call struct {
+// MockKCPCombinedClientGetter_AllClient_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'AllClient'
+type MockKCPCombinedClientGetter_AllClient_Call struct {
 	*mock.Call
 }
 
-// GetAllClient is a helper method to define mock.On call
+// AllClient is a helper method to define mock.On call
 //   - ctx context.Context
 //   - apiexportEndpointSliceName string
-func (_e *MockKCPCombinedClientGetter_Expecter) GetAllClient(ctx interface{}, apiexportEndpointSliceName interface{}) *MockKCPCombinedClientGetter_GetAllClient_Call {
-	return &MockKCPCombinedClientGetter_GetAllClient_Call{Call: _e.mock.On("GetAllClient", ctx, apiexportEndpointSliceName)}
+func (_e *MockKCPCombinedClientGetter_Expecter) AllClient(ctx interface{}, apiexportEndpointSliceName interface{}) *MockKCPCombinedClientGetter_AllClient_Call {
+	return &MockKCPCombinedClientGetter_AllClient_Call{Call: _e.mock.On("AllClient", ctx, apiexportEndpointSliceName)}
 }
 
-func (_c *MockKCPCombinedClientGetter_GetAllClient_Call) Run(run func(ctx context.Context, apiexportEndpointSliceName string)) *MockKCPCombinedClientGetter_GetAllClient_Call {
+func (_c *MockKCPCombinedClientGetter_AllClient_Call) Run(run func(ctx context.Context, apiexportEndpointSliceName string)) *MockKCPCombinedClientGetter_AllClient_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
@@ -215,12 +253,12 @@ func (_c *MockKCPCombinedClientGetter_GetAllClient_Call) Run(run func(ctx contex
 	return _c
 }
 
-func (_c *MockKCPCombinedClientGetter_GetAllClient_Call) Return(client1 client.Client, err error) *MockKCPCombinedClientGetter_GetAllClient_Call {
+func (_c *MockKCPCombinedClientGetter_AllClient_Call) Return(client1 client.Client, err error) *MockKCPCombinedClientGetter_AllClient_Call {
 	_c.Call.Return(client1, err)
 	return _c
 }
 
-func (_c *MockKCPCombinedClientGetter_GetAllClient_Call) RunAndReturn(run func(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error)) *MockKCPCombinedClientGetter_GetAllClient_Call {
+func (_c *MockKCPCombinedClientGetter_AllClient_Call) RunAndReturn(run func(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error)) *MockKCPCombinedClientGetter_AllClient_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -289,6 +327,68 @@ func (_c *MockKCPCombinedClientGetter_NewClientForLogicalCluster_Call) Return(cl
 }
 
 func (_c *MockKCPCombinedClientGetter_NewClientForLogicalCluster_Call) RunAndReturn(run func(ctx context.Context, cluster string) (client.Client, error)) *MockKCPCombinedClientGetter_NewClientForLogicalCluster_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// NewClientFromContext provides a mock function for the type MockKCPCombinedClientGetter
+func (_mock *MockKCPCombinedClientGetter) NewClientFromContext(ctx context.Context) (client.Client, error) {
+	ret := _mock.Called(ctx)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NewClientFromContext")
+	}
+
+	var r0 client.Client
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(context.Context) (client.Client, error)); ok {
+		return returnFunc(ctx)
+	}
+	if returnFunc, ok := ret.Get(0).(func(context.Context) client.Client); ok {
+		r0 = returnFunc(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(client.Client)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
+		r1 = returnFunc(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockKCPCombinedClientGetter_NewClientFromContext_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NewClientFromContext'
+type MockKCPCombinedClientGetter_NewClientFromContext_Call struct {
+	*mock.Call
+}
+
+// NewClientFromContext is a helper method to define mock.On call
+//   - ctx context.Context
+func (_e *MockKCPCombinedClientGetter_Expecter) NewClientFromContext(ctx interface{}) *MockKCPCombinedClientGetter_NewClientFromContext_Call {
+	return &MockKCPCombinedClientGetter_NewClientFromContext_Call{Call: _e.mock.On("NewClientFromContext", ctx)}
+}
+
+func (_c *MockKCPCombinedClientGetter_NewClientFromContext_Call) Run(run func(ctx context.Context)) *MockKCPCombinedClientGetter_NewClientFromContext_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockKCPCombinedClientGetter_NewClientFromContext_Call) Return(client1 client.Client, err error) *MockKCPCombinedClientGetter_NewClientFromContext_Call {
+	_c.Call.Return(client1, err)
+	return _c
+}
+
+func (_c *MockKCPCombinedClientGetter_NewClientFromContext_Call) RunAndReturn(run func(ctx context.Context) (client.Client, error)) *MockKCPCombinedClientGetter_NewClientFromContext_Call {
 	_c.Call.Return(run)
 	return _c
 }

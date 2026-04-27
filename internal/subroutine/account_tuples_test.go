@@ -33,7 +33,7 @@ func newAccountLogicalCluster() *kcpcorev1alpha1.LogicalCluster {
 	}
 }
 
-func mockParentLogicalCluster(kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient) {
+func mockParentLogicalCluster(kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient) {
 	kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(parentClient, nil).Once()
 	parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "cluster"}, mock.Anything).
 		RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
@@ -52,7 +52,7 @@ func TestAccountTuplesSubroutine_GetName(t *testing.T) {
 
 func TestAccountTuplesSubroutine_Process(t *testing.T) {
 	storeIDGetter := mocks.NewMockStoreIDGetter(t)
-	kcpHelper := mocks.NewMockKCPHelper(t)
+	kcpHelper := mocks.NewMockKCPClientGetter(t)
 	parentClient := mocks.NewMockClient(t)
 	fgaClient := mocks.NewMockOpenFGAServiceClient(t)
 
@@ -78,20 +78,20 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 	tests := []struct {
 		name        string
 		obj         *kcpcorev1alpha1.LogicalCluster
-		mockSetup   func(*mocks.MockStoreIDGetter, *mocks.MockKCPHelper, *mocks.MockClient, *mocks.MockOpenFGAServiceClient)
+		mockSetup   func(*mocks.MockStoreIDGetter, *mocks.MockKCPClientGetter, *mocks.MockClient, *mocks.MockOpenFGAServiceClient)
 		expectError bool
 	}{
 		{
 			name: "error: missing path annotation",
 			obj:  &kcpcorev1alpha1.LogicalCluster{},
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 			},
 			expectError: true,
 		},
 		{
 			name: "error: storeIDGetter fails",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("", assert.AnError)
 			},
 			expectError: true,
@@ -99,7 +99,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 		{
 			name: "error: NewForLogicalCluster fails for parent cluster",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(nil, assert.AnError).Once()
 			},
@@ -108,7 +108,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 		{
 			name: "error: Get LogicalCluster fails",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(parentClient, nil).Once()
 				parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "cluster"}, mock.Anything).Return(assert.AnError).Once()
@@ -118,7 +118,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 		{
 			name: "error: kcp.io/cluster annotation missing on parent LogicalCluster",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(parentClient, nil).Once()
 				parentClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "cluster"}, mock.Anything).Return(nil).Once()
@@ -128,7 +128,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 		{
 			name: "error: NewForLogicalCluster fails for parent account client",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				mockParentLogicalCluster(kcpHelper, parentClient)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(nil, assert.AnError).Once()
@@ -138,7 +138,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 		{
 			name: "error: Get Account fails",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				mockParentLogicalCluster(kcpHelper, parentClient)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(parentClient, nil).Once()
@@ -149,7 +149,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 		{
 			name: "error: account creator is empty",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				mockParentLogicalCluster(kcpHelper, parentClient)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(parentClient, nil).Once()
@@ -160,7 +160,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 		{
 			name: "error: fga.Write fails",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				mockParentLogicalCluster(kcpHelper, parentClient)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(parentClient, nil).Once()
@@ -179,7 +179,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 		{
 			name: "success",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				mockParentLogicalCluster(kcpHelper, parentClient)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(parentClient, nil).Once()
@@ -200,7 +200,7 @@ func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			storeIDGetter := mocks.NewMockStoreIDGetter(t)
-			kcpHelper := mocks.NewMockKCPHelper(t)
+			kcpHelper := mocks.NewMockKCPClientGetter(t)
 			parentClient := mocks.NewMockClient(t)
 			fgaClient := mocks.NewMockOpenFGAServiceClient(t)
 
@@ -221,20 +221,20 @@ func TestAccountTuplesSubroutine_Terminate(t *testing.T) {
 	tests := []struct {
 		name        string
 		obj         *kcpcorev1alpha1.LogicalCluster
-		mockSetup   func(*mocks.MockStoreIDGetter, *mocks.MockKCPHelper, *mocks.MockClient, *mocks.MockOpenFGAServiceClient)
+		mockSetup   func(*mocks.MockStoreIDGetter, *mocks.MockKCPClientGetter, *mocks.MockClient, *mocks.MockOpenFGAServiceClient)
 		expectError bool
 	}{
 		{
 			name: "error: missing path annotation",
 			obj:  &kcpcorev1alpha1.LogicalCluster{},
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 			},
 			expectError: true,
 		},
 		{
 			name: "error: NewForLogicalCluster fails",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, mock.Anything).Return(nil, assert.AnError).Once()
 			},
 			expectError: true,
@@ -242,7 +242,7 @@ func TestAccountTuplesSubroutine_Terminate(t *testing.T) {
 		{
 			name: "error: storeIDGetter fails",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				mockParentLogicalCluster(kcpHelper, parentClient)
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("", assert.AnError)
 			},
@@ -251,7 +251,7 @@ func TestAccountTuplesSubroutine_Terminate(t *testing.T) {
 		{
 			name: "error: ListWithKey fails",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				mockParentLogicalCluster(kcpHelper, parentClient)
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				fgaClient.EXPECT().Read(mock.Anything, mock.Anything).Return(nil, assert.AnError)
@@ -261,7 +261,7 @@ func TestAccountTuplesSubroutine_Terminate(t *testing.T) {
 		{
 			name: "error: ListWithKey for role fails",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				mockParentLogicalCluster(kcpHelper, parentClient)
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				// First Read returns a tuple whose User has the role prefix for this account.
@@ -280,7 +280,7 @@ func TestAccountTuplesSubroutine_Terminate(t *testing.T) {
 		{
 			name: "error: Delete fails",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				mockParentLogicalCluster(kcpHelper, parentClient)
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				fgaClient.EXPECT().Read(mock.Anything, mock.Anything).
@@ -296,7 +296,7 @@ func TestAccountTuplesSubroutine_Terminate(t *testing.T) {
 		{
 			name: "success: no tuples to delete",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				mockParentLogicalCluster(kcpHelper, parentClient)
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				fgaClient.EXPECT().Read(mock.Anything, mock.Anything).
@@ -307,7 +307,7 @@ func TestAccountTuplesSubroutine_Terminate(t *testing.T) {
 		{
 			name: "success: tuples with role prefix deleted",
 			obj:  newAccountLogicalCluster(),
-			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPHelper, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
+			mockSetup: func(storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKCPClientGetter, parentClient *mocks.MockClient, fgaClient *mocks.MockOpenFGAServiceClient) {
 				mockParentLogicalCluster(kcpHelper, parentClient)
 				storeIDGetter.EXPECT().Get(mock.Anything, "myorg").Return("store-id", nil)
 				roleUser := "role:account/" + parentClusterID + "/myaccount/owner#assignee"
@@ -329,7 +329,7 @@ func TestAccountTuplesSubroutine_Terminate(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			storeIDGetter := mocks.NewMockStoreIDGetter(t)
-			kcpHelper := mocks.NewMockKCPHelper(t)
+			kcpHelper := mocks.NewMockKCPClientGetter(t)
 			parentClient := mocks.NewMockClient(t)
 			fgaClient := mocks.NewMockOpenFGAServiceClient(t)
 
