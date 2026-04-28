@@ -17,7 +17,7 @@ require (
 	github.com/platform-mesh/account-operator v0.14.13
 	github.com/platform-mesh/golang-commons v0.16.3
 	github.com/platform-mesh/subroutines v0.3.3
-	github.com/rs/zerolog v1.35.0
+	github.com/rs/zerolog v1.35.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/spf13/viper v1.21.0
