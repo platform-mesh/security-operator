@@ -53,7 +53,15 @@ tasks:
   setup:kcp:
     cmds:
       - test -s {{.LOCAL_BIN}}/kcp || GOBIN=$(pwd)/{{.LOCAL_BIN}} ./hack/download-tool.sh https://github.com/kcp-dev/kcp/releases/download/v{{ .KCP_VERSION }}/kcp_{{ .KCP_VERSION }}_{{ .GOOS }}_{{ .GOARCH }}.tar.gz kcp {{.KCP_VERSION}}
+  setup:mockery:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/mockery || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/vektra/mockery/v3@v3.7.0
   ## Development
+  mockery:
+    deps: [setup:mockery]
+    cmds:
+      - "{{.LOCAL_BIN}}/mockery"
   manifests:
     deps: [setup:controller-gen,setup:kcp-api-gen]
     cmds:
@@ -61,6 +69,7 @@ tasks:
   generate:
     cmds:
       - task: manifests
+      - task: mockery
       - "{{.LOCAL_BIN}}/controller-gen object paths=./..."
       - "{{.LOCAL_BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources"
   build:

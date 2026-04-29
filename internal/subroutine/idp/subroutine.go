@@ -10,6 +10,7 @@ import (
 	"github.com/coreos/go-oidc"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/pkg/clientreg"
 	"github.com/platform-mesh/security-operator/pkg/clientreg/keycloak"
@@ -27,12 +28,12 @@ import (
 type subroutine struct {
 	keycloakBaseURL string
 	adminClient     *http.Client
-	orgsClient      client.Client
 	mgr             mcmanager.Manager
 	cfg             *config.Config
+	kcpClientGetter iclient.KCPClientGetter
 }
 
-func New(ctx context.Context, cfg *config.Config, orgsClient client.Client, mgr mcmanager.Manager) (*subroutine, error) {
+func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter) (*subroutine, error) {
 	issuer := fmt.Sprintf("%s/realms/master", cfg.Keycloak.BaseURL)
 	provider, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {
@@ -50,9 +51,9 @@ func New(ctx context.Context, cfg *config.Config, orgsClient client.Client, mgr 
 	return &subroutine{
 		keycloakBaseURL: cfg.Keycloak.BaseURL,
 		adminClient:     adminClient,
-		orgsClient:      orgsClient,
 		mgr:             mgr,
 		cfg:             cfg,
+		kcpClientGetter: kcpClientGetter,
 	}, nil
 }
 
@@ -112,7 +113,12 @@ func (s *subroutine) Finalize(ctx context.Context, obj client.Object) (subroutin
 				Namespace: clientToDelete.SecretRef.Namespace,
 			},
 		}
-		if err := s.orgsClient.Delete(ctx, secretToDelete); err != nil {
+
+		orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
+		if err != nil {
+			return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
+		}
+		if err := orgsClient.Delete(ctx, secretToDelete); err != nil {
 			return subroutines.OK(), fmt.Errorf("failed to delete client secret: %w", err)
 		}
 	}
@@ -257,7 +263,11 @@ func (s *subroutine) deleteRemovedClients(ctx context.Context, idpConfig *v1alph
 				Namespace: managedClient.SecretRef.Namespace,
 			},
 		}
-		if err := s.orgsClient.Delete(ctx, secretToDelete); err != nil {
+		orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
+		if err != nil {
+			return fmt.Errorf("getting orgs client: %w", err)
+		}
+		if err := orgsClient.Delete(ctx, secretToDelete); err != nil {
 			return fmt.Errorf("failed to delete client secret %s: %w", managedClient.SecretRef.Name, err)
 		}
 	}
@@ -310,7 +320,11 @@ func (s *subroutine) registerOrUpdateClient(ctx context.Context, ipc *v1alpha1.I
 func (s *subroutine) readRegistrationAccessToken(ctx context.Context, secretRef corev1.SecretReference) (string, error) {
 	secret := &corev1.Secret{}
 	key := client.ObjectKey{Name: secretRef.Name, Namespace: secretRef.Namespace}
-	if err := s.orgsClient.Get(ctx, key, secret); err != nil {
+	orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
+	if err != nil {
+		return "", fmt.Errorf("getting orgs client: %w", err)
+	}
+	if err := orgsClient.Get(ctx, key, secret); err != nil {
 		return "", err
 	}
 	return string(secret.Data["registration_access_token"]), nil
@@ -328,7 +342,11 @@ func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig *v1a
 		},
 	}
 
-	_, err := controllerutil.CreateOrUpdate(ctx, s.orgsClient, secret, func() error {
+	orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
+	if err != nil {
+		return fmt.Errorf("getting orgs client: %w", err)
+	}
+	_, err = controllerutil.CreateOrUpdate(ctx, orgsClient, secret, func() error {
 		if secret.Data == nil {
 			secret.Data = make(map[string][]byte)
 		}
@@ -341,5 +359,6 @@ func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig *v1a
 		secret.Type = corev1.SecretTypeOpaque
 		return nil
 	})
+
 	return err
 }

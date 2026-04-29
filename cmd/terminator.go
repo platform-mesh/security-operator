@@ -14,16 +14,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"k8s.io/client-go/rest"
-
-	"github.com/kcp-dev/logicalcluster/v3"
-	kcptenancyv1alphav1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 )
 
 var terminatorCmd = &cobra.Command{
@@ -60,23 +56,6 @@ var terminatorCmd = &cobra.Command{
 			mgrOpts.LeaderElectionConfig = inClusterCfg
 		}
 
-		rootClient, err := iclient.NewForLogicalCluster(kcpCfg, scheme, logicalcluster.Name("root"))
-		if err != nil {
-			log.Error().Err(err).Msgf("Failed to get root client")
-			os.Exit(1)
-		}
-		var wt kcptenancyv1alphav1.WorkspaceType
-		if err := rootClient.Get(cmd.Context(), client.ObjectKey{
-			Name: terminatorCfg.WorkspaceTypeName,
-		}, &wt); err != nil {
-			log.Error().Err(err).Msgf("Failed to get WorkspaceType %s", terminatorCfg.WorkspaceTypeName)
-			os.Exit(1)
-		}
-		if len(wt.Status.VirtualWorkspaces) == 0 {
-			log.Error().Msgf("No VirtualWorkspaces found in WorkspaceType %s", terminatorCfg.WorkspaceTypeName)
-			os.Exit(1)
-		}
-
 		provider, err := terminatingworkspaces.New(kcpCfg, terminatorCfg.WorkspaceTypeName,
 			terminatingworkspaces.Options{
 				Scheme: mgrOpts.Scheme,
@@ -107,7 +86,8 @@ var terminatorCmd = &cobra.Command{
 			log,
 		)
 
-		alcReconciler, err := controller.NewAccountLogicalClusterController(log, terminatorCfg, fgaClient, storeIDGetter, mgr, controller.ControllerOptions{
+		kcpClientGetter := iclient.NewConfigSchemeKCPClientGetter(kcpCfg, scheme)
+		alcReconciler, err := controller.NewAccountLogicalClusterController(log, terminatorCfg, fgaClient, storeIDGetter, mgr, kcpClientGetter, controller.ControllerOptions{
 			Name:           "AccountLogicalClusterTerminator",
 			TerminatorName: terminatorCfg.TerminatorName(),
 		})
