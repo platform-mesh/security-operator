@@ -10,6 +10,7 @@ import (
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,7 +38,7 @@ func toK8sName(parts ...string) string {
 	return strings.Trim(name, "-")
 }
 
-func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, allClient client.Client) *AuthorizationModelGenerationSubroutine {
+func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, allClient iclient.AllPlatformMeshClient) *AuthorizationModelGenerationSubroutine {
 	return &AuthorizationModelGenerationSubroutine{
 		mgr:       mcMgr,
 		allClient: allClient,
@@ -51,7 +52,7 @@ var (
 
 type AuthorizationModelGenerationSubroutine struct {
 	mgr       mcmanager.Manager
-	allClient client.Client
+	allClient iclient.AllPlatformMeshClient
 }
 
 var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}

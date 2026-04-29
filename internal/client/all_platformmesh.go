@@ -7,6 +7,8 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	kerrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/rest"
@@ -19,10 +21,47 @@ const (
 	platformMeshSystemWorkspace = "root:platform-mesh-system"
 )
 
+type AllPlatformMeshClient interface {
+	List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error
+}
+
+type allPlatformMeshClient struct {
+	clients []client.Client
+}
+
+// List aggregates results from all clients into a single list
+func (m *allPlatformMeshClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	allItems := make([]runtime.Object, 0)
+
+	for _, c := range m.clients {
+		tempList := list.DeepCopyObject().(client.ObjectList)
+
+		if err := c.List(ctx, tempList, opts...); err != nil {
+			// If the resource is not found, continue checking other shards
+			if kerrors.IsNotFound(err) {
+				continue
+			}
+			return err
+		}
+
+		clientItems, err := meta.ExtractList(tempList)
+		if err != nil {
+			return fmt.Errorf("extracting items from client list: %w", err)
+		}
+
+		allItems = append(allItems, clientItems...)
+	}
+
+	if err := meta.SetList(list, allItems); err != nil {
+		return fmt.Errorf("setting aggregated list: %w", err)
+	}
+	return nil
+}
+
 // GetAllClient returns a client that can query all resources
 // of the APIExportEndpointSlice, based on a given KCP
 // base config and APIExportEndpointSlice name
-func GetAllClient(ctx context.Context, config *rest.Config, scheme *runtime.Scheme, apiexportEndpointSliceName string) (client.Client, error) {
+func GetAllClient(ctx context.Context, config *rest.Config, scheme *runtime.Scheme, apiexportEndpointSliceName string) (AllPlatformMeshClient, error) {
 	platformMeshClient, err := NewForLogicalCluster(config, scheme, logicalcluster.Name(platformMeshSystemWorkspace))
 	if err != nil {
 		return nil, fmt.Errorf("creating %s client: %w", platformMeshSystemWorkspace, err)
@@ -37,15 +76,32 @@ func GetAllClient(ctx context.Context, config *rest.Config, scheme *runtime.Sche
 		return nil, fmt.Errorf("no endpoints found in %s APIExportEndpointSlice", apiexportEndpointSliceName)
 	}
 
-	virtualWorkspaceUrl, err := url.Parse(apiExportEndpointSlice.Status.APIExportEndpoints[0].URL)
-	if err != nil {
-		return nil, fmt.Errorf("parsing virtual workspace URL: %w", err)
+	// Create a client for each endpoint
+	clients := make([]client.Client, 0, len(apiExportEndpointSlice.Status.APIExportEndpoints))
+	for i, endpoint := range apiExportEndpointSlice.Status.APIExportEndpoints {
+		virtualWorkspaceUrl, err := url.Parse(endpoint.URL)
+		if err != nil {
+			return nil, fmt.Errorf("parsing virtual workspace URL for endpoint %d: %w", i, err)
+		}
+
+		wildcardURL := *virtualWorkspaceUrl
+		wildcardURL.Path, err = url.JoinPath(virtualWorkspaceUrl.Path, "clusters", logicalcluster.Wildcard.String())
+		if err != nil {
+			return nil, fmt.Errorf("joining path for endpoint %d: %w", i, err)
+		}
+
+		endpointConfig := rest.CopyConfig(config)
+		endpointConfig.Host = wildcardURL.String()
+
+		c, err := client.New(endpointConfig, client.Options{
+			Scheme: scheme,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("creating client for endpoint %d: %w", i, err)
+		}
+
+		clients = append(clients, c)
 	}
 
-	path, err := url.JoinPath(virtualWorkspaceUrl.Path, "clusters", logicalcluster.Wildcard.String())
-	if err != nil {
-		return nil, fmt.Errorf("joining path: %w", err)
-	}
-
-	return clientForPath(config, scheme, path)
+	return &allPlatformMeshClient{clients: clients}, nil
 }

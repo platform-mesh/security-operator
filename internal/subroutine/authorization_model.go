@@ -12,6 +12,7 @@ import (
 	language "github.com/openfga/language/pkg/go/transformer"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/util"
 	"github.com/platform-mesh/subroutines"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -77,11 +78,11 @@ type NewDiscoveryClientFunc func(cfg *rest.Config) discovery.DiscoveryInterface
 type authorizationModelSubroutine struct {
 	fga                    openfgav1.OpenFGAServiceClient
 	mgr                    mcmanager.Manager
-	allClient              client.Client
+	allClient              iclient.AllPlatformMeshClient
 	newDiscoveryClientFunc NewDiscoveryClientFunc
 }
 
-func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, allClient client.Client, newDiscoveryClientFunc NewDiscoveryClientFunc, log *logger.Logger) *authorizationModelSubroutine {
+func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, allClient iclient.AllPlatformMeshClient, newDiscoveryClientFunc NewDiscoveryClientFunc, log *logger.Logger) *authorizationModelSubroutine {
 	return &authorizationModelSubroutine{
 		fga:                    fga,
 		mgr:                    mgr,
@@ -94,7 +95,7 @@ var _ subroutines.Processor = &authorizationModelSubroutine{}
 
 func (a *authorizationModelSubroutine) GetName() string { return "AuthorizationModel" }
 
-func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store *securityv1alpha1.Store) (securityv1alpha1.AuthorizationModelList, error) {
+func getRelatedAuthorizationModels(ctx context.Context, k8s iclient.AllPlatformMeshClient, store *securityv1alpha1.Store) (securityv1alpha1.AuthorizationModelList, error) {
 
 	storeClusterKey, ok := mccontext.ClusterFrom(ctx)
 	if !ok {

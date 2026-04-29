@@ -13,7 +13,7 @@ import (
 
 type KcpClientHelper interface {
 	NewClientForLogicalCluster(clusterKey logicalcluster.Name) (client.Client, error)
-	GetAllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error)
+	GetAllClient(ctx context.Context, apiexportEndpointSliceName string) (AllPlatformMeshClient, error)
 }
 
 type KcpHelper struct {
@@ -29,6 +29,6 @@ func (f *KcpHelper) NewClientForLogicalCluster(clusterKey logicalcluster.Name) (
 	return NewForLogicalCluster(f.config, f.scheme, clusterKey)
 }
 
-func (f *KcpHelper) GetAllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error) {
+func (f *KcpHelper) GetAllClient(ctx context.Context, apiexportEndpointSliceName string) (AllPlatformMeshClient, error) {
 	return GetAllClient(ctx, f.config, f.scheme, apiexportEndpointSliceName)
 }
