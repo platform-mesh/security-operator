@@ -184,8 +184,8 @@ github.com/platform-mesh/account-operator v0.14.14 h1:FMCAHOG3L62k8NfRhlKxOOiNkj
 github.com/platform-mesh/account-operator v0.14.14/go.mod h1:V+qEG18dx6I595n88q11yMx3s0oJl4L7S/eb9v6M2H0=
 github.com/platform-mesh/golang-commons v0.16.5 h1:x45Ft6WbHGi7PMTPHsleuWabvVV5k8bhfERUNWqPlIY=
 github.com/platform-mesh/golang-commons v0.16.5/go.mod h1:iPI/J3T6PTRQcK2bA0wE4poFL0uoUB8KVYfQ9wi58CM=
-github.com/platform-mesh/subroutines v0.3.3 h1:WKz0ZJnceC5KvUYrbmAdGTRnECkI6I4YXAEq3vKEV3Q=
-github.com/platform-mesh/subroutines v0.3.3/go.mod h1:4NmIkZXmbndYu4JzHWPu9JNoDipJcXP4oy4OPnLNT0Q=
+github.com/platform-mesh/subroutines v0.4.2 h1:ADxAd9lGaDzj2AFlqE2P+xnxNAhKyHFY4XCJ6nJWN6g=
+github.com/platform-mesh/subroutines v0.4.2/go.mod h1:V7mV+D9NexhQDKCEJTwnfIelTvPR2zCTfmGu3yNvZtw=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
@@ -334,8 +334,8 @@ sigs.k8s.io/controller-runtime v0.23.3 h1:VjB/vhoPoA9l1kEKZHBMnQF33tdCLQKJtydy4i
 sigs.k8s.io/controller-runtime v0.23.3/go.mod h1:B6COOxKptp+YaUT5q4l6LqUJTRpizbgf9KSRNdQGns0=
 sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730 h1:IpInykpT6ceI+QxKBbEflcR5EXP7sU1kvOlxwZh5txg=
 sigs.k8s.io/json v0.0.0-20250730193827-2d320260d730/go.mod h1:mdzfpAEoE6DHQEN0uh9ZbOCuHbLK5wOm7dK4ctXE9Tg=
-sigs.k8s.io/multicluster-runtime v0.23.1 h1:isjVh6zBuk/U1HjYm22knRZmFsn6sFinmyvV+/4puCc=
-sigs.k8s.io/multicluster-runtime v0.23.1/go.mod h1:ri1Gvx7Qehy5nis6OnTgSpJIWaf2SuorHDwF/jvbWvM=
+sigs.k8s.io/multicluster-runtime v0.23.3 h1:vrzlXRzHTDsjspUAfoW2rCtr0agoI4q20p9x4Fz4png=
+sigs.k8s.io/multicluster-runtime v0.23.3/go.mod h1:r/UA4GHgFoXCcR4tcvlZz7SiLx3l1kJKDuBAhILNIHs=
 sigs.k8s.io/randfill v1.0.0 h1:JfjMILfT8A6RbawdsK2JXGBR5AQVfd+9TbzrlneTyrU=
 sigs.k8s.io/randfill v1.0.0/go.mod h1:XeLlZ/jmk4i1HRopwe7/aU3H5n1zNUcX6TM94b3QxOY=
 sigs.k8s.io/structured-merge-diff/v6 v6.3.2 h1:kwVWMx5yS1CrnFWA/2QHyRVJ8jM6dBA80uLmm0wJkk8=
