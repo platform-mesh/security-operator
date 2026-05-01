@@ -3,11 +3,11 @@ package test
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/url"
 	"testing"
 	"time"
 
+	openfga "github.com/openfga/api/proto/openfga/v1"
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/logger"
@@ -17,6 +17,10 @@ import (
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -39,6 +43,12 @@ import (
 	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 
 	_ "embed"
+)
+
+const (
+	openfgaImage    = "openfga/openfga:latest"
+	openfgaGRPCPort = "8081/tcp"
+	openfgaHTTPPort = "8080/tcp"
 )
 
 var (
@@ -89,6 +99,10 @@ type IntegrationSuite struct {
 	apiExportEndpointSliceConfig *rest.Config
 	platformMeshSysPath          logicalcluster.Path
 	platformMeshSystemClient     client.Client
+
+	openFGAContainer testcontainers.Container
+	openFGAConn      *grpc.ClientConn
+	openFGAClient    openfga.OpenFGAServiceClient
 }
 
 func TestIntegrationSuite(t *testing.T) {
@@ -99,7 +113,8 @@ func (suite *IntegrationSuite) SetupSuite() {
 	defaultCfg := platformeshconfig.NewDefaultConfig()
 
 	logcfg := logger.DefaultConfig()
-	logcfg.Output = io.Discard
+	logcfg.NoJSON = true
+	// logcfg.Output = io.Discard
 
 	testLogger, err := logger.New(logcfg)
 	require.NoError(suite.T(), err, "failed to create test logger")
@@ -118,7 +133,51 @@ func (suite *IntegrationSuite) SetupSuite() {
 	})
 
 	suite.setupPlatformMesh(suite.T())
+	suite.setupOpenFGA()
 	suite.setupControllers(defaultCfg, testLogger)
+}
+
+func (suite *IntegrationSuite) TearDownSuite() {
+	suite.tearDownOpenFGA()
+}
+
+func (suite *IntegrationSuite) setupOpenFGA() {
+	ctx := suite.T().Context()
+
+	req := testcontainers.ContainerRequest{
+		Image:        openfgaImage,
+		Cmd:          []string{"run"},
+		ExposedPorts: []string{openfgaGRPCPort, openfgaHTTPPort},
+		WaitingFor: wait.ForAll(
+			wait.ForHTTP("/healthz").WithPort(openfgaHTTPPort),
+		),
+	}
+
+	var err error
+	suite.openFGAContainer, err = testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	suite.Require().NoError(err, "failed to start OpenFGA container")
+
+	host, err := suite.openFGAContainer.Host(ctx)
+	suite.Require().NoError(err)
+	grpcPort, err := suite.openFGAContainer.MappedPort(ctx, openfgaGRPCPort)
+	suite.Require().NoError(err)
+
+	target := fmt.Sprintf("%s:%s", host, grpcPort.Port())
+	suite.openFGAConn, err = grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	suite.Require().NoError(err, "failed to create gRPC connection to OpenFGA")
+	suite.openFGAClient = openfga.NewOpenFGAServiceClient(suite.openFGAConn)
+}
+
+func (suite *IntegrationSuite) tearDownOpenFGA() {
+	if err := suite.openFGAConn.Close(); err != nil {
+		suite.T().Logf("failed to close OpenFGA connection: %v", err)
+	}
+	if err := suite.openFGAContainer.Terminate(suite.T().Context()); err != nil {
+		suite.T().Logf("failed to terminate OpenFGA container: %v", err)
+	}
 }
 
 func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
@@ -237,13 +296,16 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 	})
 	suite.Require().NoError(err)
 
-	operatorCfg := &config.Config{
+	operatorCfg := config.Config{
 		APIExportEndpointSlices: config.APIExportEndpointSlices{
 			CorePlatformMeshIO: "core.platform-mesh.io",
 		},
+		FGA: config.FGAConfig{
+			Target: suite.openFGAConn.Target(),
+		},
 	}
 
-	err = controller.NewAPIBindingReconciler(testLogger, mgr, iclient.NewManagerKCPClientGetter(mgr), operatorCfg).SetupWithManager(mgr, defaultCfg)
+	err = controller.NewAPIBindingReconciler(testLogger, mgr, iclient.NewManagerKCPClientGetter(mgr), &operatorCfg).SetupWithManager(mgr, defaultCfg)
 	suite.Require().NoError(err)
 
 	managerCtx, cancel := context.WithCancel(ctx)
