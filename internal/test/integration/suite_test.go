@@ -15,6 +15,8 @@ import (
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/controller"
+	ifga "github.com/platform-mesh/security-operator/internal/fga"
+	"github.com/platform-mesh/security-operator/internal/predicates"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -23,6 +25,7 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 	"sigs.k8s.io/yaml"
 
@@ -304,6 +307,25 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 			Target: suite.openFGAConn.Target(),
 		},
 	}
+
+	storeIDGetter := ifga.NewCachingStoreIDGetter(
+		suite.openFGAClient,
+		operatorCfg.FGA.StoreIDCacheTTL,
+		ctx,
+		testLogger,
+	)
+	kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr)
+
+	alcReconciler, err := controller.NewAccountLogicalClusterController(
+		testLogger, operatorCfg, suite.openFGAClient, storeIDGetter, mgr, kcpClientGetter,
+		controller.ControllerOptions{Name: "AccountLogicalClusterReconciler"},
+	)
+	suite.Require().NoError(err)
+	err = alcReconciler.SetupWithManager(mgr, defaultCfg,
+		predicate.Not(predicates.LogicalClusterIsAccountTypeOrg()),
+		predicates.HasInitializerPredicate(operatorCfg.InitializerName()),
+	)
+	suite.Require().NoError(err)
 
 	err = controller.NewAPIBindingReconciler(testLogger, mgr, iclient.NewManagerKCPClientGetter(mgr), &operatorCfg).SetupWithManager(mgr, defaultCfg)
 	suite.Require().NoError(err)
