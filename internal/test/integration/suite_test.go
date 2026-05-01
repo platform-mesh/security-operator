@@ -36,11 +36,11 @@ import (
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/envtest"
-	apisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
-	apisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
-	"github.com/kcp-dev/sdk/apis/core"
-	corev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
-	tenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
+	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
+	kcpcore "github.com/kcp-dev/sdk/apis/core"
+	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
+	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
 
 	_ "embed"
 )
@@ -84,12 +84,12 @@ var (
 )
 
 func init() {
-	utilruntime.Must(apisv1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(corev1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(tenancyv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(kcpapisv1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(kcpcorev1alpha1.AddToScheme(scheme.Scheme))
+	utilruntime.Must(kcptenancyv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(accountv1alpha1.AddToScheme(scheme.Scheme))
 	utilruntime.Must(securityv1alpha1.AddToScheme(scheme.Scheme))
-	utilruntime.Must(apisv1alpha2.AddToScheme(scheme.Scheme))
+	utilruntime.Must(kcpapisv1alpha2.AddToScheme(scheme.Scheme))
 }
 
 type IntegrationSuite struct {
@@ -187,17 +187,17 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	cli, err := clusterclient.New(suite.kcpConfig, client.Options{})
 	suite.Require().NoError(err)
 
-	rootClient := cli.Cluster(core.RootCluster.Path())
+	rootClient := cli.Cluster(kcpcore.RootCluster.Path())
 
 	// create :root:platform-mesh-system ws
-	_, platformMeshSystemClusterPath := envtest.NewWorkspaceFixture(suite.T(), cli, core.RootCluster.Path(), envtest.WithName("platform-mesh-system"))
+	_, platformMeshSystemClusterPath := envtest.NewWorkspaceFixture(suite.T(), cli, kcpcore.RootCluster.Path(), envtest.WithName("platform-mesh-system"))
 	suite.platformMeshSysPath = platformMeshSystemClusterPath
 	suite.platformMeshSystemClient = cli.Cluster(platformMeshSystemClusterPath)
 
 	// register api-resource schemas
 	schemas := [][]byte{AccountInfoSchemaYAML, AccountSchemaYAML, AuthorizationModelSchemaYAML, StoreSchemaYAML, InviteSchemaYAML}
 	for _, schemaYAML := range schemas {
-		var schema apisv1alpha1.APIResourceSchema
+		var schema kcpapisv1alpha1.APIResourceSchema
 		suite.Require().NoError(yaml.Unmarshal(schemaYAML, &schema))
 		err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &schema)
 		if err != nil && !kerrors.IsAlreadyExists(err) {
@@ -207,7 +207,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	}
 	suite.Require().NoError(err)
 
-	var apiExport apisv1alpha1.APIExport
+	var apiExport kcpapisv1alpha1.APIExport
 	suite.Require().NoError(yaml.Unmarshal(ApiExportPlatformMeshSystemYAML, &apiExport))
 
 	err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &apiExport)
@@ -215,7 +215,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 		suite.Require().NoError(err)
 	}
 
-	var platformMeshBinding apisv1alpha2.APIBinding
+	var platformMeshBinding kcpapisv1alpha2.APIBinding
 	suite.Require().NoError(yaml.Unmarshal(ApiBindingCorePlatformMeshYAML, &platformMeshBinding))
 
 	err = cli.Cluster(platformMeshSystemClusterPath).Create(ctx, &platformMeshBinding)
@@ -224,15 +224,15 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	}
 	t.Log("created APIBinding 'core.platform-mesh.io' in platform-mesh-system workspace")
 	suite.Assert().Eventually(func() bool {
-		var binding apisv1alpha2.APIBinding
+		var binding kcpapisv1alpha2.APIBinding
 		if err := cli.Cluster(platformMeshSystemClusterPath).Get(ctx, client.ObjectKey{Name: platformMeshBinding.Name}, &binding); err != nil {
 			return false
 		}
-		return binding.Status.Phase == apisv1alpha2.APIBindingPhaseBound
+		return binding.Status.Phase == kcpapisv1alpha2.APIBindingPhaseBound
 	}, 10*time.Second, 200*time.Millisecond, "APIBinding core.platform-mesh.io should be bound")
 
 	// Create WorkspaceTypes in root workspace
-	var orgWorkspaceType tenancyv1alpha1.WorkspaceType
+	var orgWorkspaceType kcptenancyv1alpha1.WorkspaceType
 	suite.Require().NoError(yaml.Unmarshal(WorkspaceTypeOrgYAML, &orgWorkspaceType))
 
 	err = rootClient.Create(ctx, &orgWorkspaceType)
@@ -241,7 +241,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	}
 	t.Log("created WorkspaceType 'org' in root workspace")
 
-	var orgsWorkspaceType tenancyv1alpha1.WorkspaceType
+	var orgsWorkspaceType kcptenancyv1alpha1.WorkspaceType
 	suite.Require().NoError(yaml.Unmarshal(WorkspaceTypeOrgsYAML, &orgsWorkspaceType))
 
 	err = rootClient.Create(ctx, &orgsWorkspaceType)
@@ -250,7 +250,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	}
 	t.Log("created WorkspaceType 'orgs' in root workspace")
 
-	var accountWorkspaceType tenancyv1alpha1.WorkspaceType
+	var accountWorkspaceType kcptenancyv1alpha1.WorkspaceType
 	suite.Require().NoError(yaml.Unmarshal(WorkspaceTypeAccountYAML, &accountWorkspaceType))
 
 	err = rootClient.Create(ctx, &accountWorkspaceType)
@@ -260,10 +260,10 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	t.Log("created WorkspaceType 'account' in root workspace")
 
 	// create :root:orgs ws
-	orgsWs, orgsClusterPath := envtest.NewWorkspaceFixture(suite.T(), cli, core.RootCluster.Path(), envtest.WithName("orgs"), envtest.WithType(core.RootCluster.Path(), "orgs"))
+	orgsWs, orgsClusterPath := envtest.NewWorkspaceFixture(suite.T(), cli, kcpcore.RootCluster.Path(), envtest.WithName("orgs"), envtest.WithType(kcpcore.RootCluster.Path(), "orgs"))
 	t.Logf("orgs workspace path (%s), cluster id (%s)", orgsClusterPath, orgsWs.Spec.Cluster)
 
-	var endpointSlice apisv1alpha1.APIExportEndpointSlice
+	var endpointSlice kcpapisv1alpha1.APIExportEndpointSlice
 	suite.Assert().Eventually(func() bool {
 		err := cli.Cluster(platformMeshSystemClusterPath).Get(ctx, client.ObjectKey{Name: "core.platform-mesh.io"}, &endpointSlice)
 		if err != nil {
