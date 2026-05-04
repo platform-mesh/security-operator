@@ -322,17 +322,17 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				apiExportCluster := mocks.NewMockCluster(t)
 				apiExportClient := mocks.NewMockClient(t)
 
-			innerClient := mocks.NewMockClient(t)
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			bindingCluster.EXPECT().GetClient().Return(bindingClient)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-				list := ol.(*kcpapisv1alpha2.APIBindingList)
-				b1 := bindingWithCluster("foo", "bar", "cluster1")
-				b2 := bindingWithCluster("other", "other", "cluster2")
-				list.Items = []kcpapisv1alpha2.APIBinding{*b1, *b2}
-				return nil
-			})
+				innerClient := mocks.NewMockClient(t)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				bindingCluster.EXPECT().GetClient().Return(bindingClient)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					b1 := bindingWithCluster("foo", "bar", "cluster1")
+					b2 := bindingWithCluster("other", "other", "cluster2")
+					list.Items = []kcpapisv1alpha2.APIBinding{*b1, *b2}
+					return nil
+				})
 				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					acc := o.(*accountv1alpha1.AccountInfo)
 					acc.Spec.Organization.Name = "org"
@@ -378,22 +378,22 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				bindingCluster := mocks.NewMockCluster(t)
 				bindingClient := mocks.NewMockClient(t)
 
-			innerClient := mocks.NewMockClient(t)
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			bindingCluster.EXPECT().GetClient().Return(bindingClient)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-				list := ol.(*kcpapisv1alpha2.APIBindingList)
-				b := binding.DeepCopy()
-				if b.Annotations == nil {
-					b.Annotations = make(map[string]string)
-				}
-				b.Annotations["kcp.io/cluster"] = "cluster1"
-				list.Items = []kcpapisv1alpha2.APIBinding{*b}
-				return nil
-			})
-			bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).Return(
-				kerrors.NewNotFound(schema.GroupResource{Group: "account.platform-mesh.org", Resource: "accountinfos"}, "account"))
+				innerClient := mocks.NewMockClient(t)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				bindingCluster.EXPECT().GetClient().Return(bindingClient)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					b := binding.DeepCopy()
+					if b.Annotations == nil {
+						b.Annotations = make(map[string]string)
+					}
+					b.Annotations["kcp.io/cluster"] = "cluster1"
+					list.Items = []kcpapisv1alpha2.APIBinding{*b}
+					return nil
+				})
+				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).Return(
+					kerrors.NewNotFound(schema.GroupResource{Group: "account.platform-mesh.org", Resource: "accountinfos"}, "account"))
 			},
 		},
 		{
@@ -406,46 +406,46 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				apiExportCluster := mocks.NewMockCluster(t)
 				apiExportClient := mocks.NewMockClient(t)
 
-			innerClient := mocks.NewMockClient(t)
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			bindingCluster.EXPECT().GetClient().Return(bindingClient)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-				list := ol.(*kcpapisv1alpha2.APIBindingList)
-				b := binding.DeepCopy()
-				if b.Annotations == nil {
-					b.Annotations = make(map[string]string)
-				}
-				b.Annotations["kcp.io/cluster"] = "cluster1"
-				list.Items = []kcpapisv1alpha2.APIBinding{*b}
-				return nil
-			})
-			bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingCluster, nil)
-			bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(apiExportCluster, nil)
-			apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
-			apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				ae := o.(*kcpapisv1alpha2.APIExport)
-				ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
-				return nil
-			})
-			apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "schema1"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				rs := o.(*kcpapisv1alpha1.APIResourceSchema)
-				rs.Spec.Names.Plural = "foos"
-				return nil
-			})
-			apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(assert.AnError)
+				innerClient := mocks.NewMockClient(t)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				bindingCluster.EXPECT().GetClient().Return(bindingClient)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					b := binding.DeepCopy()
+					if b.Annotations == nil {
+						b.Annotations = make(map[string]string)
+					}
+					b.Annotations["kcp.io/cluster"] = "cluster1"
+					list.Items = []kcpapisv1alpha2.APIBinding{*b}
+					return nil
+				})
+				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingCluster, nil)
+				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(apiExportCluster, nil)
+				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					ae := o.(*kcpapisv1alpha2.APIExport)
+					ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
+					return nil
+				})
+				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "schema1"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					rs := o.(*kcpapisv1alpha1.APIResourceSchema)
+					rs.Spec.Names.Plural = "foos"
+					return nil
+				})
+				apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(assert.AnError)
 			},
 		},
 		{
@@ -459,120 +459,120 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 				bindingWsCluster2 := mocks.NewMockCluster(t)
 				bindingWsClient2 := mocks.NewMockClient(t)
 
-			innerClient := mocks.NewMockClient(t)
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			bindingCluster.EXPECT().GetClient().Return(bindingClient)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-				list := ol.(*kcpapisv1alpha2.APIBindingList)
-				b1 := bindingWithCluster("foo", "bar", "cluster1")
-				b2 := bindingWithCluster("foo", "bar", "cluster2")
-				list.Items = []kcpapisv1alpha2.APIBinding{*b1, *b2}
-				return nil
-			})
-			bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster1, nil)
-			bindingWsCluster1.EXPECT().GetClient().Return(bindingWsClient1)
-			bindingWsClient1.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "cluster2").Return(bindingWsCluster2, nil)
-			bindingWsCluster2.EXPECT().GetClient().Return(bindingWsClient2)
-			bindingWsClient2.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
+				innerClient := mocks.NewMockClient(t)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				bindingCluster.EXPECT().GetClient().Return(bindingClient)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					b1 := bindingWithCluster("foo", "bar", "cluster1")
+					b2 := bindingWithCluster("foo", "bar", "cluster2")
+					list.Items = []kcpapisv1alpha2.APIBinding{*b1, *b2}
+					return nil
+				})
+				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster1, nil)
+				bindingWsCluster1.EXPECT().GetClient().Return(bindingWsClient1)
+				bindingWsClient1.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "cluster2").Return(bindingWsCluster2, nil)
+				bindingWsCluster2.EXPECT().GetClient().Return(bindingWsClient2)
+				bindingWsClient2.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+			},
 		},
-	},
-	{
-		name:    "delete model in Finalize if last binding",
-		binding: bindingWithApiExportCluster("foo", "bar", "export-cluster"),
-		mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
-			bindingCluster := mocks.NewMockCluster(t)
-			bindingClient := mocks.NewMockClient(t)
-			bindingWsCluster := mocks.NewMockCluster(t)
-			bindingWsClient := mocks.NewMockClient(t)
-			apiExportCluster := mocks.NewMockCluster(t)
-			apiExportClient := mocks.NewMockClient(t)
-			innerClient := mocks.NewMockClient(t)
+		{
+			name:    "delete model in Finalize if last binding",
+			binding: bindingWithApiExportCluster("foo", "bar", "export-cluster"),
+			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
+				bindingCluster := mocks.NewMockCluster(t)
+				bindingClient := mocks.NewMockClient(t)
+				bindingWsCluster := mocks.NewMockCluster(t)
+				bindingWsClient := mocks.NewMockClient(t)
+				apiExportCluster := mocks.NewMockCluster(t)
+				apiExportClient := mocks.NewMockClient(t)
+				innerClient := mocks.NewMockClient(t)
 
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			bindingCluster.EXPECT().GetClient().Return(bindingClient)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-				list := ol.(*kcpapisv1alpha2.APIBindingList)
-				b := binding.DeepCopy()
-				if b.Annotations == nil {
-					b.Annotations = make(map[string]string)
-				}
-				b.Annotations["kcp.io/cluster"] = "cluster1"
-				list.Items = []kcpapisv1alpha2.APIBinding{*b}
-				return nil
-			})
-			bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster, nil)
-			bindingWsCluster.EXPECT().GetClient().Return(bindingWsClient)
-			bindingWsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(apiExportCluster, nil)
-			apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
-			apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				ae := o.(*kcpapisv1alpha2.APIExport)
-				ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
-				return nil
-			})
-			apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "schema1"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				rs := o.(*kcpapisv1alpha1.APIResourceSchema)
-				rs.Spec.Names.Plural = "foos"
-				return nil
-			})
-			apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				bindingCluster.EXPECT().GetClient().Return(bindingClient)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					b := binding.DeepCopy()
+					if b.Annotations == nil {
+						b.Annotations = make(map[string]string)
+					}
+					b.Annotations["kcp.io/cluster"] = "cluster1"
+					list.Items = []kcpapisv1alpha2.APIBinding{*b}
+					return nil
+				})
+				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster, nil)
+				bindingWsCluster.EXPECT().GetClient().Return(bindingWsClient)
+				bindingWsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(apiExportCluster, nil)
+				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					ae := o.(*kcpapisv1alpha2.APIExport)
+					ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
+					return nil
+				})
+				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "schema1"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					rs := o.(*kcpapisv1alpha1.APIResourceSchema)
+					rs.Spec.Names.Plural = "foos"
+					return nil
+				})
+				apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
+			},
 		},
-	},
-	{
-		name:    "delete model in Finalize but model is not found",
-		binding: bindingWithApiExportCluster("foo", "bar", "export-cluster"),
-		mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
-			bindingCluster := mocks.NewMockCluster(t)
-			bindingClient := mocks.NewMockClient(t)
-			bindingWsCluster := mocks.NewMockCluster(t)
-			bindingWsClient := mocks.NewMockClient(t)
-			apiExportCluster := mocks.NewMockCluster(t)
-			apiExportClient := mocks.NewMockClient(t)
-			innerClient := mocks.NewMockClient(t)
+		{
+			name:    "delete model in Finalize but model is not found",
+			binding: bindingWithApiExportCluster("foo", "bar", "export-cluster"),
+			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
+				bindingCluster := mocks.NewMockCluster(t)
+				bindingClient := mocks.NewMockClient(t)
+				bindingWsCluster := mocks.NewMockCluster(t)
+				bindingWsClient := mocks.NewMockClient(t)
+				apiExportCluster := mocks.NewMockCluster(t)
+				apiExportClient := mocks.NewMockClient(t)
+				innerClient := mocks.NewMockClient(t)
 
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			bindingCluster.EXPECT().GetClient().Return(bindingClient)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-				list := ol.(*kcpapisv1alpha2.APIBindingList)
-				b := binding.DeepCopy()
-				if b.Annotations == nil {
-					b.Annotations = make(map[string]string)
-				}
-				b.Annotations["kcp.io/cluster"] = "cluster1"
-				list.Items = []kcpapisv1alpha2.APIBinding{*b}
-				return nil
-			})
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				bindingCluster.EXPECT().GetClient().Return(bindingClient)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					b := binding.DeepCopy()
+					if b.Annotations == nil {
+						b.Annotations = make(map[string]string)
+					}
+					b.Annotations["kcp.io/cluster"] = "cluster1"
+					list.Items = []kcpapisv1alpha2.APIBinding{*b}
+					return nil
+				})
 				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					acc := o.(*accountv1alpha1.AccountInfo)
 					acc.Spec.Organization.Name = "org"
@@ -604,332 +604,332 @@ func TestAuthorizationModelGeneration_Finalize(t *testing.T) {
 			},
 		},
 		{
-		name:        "error on List in Finalize",
-		binding:     newApiBinding("foo", "bar"),
-		expectError: true,
-		mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
-			bindingCluster := mocks.NewMockCluster(t)
-			innerClient := mocks.NewMockClient(t)
+			name:        "error on List in Finalize",
+			binding:     newApiBinding("foo", "bar"),
+			expectError: true,
+			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
+				bindingCluster := mocks.NewMockCluster(t)
+				innerClient := mocks.NewMockClient(t)
 
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).Return(assert.AnError)
-		},
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).Return(assert.AnError)
+			},
 		},
 		{
-		name:        "error on getRelatedAuthorizationModels in Finalize",
-		binding:     bindingWithApiExportCluster("foo", "bar", "export-cluster"),
-		expectError: true,
-		mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
-			bindingCluster := mocks.NewMockCluster(t)
-			bindingClient := mocks.NewMockClient(t)
-			innerClient := mocks.NewMockClient(t)
+			name:        "error on getRelatedAuthorizationModels in Finalize",
+			binding:     bindingWithApiExportCluster("foo", "bar", "export-cluster"),
+			expectError: true,
+			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
+				bindingCluster := mocks.NewMockCluster(t)
+				bindingClient := mocks.NewMockClient(t)
+				innerClient := mocks.NewMockClient(t)
 
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			bindingCluster.EXPECT().GetClient().Return(bindingClient)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-				list := ol.(*kcpapisv1alpha2.APIBindingList)
-				b := binding.DeepCopy()
-				if b.Annotations == nil {
-					b.Annotations = make(map[string]string)
-				}
-				b.Annotations["kcp.io/cluster"] = "cluster1"
-				list.Items = []kcpapisv1alpha2.APIBinding{*b}
-				return nil
-			})
-			bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).Return(assert.AnError)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				bindingCluster.EXPECT().GetClient().Return(bindingClient)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					b := binding.DeepCopy()
+					if b.Annotations == nil {
+						b.Annotations = make(map[string]string)
+					}
+					b.Annotations["kcp.io/cluster"] = "cluster1"
+					list.Items = []kcpapisv1alpha2.APIBinding{*b}
+					return nil
+				})
+				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).Return(assert.AnError)
+			},
 		},
-		},
-	{
-		name:    "only bindings for same org are counted; delete called if only one, not called if none",
-		binding: bindingWithApiExportCluster("foo", "bar", "export-cluster"),
-		mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
-			bindingCluster := mocks.NewMockCluster(t)
-			bindingClient := mocks.NewMockClient(t)
-			bindingWsCluster1 := mocks.NewMockCluster(t)
-			bindingWsClient1 := mocks.NewMockClient(t)
-			bindingWsCluster2 := mocks.NewMockCluster(t)
-			bindingWsClient2 := mocks.NewMockClient(t)
-			apiExportCluster := mocks.NewMockCluster(t)
-			apiExportClient := mocks.NewMockClient(t)
-			innerClient := mocks.NewMockClient(t)
+		{
+			name:    "only bindings for same org are counted; delete called if only one, not called if none",
+			binding: bindingWithApiExportCluster("foo", "bar", "export-cluster"),
+			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
+				bindingCluster := mocks.NewMockCluster(t)
+				bindingClient := mocks.NewMockClient(t)
+				bindingWsCluster1 := mocks.NewMockCluster(t)
+				bindingWsClient1 := mocks.NewMockClient(t)
+				bindingWsCluster2 := mocks.NewMockCluster(t)
+				bindingWsClient2 := mocks.NewMockClient(t)
+				apiExportCluster := mocks.NewMockCluster(t)
+				apiExportClient := mocks.NewMockClient(t)
+				innerClient := mocks.NewMockClient(t)
 
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			bindingCluster.EXPECT().GetClient().Return(bindingClient)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-				list := ol.(*kcpapisv1alpha2.APIBindingList)
-				b1 := bindingWithCluster("foo", "bar", "cluster1")
-				b2 := bindingWithCluster("foo", "bar", "cluster2")
-				list.Items = []kcpapisv1alpha2.APIBinding{*b1, *b2}
-				return nil
-			})
-			bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster1, nil)
-			bindingWsCluster1.EXPECT().GetClient().Return(bindingWsClient1)
-			bindingWsClient1.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "cluster2").Return(bindingWsCluster2, nil)
-			bindingWsCluster2.EXPECT().GetClient().Return(bindingWsClient2)
-			bindingWsClient2.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).Return(
-				kerrors.NewNotFound(schema.GroupResource{Group: "account.platform-mesh.org", Resource: "accountinfos"}, "account"))
-			manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(apiExportCluster, nil)
-			apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
-			apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				ae := o.(*kcpapisv1alpha2.APIExport)
-				ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
-				return nil
-			})
-			apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "schema1"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				rs := o.(*kcpapisv1alpha1.APIResourceSchema)
-				rs.Spec.Names.Plural = "foos"
-				return nil
-			})
-			apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				bindingCluster.EXPECT().GetClient().Return(bindingClient)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					b1 := bindingWithCluster("foo", "bar", "cluster1")
+					b2 := bindingWithCluster("foo", "bar", "cluster2")
+					list.Items = []kcpapisv1alpha2.APIBinding{*b1, *b2}
+					return nil
+				})
+				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster1, nil)
+				bindingWsCluster1.EXPECT().GetClient().Return(bindingWsClient1)
+				bindingWsClient1.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "cluster2").Return(bindingWsCluster2, nil)
+				bindingWsCluster2.EXPECT().GetClient().Return(bindingWsClient2)
+				bindingWsClient2.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).Return(
+					kerrors.NewNotFound(schema.GroupResource{Group: "account.platform-mesh.org", Resource: "accountinfos"}, "account"))
+				manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(apiExportCluster, nil)
+				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					ae := o.(*kcpapisv1alpha2.APIExport)
+					ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
+					return nil
+				})
+				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "schema1"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					rs := o.(*kcpapisv1alpha1.APIResourceSchema)
+					rs.Spec.Names.Plural = "foos"
+					return nil
+				})
+				apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
+			},
 		},
-	},
-	{
-		name:    "error on GetCluster for binding workspace in Finalize loop",
-		binding: bindingWithApiExportCluster("foo", "bar", "export-cluster"),
-		mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
-			bindingCluster := mocks.NewMockCluster(t)
-			bindingClient := mocks.NewMockClient(t)
-			innerClient := mocks.NewMockClient(t)
+		{
+			name:    "error on GetCluster for binding workspace in Finalize loop",
+			binding: bindingWithApiExportCluster("foo", "bar", "export-cluster"),
+			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
+				bindingCluster := mocks.NewMockCluster(t)
+				bindingClient := mocks.NewMockClient(t)
+				innerClient := mocks.NewMockClient(t)
 
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			bindingCluster.EXPECT().GetClient().Return(bindingClient)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-				list := ol.(*kcpapisv1alpha2.APIBindingList)
-				b := bindingWithCluster("foo", "bar", "cluster1")
-				list.Items = []kcpapisv1alpha2.APIBinding{*b}
-				return nil
-			})
-			bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(nil, assert.AnError)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				bindingCluster.EXPECT().GetClient().Return(bindingClient)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					b := bindingWithCluster("foo", "bar", "cluster1")
+					list.Items = []kcpapisv1alpha2.APIBinding{*b}
+					return nil
+				})
+				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(nil, assert.AnError)
+			},
+			expectError: true,
 		},
-		expectError: true,
-	},
-	{
-		name:    "error on Get accountInfo in Finalize loop (not NotFound)",
-		binding: bindingWithApiExportCluster("foo", "bar", "export-cluster"),
-		mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
-			bindingCluster := mocks.NewMockCluster(t)
-			bindingClient := mocks.NewMockClient(t)
-			bindingWsCluster := mocks.NewMockCluster(t)
-			bindingWsClient := mocks.NewMockClient(t)
-			innerClient := mocks.NewMockClient(t)
+		{
+			name:    "error on Get accountInfo in Finalize loop (not NotFound)",
+			binding: bindingWithApiExportCluster("foo", "bar", "export-cluster"),
+			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
+				bindingCluster := mocks.NewMockCluster(t)
+				bindingClient := mocks.NewMockClient(t)
+				bindingWsCluster := mocks.NewMockCluster(t)
+				bindingWsClient := mocks.NewMockClient(t)
+				innerClient := mocks.NewMockClient(t)
 
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			bindingCluster.EXPECT().GetClient().Return(bindingClient)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-				list := ol.(*kcpapisv1alpha2.APIBindingList)
-				b := bindingWithCluster("foo", "bar", "cluster1")
-				list.Items = []kcpapisv1alpha2.APIBinding{*b}
-				return nil
-			})
-			bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster, nil)
-			bindingWsCluster.EXPECT().GetClient().Return(bindingWsClient)
-			bindingWsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).Return(assert.AnError)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				bindingCluster.EXPECT().GetClient().Return(bindingClient)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					b := bindingWithCluster("foo", "bar", "cluster1")
+					list.Items = []kcpapisv1alpha2.APIBinding{*b}
+					return nil
+				})
+				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster, nil)
+				bindingWsCluster.EXPECT().GetClient().Return(bindingWsClient)
+				bindingWsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).Return(assert.AnError)
+			},
+			expectError: true,
 		},
-		expectError: true,
-	},
-	{
-		name:    "bindings with different org are skipped in Finalize",
-		binding: bindingWithApiExportCluster("foo", "bar", "export-cluster"),
-		mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
-			bindingCluster := mocks.NewMockCluster(t)
-			bindingClient := mocks.NewMockClient(t)
-			bindingWsCluster := mocks.NewMockCluster(t)
-			bindingWsClient := mocks.NewMockClient(t)
-			apiExportCluster := mocks.NewMockCluster(t)
-			apiExportClient := mocks.NewMockClient(t)
-			innerClient := mocks.NewMockClient(t)
+		{
+			name:    "bindings with different org are skipped in Finalize",
+			binding: bindingWithApiExportCluster("foo", "bar", "export-cluster"),
+			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
+				bindingCluster := mocks.NewMockCluster(t)
+				bindingClient := mocks.NewMockClient(t)
+				bindingWsCluster := mocks.NewMockCluster(t)
+				bindingWsClient := mocks.NewMockClient(t)
+				apiExportCluster := mocks.NewMockCluster(t)
+				apiExportClient := mocks.NewMockClient(t)
+				innerClient := mocks.NewMockClient(t)
 
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			bindingCluster.EXPECT().GetClient().Return(bindingClient)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-				list := ol.(*kcpapisv1alpha2.APIBindingList)
-				b := bindingWithCluster("foo", "bar", "cluster1")
-				list.Items = []kcpapisv1alpha2.APIBinding{*b}
-				return nil
-			})
-			bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster, nil)
-			bindingWsCluster.EXPECT().GetClient().Return(bindingWsClient)
-			bindingWsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "different-org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(apiExportCluster, nil)
-			apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
-			apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				ae := o.(*kcpapisv1alpha2.APIExport)
-				ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
-				return nil
-			})
-			apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "schema1"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				rs := o.(*kcpapisv1alpha1.APIResourceSchema)
-				rs.Spec.Names.Plural = "foos"
-				return nil
-			})
-			apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				bindingCluster.EXPECT().GetClient().Return(bindingClient)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					b := bindingWithCluster("foo", "bar", "cluster1")
+					list.Items = []kcpapisv1alpha2.APIBinding{*b}
+					return nil
+				})
+				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster, nil)
+				bindingWsCluster.EXPECT().GetClient().Return(bindingWsClient)
+				bindingWsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "different-org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(apiExportCluster, nil)
+				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					ae := o.(*kcpapisv1alpha2.APIExport)
+					ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
+					return nil
+				})
+				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "schema1"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					rs := o.(*kcpapisv1alpha1.APIResourceSchema)
+					rs.Spec.Names.Plural = "foos"
+					return nil
+				})
+				apiExportClient.EXPECT().Delete(mock.Anything, mock.Anything).Return(nil)
+			},
 		},
-	},
-	{
-		name:        "error on GetCluster for APIExport cluster in Finalize",
-		binding:     bindingWithApiExportCluster("foo", "bar", "export-cluster"),
-		expectError: true,
-		mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
-			bindingCluster := mocks.NewMockCluster(t)
-			bindingClient := mocks.NewMockClient(t)
-			bindingWsCluster := mocks.NewMockCluster(t)
-			bindingWsClient := mocks.NewMockClient(t)
-			innerClient := mocks.NewMockClient(t)
+		{
+			name:        "error on GetCluster for APIExport cluster in Finalize",
+			binding:     bindingWithApiExportCluster("foo", "bar", "export-cluster"),
+			expectError: true,
+			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
+				bindingCluster := mocks.NewMockCluster(t)
+				bindingClient := mocks.NewMockClient(t)
+				bindingWsCluster := mocks.NewMockCluster(t)
+				bindingWsClient := mocks.NewMockClient(t)
+				innerClient := mocks.NewMockClient(t)
 
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			bindingCluster.EXPECT().GetClient().Return(bindingClient)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-				list := ol.(*kcpapisv1alpha2.APIBindingList)
-				b := bindingWithCluster("foo", "bar", "cluster1")
-				list.Items = []kcpapisv1alpha2.APIBinding{*b}
-				return nil
-			})
-			bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster, nil)
-			bindingWsCluster.EXPECT().GetClient().Return(bindingWsClient)
-			bindingWsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(nil, assert.AnError)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				bindingCluster.EXPECT().GetClient().Return(bindingClient)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					b := bindingWithCluster("foo", "bar", "cluster1")
+					list.Items = []kcpapisv1alpha2.APIBinding{*b}
+					return nil
+				})
+				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster, nil)
+				bindingWsCluster.EXPECT().GetClient().Return(bindingWsClient)
+				bindingWsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(nil, assert.AnError)
+			},
 		},
-	},
-	{
-		name:        "error on Get APIExport in Finalize",
-		binding:     bindingWithApiExportCluster("foo", "bar", "export-cluster"),
-		expectError: true,
-		mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
-			bindingCluster := mocks.NewMockCluster(t)
-			bindingClient := mocks.NewMockClient(t)
-			bindingWsCluster := mocks.NewMockCluster(t)
-			bindingWsClient := mocks.NewMockClient(t)
-			apiExportCluster := mocks.NewMockCluster(t)
-			apiExportClient := mocks.NewMockClient(t)
-			innerClient := mocks.NewMockClient(t)
+		{
+			name:        "error on Get APIExport in Finalize",
+			binding:     bindingWithApiExportCluster("foo", "bar", "export-cluster"),
+			expectError: true,
+			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
+				bindingCluster := mocks.NewMockCluster(t)
+				bindingClient := mocks.NewMockClient(t)
+				bindingWsCluster := mocks.NewMockCluster(t)
+				bindingWsClient := mocks.NewMockClient(t)
+				apiExportCluster := mocks.NewMockCluster(t)
+				apiExportClient := mocks.NewMockClient(t)
+				innerClient := mocks.NewMockClient(t)
 
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			bindingCluster.EXPECT().GetClient().Return(bindingClient)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-				list := ol.(*kcpapisv1alpha2.APIBindingList)
-				b := bindingWithCluster("foo", "bar", "cluster1")
-				list.Items = []kcpapisv1alpha2.APIBinding{*b}
-				return nil
-			})
-			bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster, nil)
-			bindingWsCluster.EXPECT().GetClient().Return(bindingWsClient)
-			bindingWsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(apiExportCluster, nil)
-			apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
-			apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).Return(assert.AnError)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				bindingCluster.EXPECT().GetClient().Return(bindingClient)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					b := bindingWithCluster("foo", "bar", "cluster1")
+					list.Items = []kcpapisv1alpha2.APIBinding{*b}
+					return nil
+				})
+				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster, nil)
+				bindingWsCluster.EXPECT().GetClient().Return(bindingWsClient)
+				bindingWsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(apiExportCluster, nil)
+				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).Return(assert.AnError)
+			},
 		},
-	},
-	{
-		name:        "error on Get resource schema in Finalize",
-		binding:     bindingWithApiExportCluster("foo", "bar", "export-cluster"),
-		expectError: true,
-		mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
-			bindingCluster := mocks.NewMockCluster(t)
-			bindingClient := mocks.NewMockClient(t)
-			bindingWsCluster := mocks.NewMockCluster(t)
-			bindingWsClient := mocks.NewMockClient(t)
-			apiExportCluster := mocks.NewMockCluster(t)
-			apiExportClient := mocks.NewMockClient(t)
-			innerClient := mocks.NewMockClient(t)
+		{
+			name:        "error on Get resource schema in Finalize",
+			binding:     bindingWithApiExportCluster("foo", "bar", "export-cluster"),
+			expectError: true,
+			mockSetup: func(manager *mocks.MockManager, allClient *mocks.MockKCPCombinedClientGetter, binding *kcpapisv1alpha2.APIBinding) {
+				bindingCluster := mocks.NewMockCluster(t)
+				bindingClient := mocks.NewMockClient(t)
+				bindingWsCluster := mocks.NewMockCluster(t)
+				bindingWsClient := mocks.NewMockClient(t)
+				apiExportCluster := mocks.NewMockCluster(t)
+				apiExportClient := mocks.NewMockClient(t)
+				innerClient := mocks.NewMockClient(t)
 
-			manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
-			bindingCluster.EXPECT().GetClient().Return(bindingClient)
-			allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
-			innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
-				list := ol.(*kcpapisv1alpha2.APIBindingList)
-				b := bindingWithCluster("foo", "bar", "cluster1")
-				list.Items = []kcpapisv1alpha2.APIBinding{*b}
-				return nil
-			})
-			bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster, nil)
-			bindingWsCluster.EXPECT().GetClient().Return(bindingWsClient)
-			bindingWsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				acc := o.(*accountv1alpha1.AccountInfo)
-				acc.Spec.Organization.Name = "org"
-				acc.Spec.Organization.GeneratedClusterId = "org-id"
-				return nil
-			})
-			manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(apiExportCluster, nil)
-			apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
-			apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
-				ae := o.(*kcpapisv1alpha2.APIExport)
-				ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
-				return nil
-			})
-			apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "schema1"}, mock.Anything).Return(assert.AnError)
+				manager.EXPECT().ClusterFromContext(mock.Anything).Return(bindingCluster, nil)
+				bindingCluster.EXPECT().GetClient().Return(bindingClient)
+				allClient.EXPECT().AllClient(mock.Anything, mock.Anything).Return(innerClient, nil)
+				innerClient.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+					list := ol.(*kcpapisv1alpha2.APIBindingList)
+					b := bindingWithCluster("foo", "bar", "cluster1")
+					list.Items = []kcpapisv1alpha2.APIBinding{*b}
+					return nil
+				})
+				bindingClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "cluster1").Return(bindingWsCluster, nil)
+				bindingWsCluster.EXPECT().GetClient().Return(bindingWsClient)
+				bindingWsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					acc := o.(*accountv1alpha1.AccountInfo)
+					acc.Spec.Organization.Name = "org"
+					acc.Spec.Organization.GeneratedClusterId = "org-id"
+					return nil
+				})
+				manager.EXPECT().GetCluster(mock.Anything, "export-cluster").Return(apiExportCluster, nil)
+				apiExportCluster.EXPECT().GetClient().Return(apiExportClient)
+				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "foo"}, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+					ae := o.(*kcpapisv1alpha2.APIExport)
+					ae.Spec.Resources = []kcpapisv1alpha2.ResourceSchema{{Schema: "schema1"}}
+					return nil
+				})
+				apiExportClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "schema1"}, mock.Anything).Return(assert.AnError)
+			},
 		},
-	},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
