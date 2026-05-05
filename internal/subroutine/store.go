@@ -8,6 +8,7 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/subroutines"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -16,14 +17,16 @@ import (
 )
 
 type storeSubroutine struct {
-	fga openfgav1.OpenFGAServiceClient
-	mgr mcmanager.Manager
+	fga       openfgav1.OpenFGAServiceClient
+	mgr       mcmanager.Manager
+	kcpHelper iclient.KcpClientHelper
 }
 
-func NewStoreSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *storeSubroutine {
+func NewStoreSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, kcpHelper iclient.KcpClientHelper) *storeSubroutine {
 	return &storeSubroutine{
-		fga: fga,
-		mgr: mgr,
+		fga:       fga,
+		mgr:       mgr,
+		kcpHelper: kcpHelper,
 	}
 }
 
@@ -43,12 +46,7 @@ func (s *storeSubroutine) Finalize(ctx context.Context, obj client.Object) (subr
 		return subroutines.OK(), nil
 	}
 
-	cluster, err := s.mgr.ClusterFromContext(ctx)
-	if err != nil {
-		return subroutines.OK(), fmt.Errorf("unable to get cluster from context: %w", err)
-	}
-
-	authorizationModels, err := getRelatedAuthorizationModels(ctx, cluster.GetClient(), store)
+	authorizationModels, err := getRelatedAuthorizationModels(ctx, s.kcpHelper, store)
 	if err != nil {
 		return subroutines.OK(), err
 	}

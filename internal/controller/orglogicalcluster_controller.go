@@ -40,13 +40,11 @@ type OrgLogicalClusterController struct {
 	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
 }
 
-func NewOrgLogicalClusterController(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager, opts ControllerOptions) (*OrgLogicalClusterController, error) {
+func NewOrgLogicalClusterController(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager, opts ControllerOptions, kcpClientHelper iclient.KcpClientHelper) (*OrgLogicalClusterController, error) {
 	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[mcreconcile.Request](ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
-
-	kcpClientHelper := iclient.NewKcpHelper(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
 
 	var subs []subroutines.Subroutine
 

@@ -25,6 +25,7 @@ import (
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	"sigs.k8s.io/multicluster-runtime/pkg/handler"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -39,12 +40,12 @@ const (
 )
 
 type APIExportPolicyReconciler struct {
-	log       *logger.Logger
-	lifecycle *lifecycle.Lifecycle
+	log         *logger.Logger
+	lifecycle   *lifecycle.Lifecycle
+	kcpHelper   iclient.KcpClientHelper
 }
 
-func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter) *APIExportPolicyReconciler {
-	kcpClientHelper := iclient.NewKcpHelper(mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme())
+func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpClientHelper iclient.KcpClientHelper) *APIExportPolicyReconciler {
 	lc := lifecycle.New(mcMgr, "APIExportPolicyReconciler", func() client.Object {
 		return &corev1alpha1.APIExportPolicy{}
 	}, subroutine.NewAPIExportPolicySubroutine(fgaClient, mcMgr, cfg, storeIDGetter, kcpClientHelper)).
@@ -53,6 +54,7 @@ func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFG
 	return &APIExportPolicyReconciler{
 		log:       log,
 		lifecycle: lc,
+		kcpHelper: kcpClientHelper,
 	}
 }
 
@@ -73,7 +75,7 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 		WithEventFilter(predicate.And(predicates...)).
 		Watches(
 			&kcptenancyv1alpha1.Workspace{},
-			func(clusterName string, c cluster.Cluster) ctrhandler.TypedEventHandler[client.Object, mcreconcile.Request] {
+			func(_ multicluster.ClusterName, _ cluster.Cluster) ctrhandler.TypedEventHandler[client.Object, mcreconcile.Request] {
 				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
 					ws, ok := obj.(*kcptenancyv1alpha1.Workspace)
 					if !ok {
@@ -93,14 +95,8 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 }
 
 func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Context, mgr mcmanager.Manager, cfg *config.Config) []mcreconcile.Request {
-	allClient, err := iclient.GetAllClient(ctx, mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), cfg.APIExportEndpointSlices.SystemPlatformMeshIO)
-	if err != nil {
-		r.log.Error().Err(err).Msg("failed to create all-cluster client for APIExportPolicy listing")
-		return nil
-	}
-
 	var policies corev1alpha1.APIExportPolicyList
-	if err := allClient.List(ctx, &policies); err != nil {
+	if err := r.kcpHelper.List(ctx, &policies); err != nil {
 		r.log.Error().Err(err).Msg("failed to list APIExportPolicy resources")
 		return nil
 	}
@@ -119,7 +115,7 @@ func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Cont
 							Name: policy.Name,
 						},
 					},
-					ClusterName: clusterName.String(),
+					ClusterName: multicluster.ClusterName(clusterName.String()),
 				})
 				break
 			}

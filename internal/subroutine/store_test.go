@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/status"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -22,12 +23,12 @@ import (
 )
 
 func TestGetName(t *testing.T) {
-	subroutine := subroutine.NewStoreSubroutine(nil, nil)
+	subroutine := subroutine.NewStoreSubroutine(nil, nil, nil)
 	assert.Equal(t, "Store", subroutine.GetName())
 }
 
 func TestFinalizers(t *testing.T) {
-	subroutine := subroutine.NewStoreSubroutine(nil, nil)
+	subroutine := subroutine.NewStoreSubroutine(nil, nil, nil)
 	assert.Equal(t, []string{"core.platform-mesh.io/fga-store"}, subroutine.Finalizers(nil))
 }
 
@@ -36,8 +37,6 @@ func TestProcess(t *testing.T) {
 		name        string
 		store       *securityv1alpha1.Store
 		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
-		k8sMocks    func(*mocks.MockClient)
-		mgrMocks    func(*mocks.MockManager)
 		expectError bool
 	}{
 		{
@@ -164,7 +163,8 @@ func TestProcess(t *testing.T) {
 			}
 
 			manager := mocks.NewMockManager(t)
-			subroutine := subroutine.NewStoreSubroutine(fga, manager)
+			kcpHelper := mocks.NewMockKcpHelper(t)
+			subroutine := subroutine.NewStoreSubroutine(fga, manager, kcpHelper)
 
 			_, err := subroutine.Process(context.Background(), test.store)
 			if test.expectError {
@@ -179,12 +179,11 @@ func TestProcess(t *testing.T) {
 
 func TestFinalize(t *testing.T) {
 	tests := []struct {
-		name        string
-		store       *securityv1alpha1.Store
-		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
-		k8sMocks    func(*mocks.MockClient)
-		mgrMocks    func(*mocks.MockManager)
-		expectError bool
+		name           string
+		store          *securityv1alpha1.Store
+		fgaMocks       func(*mocks.MockOpenFGAServiceClient)
+		kcpHelperMocks func(*mocks.MockKcpHelper)
+		expectError    bool
 	}{
 		{
 			name: "should skip reconciliation if .status.storeId is not set",
@@ -204,8 +203,8 @@ func TestFinalize(t *testing.T) {
 					StoreID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 					if list, ok := ol.(*securityv1alpha1.AuthorizationModelList); ok {
 						list.Items = []securityv1alpha1.AuthorizationModel{
 							{
@@ -233,8 +232,8 @@ func TestFinalize(t *testing.T) {
 					StoreID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).Return(errors.New("error"))
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).Return(errors.New("error"))
 			},
 			expectError: true,
 		},
@@ -248,8 +247,8 @@ func TestFinalize(t *testing.T) {
 					StoreID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
 				fga.EXPECT().DeleteStore(mock.Anything, &openfgav1.DeleteStoreRequest{StoreId: "id"}).Return(nil, nil)
@@ -265,8 +264,8 @@ func TestFinalize(t *testing.T) {
 					StoreID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
 				fga.EXPECT().DeleteStore(mock.Anything, &openfgav1.DeleteStoreRequest{StoreId: "id"}).Return(nil, status.Error(codes.Code(openfgav1.NotFoundErrorCode_store_id_not_found), "not found"))
@@ -282,8 +281,8 @@ func TestFinalize(t *testing.T) {
 					StoreID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
 				fga.EXPECT().DeleteStore(mock.Anything, &openfgav1.DeleteStoreRequest{StoreId: "id"}).Return(nil, errors.New("error"))
@@ -300,20 +299,16 @@ func TestFinalize(t *testing.T) {
 			}
 
 			manager := mocks.NewMockManager(t)
-			subroutine := subroutine.NewStoreSubroutine(fga, manager)
+			kcpHelper := mocks.NewMockKcpHelper(t)
 
-			// Only wire cluster/client expectations when Finalize will actually query k8s (i.e., StoreID is set)
-			if test.store.Status.StoreID != "" {
-				cluster := mocks.NewMockCluster(t)
-				client := mocks.NewMockClient(t)
-				if test.k8sMocks != nil {
-					test.k8sMocks(client)
-				}
-				manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil)
-				cluster.EXPECT().GetClient().Return(client)
+			// Only wire kcpHelper expectations when Finalize will actually query k8s (i.e., StoreID is set)
+			if test.store.Status.StoreID != "" && test.kcpHelperMocks != nil {
+				test.kcpHelperMocks(kcpHelper)
 			}
 
-			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("path")))
+			subroutine := subroutine.NewStoreSubroutine(fga, manager, kcpHelper)
+
+			ctx := mccontext.WithCluster(context.Background(), multicluster.ClusterName(logicalcluster.Name("path").String()))
 
 			_, err := subroutine.Finalize(ctx, test.store)
 			if test.expectError {

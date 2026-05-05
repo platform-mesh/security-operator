@@ -7,6 +7,7 @@ import (
 
 	platformeshcontext "github.com/platform-mesh/golang-commons/context"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/spf13/cobra"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -84,7 +85,9 @@ var modelGeneratorCmd = &cobra.Command{
 			return err
 		}
 
-		if err := controller.NewAPIBindingReconciler(ctx, log, mgr, &generatorCfg).
+		kcpClientHelper := iclient.NewKcpHelper(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), provider.Provider)
+
+		if err := controller.NewAPIBindingReconciler(ctx, log, mgr, &generatorCfg, kcpClientHelper).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Resource")
 			return err

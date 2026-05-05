@@ -108,7 +108,9 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, &systemCfg, storeIDGetter).SetupWithManager(mgr, defaultCfg, &systemCfg); err != nil {
+		kcpClientHelper := iclient.NewKcpHelper(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), provider.Provider)
+
+		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, &systemCfg, storeIDGetter, kcpClientHelper).SetupWithManager(mgr, defaultCfg, &systemCfg); err != nil {
 			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
 			return err
 		}

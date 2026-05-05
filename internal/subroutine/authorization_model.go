@@ -12,6 +12,7 @@ import (
 	language "github.com/openfga/language/pkg/go/transformer"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/util"
 	"github.com/platform-mesh/subroutines"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -77,15 +78,15 @@ type NewDiscoveryClientFunc func(cfg *rest.Config) discovery.DiscoveryInterface
 type authorizationModelSubroutine struct {
 	fga                    openfgav1.OpenFGAServiceClient
 	mgr                    mcmanager.Manager
-	allClient              client.Client
+	kcpHelper              iclient.KcpClientHelper
 	newDiscoveryClientFunc NewDiscoveryClientFunc
 }
 
-func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, allClient client.Client, newDiscoveryClientFunc NewDiscoveryClientFunc, log *logger.Logger) *authorizationModelSubroutine {
+func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, kcpHelper iclient.KcpClientHelper, newDiscoveryClientFunc NewDiscoveryClientFunc, log *logger.Logger) *authorizationModelSubroutine {
 	return &authorizationModelSubroutine{
 		fga:                    fga,
 		mgr:                    mgr,
-		allClient:              allClient,
+		kcpHelper:              kcpHelper,
 		newDiscoveryClientFunc: newDiscoveryClientFunc,
 	}
 }
@@ -94,29 +95,25 @@ var _ subroutines.Processor = &authorizationModelSubroutine{}
 
 func (a *authorizationModelSubroutine) GetName() string { return "AuthorizationModel" }
 
-func getRelatedAuthorizationModels(ctx context.Context, k8s client.Client, store *securityv1alpha1.Store) (securityv1alpha1.AuthorizationModelList, error) {
-
+func getRelatedAuthorizationModels(ctx context.Context, kcpHelper iclient.KcpClientHelper, store *securityv1alpha1.Store) (securityv1alpha1.AuthorizationModelList, error) {
 	storeClusterKey, ok := mccontext.ClusterFrom(ctx)
 	if !ok {
 		return securityv1alpha1.AuthorizationModelList{}, fmt.Errorf("unable to get cluster key from context")
 	}
 
-	allCtx := mccontext.WithCluster(ctx, "")
 	allAuthorizationModels := securityv1alpha1.AuthorizationModelList{}
-
-	if err := k8s.List(allCtx, &allAuthorizationModels); err != nil {
+	if err := kcpHelper.List(ctx, &allAuthorizationModels); err != nil {
 		return securityv1alpha1.AuthorizationModelList{}, err
 	}
 
 	var extendingModules securityv1alpha1.AuthorizationModelList
 	for _, model := range allAuthorizationModels.Items {
-		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Cluster != storeClusterKey {
+		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Cluster != string(storeClusterKey) {
 			continue
 		}
 
 		extendingModules.Items = append(extendingModules.Items, model)
 	}
-
 	return extendingModules, nil
 }
 
@@ -124,7 +121,7 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj client.O
 	log := logger.LoadLoggerFromContext(ctx)
 	store := obj.(*securityv1alpha1.Store)
 
-	extendingModules, err := getRelatedAuthorizationModels(ctx, a.allClient, store)
+	extendingModules, err := getRelatedAuthorizationModels(ctx, a.kcpHelper, store)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to get related authorization models")
 		return subroutines.OK(), err

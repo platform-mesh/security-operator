@@ -14,6 +14,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 )
 
 func TestTupleGetName(t *testing.T) {
@@ -228,7 +229,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 			mgrMocks: func(mgr *mocks.MockManager) {
 				storeCluster := mocks.NewMockCluster(t)
 				storeClient := mocks.NewMockClient(t)
-				mgr.EXPECT().GetCluster(mock.Anything, "store-cluster").Return(storeCluster, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*securityv1alpha1.Store)
@@ -293,7 +294,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 			mgrMocks: func(mgr *mocks.MockManager) {
 				storeCluster := mocks.NewMockCluster(t)
 				storeClient := mocks.NewMockClient(t)
-				mgr.EXPECT().GetCluster(mock.Anything, "store-cluster").Return(storeCluster, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*securityv1alpha1.Store)
@@ -382,7 +383,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 			mgrMocks: func(mgr *mocks.MockManager) {
 				storeCluster := mocks.NewMockCluster(t)
 				storeClient := mocks.NewMockClient(t)
-				mgr.EXPECT().GetCluster(mock.Anything, "store-cluster").Return(storeCluster, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*securityv1alpha1.Store)
