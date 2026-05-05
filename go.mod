@@ -15,7 +15,7 @@ require (
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
 	github.com/openfga/language/pkg/go v0.2.1
 	github.com/platform-mesh/account-operator v0.14.22
-	github.com/platform-mesh/golang-commons v0.16.8
+	github.com/platform-mesh/golang-commons v0.16.9
 	github.com/platform-mesh/subroutines v0.3.3
 	github.com/rs/zerolog v1.35.1
 	github.com/spf13/cobra v1.10.2
@@ -50,7 +50,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.25.1 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
-	github.com/getsentry/sentry-go v0.45.1 // indirect
+	github.com/getsentry/sentry-go v0.46.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zerologr v1.2.3 // indirect
