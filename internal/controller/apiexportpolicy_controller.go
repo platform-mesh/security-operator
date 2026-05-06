@@ -68,7 +68,11 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("apiexportpolicy").
-		For(&corev1alpha1.APIExportPolicy{}).
+		For(&corev1alpha1.APIExportPolicy{},
+			mcbuilder.WithClusterFilter(func(clusterName string, _ cluster.Cluster) bool {
+				return strings.HasPrefix(clusterName, config.SystemProviderName)
+			}),
+		).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Watches(
@@ -112,14 +116,16 @@ func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Cont
 			trimmedExpr := strings.TrimPrefix(expr, ":")
 
 			if trimmedExpr == "root:orgs:*" {
-				clusterName := logicalcluster.From(&policy)
+				// apiExportPolicies are engaged by system provider
+				clusterName := multiProviderName(config.SystemProviderName, logicalcluster.From(&policy).String())
+
 				requests = append(requests, mcreconcile.Request{
 					Request: reconcile.Request{
 						NamespacedName: types.NamespacedName{
 							Name: policy.Name,
 						},
 					},
-					ClusterName: clusterName.String(),
+					ClusterName: clusterName,
 				})
 				break
 			}

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"strings"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
@@ -42,6 +43,7 @@ func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.O
 	if err != nil {
 		log.Fatal().Err(err).Msg("unable to create new client")
 	}
+	kcpClientHelper := iclient.NewKcpHelper(mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme())
 
 	lc := lifecycle.New(mcMgr, "StoreReconciler", func() client.Object {
 		return &corev1alpha1.Store{}
@@ -50,7 +52,7 @@ func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.O
 		subroutine.NewAuthorizationModelSubroutine(fga, mcMgr, allClient, func(cfg *rest.Config) discovery.DiscoveryInterface {
 			return discovery.NewDiscoveryClientForConfigOrDie(cfg)
 		}, log),
-		subroutine.NewTupleSubroutine(fga, mcMgr),
+		subroutine.NewTupleSubroutine(fga, mcMgr, kcpClientHelper),
 	).WithConditions(conditions.NewManager())
 
 	return &StoreReconciler{
@@ -69,7 +71,11 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	b := mcbuilder.ControllerManagedBy(mgr).
 		Named("store").
-		For(&corev1alpha1.Store{}).
+		For(&corev1alpha1.Store{},
+			mcbuilder.WithClusterFilter(func(clusterName string, _ cluster.Cluster) bool {
+				return strings.HasPrefix(clusterName, config.SystemProviderName)
+			}),
+		).
 		WithOptions(controller.TypedOptions[mcreconcile.Request]{MaxConcurrentReconciles: cfg.MaxConcurrentReconciles}).
 		WithEventFilter(predicate.And(predicates...))
 
@@ -82,6 +88,9 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 					if !ok {
 						return nil
 					}
+					// stores are engaged by system provider, to trigger a reconciliation with multi provider
+					// it's required to use provider's prefix for request
+					storeClusterName := multiProviderName(config.SystemProviderName, model.Spec.StoreRef.Cluster)
 
 					return []mcreconcile.Request{
 						{
@@ -90,11 +99,20 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 									Name: model.Spec.StoreRef.Name,
 								},
 							},
-							ClusterName: model.Spec.StoreRef.Cluster,
+							ClusterName: storeClusterName,
 						},
 					}
 				})
 			},
 			mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{}),
+			mcbuilder.WithClusterFilter(func(clusterName string, _ cluster.Cluster) bool {
+				return strings.HasPrefix(clusterName, config.CoreProviderName)
+			}),
 		).Complete(r)
+}
+
+// multiProviderName returns a cluster name with provider prefix and separator for multi provider.
+// The multi.Provider prefixes cluster names as "providerName#clusterName"
+func multiProviderName(providerName, clusterName string) string {
+	return providerName + config.ProviderSeparator + clusterName
 }

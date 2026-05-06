@@ -7,6 +7,12 @@ import (
 	"github.com/spf13/pflag"
 )
 
+const (
+	CoreProviderName   = "core"
+	SystemProviderName = "system"
+	ProviderSeparator  = "#"
+)
+
 type KeycloakConfig struct {
 	BaseURL      string
 	ClientID     string

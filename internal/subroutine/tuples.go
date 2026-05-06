@@ -8,17 +8,21 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 type tupleSubroutine struct {
-	fga openfgav1.OpenFGAServiceClient
-	mgr mcmanager.Manager
+	fga       openfgav1.OpenFGAServiceClient
+	mgr       mcmanager.Manager
+	kcpHelper iclient.KcpClientHelper
 }
 
 // Finalize implements subroutines.Finalizer.
@@ -37,13 +41,13 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj client.Object) (subr
 	case *securityv1alpha1.AuthorizationModel:
 		managedTuples = o.Status.ManagedTuples
 
-		storeCluster, err := t.mgr.GetCluster(ctx, o.Spec.StoreRef.Cluster)
+		cl, err := t.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(o.Spec.StoreRef.Cluster))
 		if err != nil {
-			return subroutines.OK(), fmt.Errorf("unable to get store cluster: %w", err)
+			return subroutines.OK(), fmt.Errorf("unable to create client to store cluster: %w", err)
 		}
 
 		var store securityv1alpha1.Store
-		err = storeCluster.GetClient().Get(ctx, types.NamespacedName{
+		err = cl.Get(ctx, types.NamespacedName{
 			Name: o.Spec.StoreRef.Name,
 		}, &store)
 		if err != nil {
@@ -97,13 +101,13 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj client.Object) (subro
 		specTuples = o.Spec.Tuples
 		managedTuples = o.Status.ManagedTuples
 
-		storeCluster, err := t.mgr.GetCluster(ctx, o.Spec.StoreRef.Cluster)
+		cl, err := t.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(o.Spec.StoreRef.Cluster))
 		if err != nil {
-			return subroutines.OK(), fmt.Errorf("unable to get store cluster: %w", err)
+			return subroutines.OK(), fmt.Errorf("unable to create client to store cluster: %w", err)
 		}
 
 		var store securityv1alpha1.Store
-		err = storeCluster.GetClient().Get(ctx, types.NamespacedName{
+		err = cl.Get(ctx, types.NamespacedName{
 			Name: o.Spec.StoreRef.Name,
 		}, &store)
 		if err != nil {
@@ -141,10 +145,11 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj client.Object) (subro
 	return subroutines.OK(), nil
 }
 
-func NewTupleSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager) *tupleSubroutine {
+func NewTupleSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, kcpHelper iclient.KcpClientHelper) *tupleSubroutine {
 	return &tupleSubroutine{
-		fga: fga,
-		mgr: mgr,
+		fga:       fga,
+		mgr:       mgr,
+		kcpHelper: kcpHelper,
 	}
 }
 
