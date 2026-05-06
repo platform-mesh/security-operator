@@ -17,13 +17,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	multiprovider "sigs.k8s.io/multicluster-runtime/providers/multi"
 
 	"k8s.io/client-go/rest"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
-	multiprovider "sigs.k8s.io/multicluster-runtime/providers/multi"
 )
 
 var systemCmd = &cobra.Command{
@@ -81,7 +81,6 @@ var systemCmd = &cobra.Command{
 			setupLog.Error(err, "unable to create core apiexport provider")
 			return err
 		}
-		
 		multiProv := multiprovider.New(multiprovider.Options{})
 		if err := multiProv.AddProvider(config.SystemProviderName, systemProvider); err != nil {
 			return err

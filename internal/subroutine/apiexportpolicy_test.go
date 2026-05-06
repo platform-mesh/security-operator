@@ -471,14 +471,14 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 							{
 								ObjectMeta: metav1.ObjectMeta{Name: "account-1"},
 								Spec: accountsv1alpha1.AccountInfoSpec{
-									Account: accountsv1alpha1.AccountLocation{Name: "org1-account", OriginClusterId: "org1-cluster-id", Type: accountsv1alpha1.AccountTypeOrg},
+									Account:      accountsv1alpha1.AccountLocation{Name: "org1-account", OriginClusterId: "org1-cluster-id", Type: accountsv1alpha1.AccountTypeOrg},
 									Organization: accountsv1alpha1.AccountLocation{Name: "org1"},
 								},
 							},
 							{
 								ObjectMeta: metav1.ObjectMeta{Name: "account-2"},
 								Spec: accountsv1alpha1.AccountInfoSpec{
-									Account: accountsv1alpha1.AccountLocation{Name: "org2-account", OriginClusterId: "org2-cluster-id", Type: accountsv1alpha1.AccountTypeOrg},
+									Account:      accountsv1alpha1.AccountLocation{Name: "org2-account", OriginClusterId: "org2-cluster-id", Type: accountsv1alpha1.AccountTypeOrg},
 									Organization: accountsv1alpha1.AccountLocation{Name: "org2"},
 								},
 							},
@@ -749,14 +749,14 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 							{
 								ObjectMeta: metav1.ObjectMeta{Name: "account-1"},
 								Spec: accountsv1alpha1.AccountInfoSpec{
-									Account: accountsv1alpha1.AccountLocation{Name: "org1-account", OriginClusterId: "org1-cluster-id", Type: accountsv1alpha1.AccountTypeOrg},
+									Account:      accountsv1alpha1.AccountLocation{Name: "org1-account", OriginClusterId: "org1-cluster-id", Type: accountsv1alpha1.AccountTypeOrg},
 									Organization: accountsv1alpha1.AccountLocation{Name: "org1"},
 								},
 							},
 							{
 								ObjectMeta: metav1.ObjectMeta{Name: "account-2"},
 								Spec: accountsv1alpha1.AccountInfoSpec{
-									Account: accountsv1alpha1.AccountLocation{Name: "org2-account", OriginClusterId: "org2-cluster-id", Type: accountsv1alpha1.AccountTypeOrg},
+									Account:      accountsv1alpha1.AccountLocation{Name: "org2-account", OriginClusterId: "org2-cluster-id", Type: accountsv1alpha1.AccountTypeOrg},
 									Organization: accountsv1alpha1.AccountLocation{Name: "org2"},
 								},
 							},

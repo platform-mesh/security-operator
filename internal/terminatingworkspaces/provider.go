@@ -4,12 +4,13 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/rest"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
+	"k8s.io/utils/ptr"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	mcpcache "github.com/kcp-dev/multicluster-provider/pkg/cache"

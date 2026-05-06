@@ -36,11 +36,6 @@ import (
 	"github.com/kcp-dev/logicalcluster/v3"
 )
 
-const (
-	orgsWorkspacePath = "root:orgs"
-	readyPhase        = "Ready"
-)
-
 type APIExportPolicyReconciler struct {
 	log       *logger.Logger
 	lifecycle *lifecycle.Lifecycle
