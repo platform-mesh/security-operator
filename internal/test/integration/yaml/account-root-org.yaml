@@ -1,0 +1,8 @@
+apiVersion: core.platform-mesh.io/v1alpha1
+kind: Account
+metadata:
+  name: default
+spec:
+  type: org
+  creator: creator@integration.test.example
+  displayName: Integration Test Org
