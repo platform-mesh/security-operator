@@ -107,10 +107,12 @@ var terminatorCmd = &cobra.Command{
 			log,
 		)
 
+		kcpClientHelper := iclient.NewKcpHelper(kcpCfg, scheme, provider.Provider)
+
 		alcReconciler, err := controller.NewAccountLogicalClusterController(log, terminatorCfg, fgaClient, storeIDGetter, mgr, controller.ControllerOptions{
 			Name:           "AccountLogicalClusterTerminator",
 			TerminatorName: terminatorCfg.TerminatorName(),
-		})
+		}, kcpClientHelper)
 		if err != nil {
 			log.Error().Err(err).Msg("unable to create AccountLogicalCluster reconciler")
 			os.Exit(1)

@@ -7,6 +7,7 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshcontext "github.com/platform-mesh/golang-commons/context"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/spf13/cobra"
@@ -16,11 +17,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	multiprovider "sigs.k8s.io/multicluster-runtime/providers/multi"
 
 	"k8s.io/client-go/rest"
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
+	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 )
 
 var systemCmd = &cobra.Command{
@@ -63,7 +66,7 @@ var systemCmd = &cobra.Command{
 			opts.LeaderElectionConfig = inClusterCfg
 		}
 
-		provider, err := apiexport.New(restCfg, systemCfg.APIExportEndpointSlices.SystemPlatformMeshIO, apiexport.Options{
+		systemProvider, err := pathaware.New(restCfg, systemCfg.APIExportEndpointSlices.SystemPlatformMeshIO, apiexport.Options{
 			Scheme: scheme,
 		})
 		if err != nil {
@@ -71,7 +74,22 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
-		mgr, err := mcmanager.New(restCfg, provider, opts)
+		coreProvider, err := pathaware.New(restCfg, systemCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
+			Scheme: scheme,
+		})
+		if err != nil {
+			setupLog.Error(err, "unable to create core apiexport provider")
+			return err
+		}
+		multiProv := multiprovider.New(multiprovider.Options{})
+		if err := multiProv.AddProvider(config.SystemProviderName, systemProvider); err != nil {
+			return err
+		}
+		if err := multiProv.AddProvider(config.CoreProviderName, coreProvider); err != nil {
+			return err
+		}
+
+		mgr, err := mcmanager.New(restCfg, multiProv, opts)
 		if err != nil {
 			setupLog.Error(err, "unable to create manager")
 			return err
@@ -108,7 +126,9 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, &systemCfg, storeIDGetter).SetupWithManager(mgr, defaultCfg, &systemCfg); err != nil {
+		kcpClientHelper := iclient.NewKcpHelper(restCfg, scheme, coreProvider.Provider.Provider)
+
+		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, &systemCfg, storeIDGetter, kcpClientHelper).SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
 			return err
 		}

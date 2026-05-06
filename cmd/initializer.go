@@ -101,10 +101,12 @@ var initializerCmd = &cobra.Command{
 			initializerCfg.IDP.AdditionalRedirectURLs = []string{}
 		}
 
+		kcpClientHelper := iclient.NewKcpHelper(restCfg, scheme, provider.Provider)
+
 		orgReconciler, err := controller.NewOrgLogicalClusterController(log, orgClient, initializerCfg, runtimeClient, mgr, controller.ControllerOptions{
 			Name:            "OrgLogicalClusterInitializer",
 			InitializerName: initializerCfg.InitializerName(),
-		})
+		}, kcpClientHelper)
 		if err != nil {
 			setupLog.Error(err, "unable to create LogicalCluster initializer")
 			os.Exit(1)
@@ -132,7 +134,7 @@ var initializerCmd = &cobra.Command{
 			Name:            "AccountLogicalClusterInitializer",
 			InitializerName: initializerCfg.InitializerName(),
 			TerminatorName:  initializerCfg.TerminatorName(),
-		})
+		}, kcpClientHelper)
 		if err != nil {
 			setupLog.Error(err, "unable to create AccountLogicalCluster reconciler")
 			os.Exit(1)

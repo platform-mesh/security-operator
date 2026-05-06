@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
@@ -91,7 +92,7 @@ func TestAuthorizationModelProcess(t *testing.T) {
 		name           string
 		store          *securityv1alpha1.Store
 		fgaMocks       func(*mocks.MockOpenFGAServiceClient)
-		k8sMocks       func(*mocks.MockClient)
+		kcpHelperMocks func(*mocks.MockKcpHelper)
 		mgrMocks       func(*mocks.MockManager)
 		discoveryMocks func(*mocks.MockDiscoveryInterface)
 		expectError    bool
@@ -109,8 +110,8 @@ func TestAuthorizationModelProcess(t *testing.T) {
 					StoreID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*securityv1alpha1.AuthorizationModelList)
 						am.Items = []securityv1alpha1.AuthorizationModel{
@@ -166,8 +167,8 @@ func TestAuthorizationModelProcess(t *testing.T) {
 					AuthorizationModelID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*securityv1alpha1.AuthorizationModelList)
 						am.Items = []securityv1alpha1.AuthorizationModel{
@@ -247,8 +248,8 @@ type core_namespace
 					AuthorizationModelID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*securityv1alpha1.AuthorizationModelList)
 						am.Items = []securityv1alpha1.AuthorizationModel{
@@ -281,8 +282,8 @@ type core_namespace
 					StoreID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*securityv1alpha1.AuthorizationModelList)
 						am.Items = []securityv1alpha1.AuthorizationModel{
@@ -315,8 +316,8 @@ type core_namespace
 					StoreID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*securityv1alpha1.AuthorizationModelList)
 						am.Items = []securityv1alpha1.AuthorizationModel{
@@ -346,8 +347,8 @@ type core_namespace
 				Spec:       securityv1alpha1.StoreSpec{CoreModule: coreModule},
 				Status:     securityv1alpha1.StoreStatus{StoreID: "id"},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*securityv1alpha1.AuthorizationModelList)
 						am.Items = []securityv1alpha1.AuthorizationModel{
@@ -380,8 +381,8 @@ type core_namespace
 				Spec:       securityv1alpha1.StoreSpec{CoreModule: coreModule},
 				Status:     securityv1alpha1.StoreStatus{StoreID: "id"},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						return nil
 					},
@@ -406,8 +407,8 @@ type core_namespace
 				Spec:       securityv1alpha1.StoreSpec{CoreModule: coreModule},
 				Status:     securityv1alpha1.StoreStatus{StoreID: "id"},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						return nil
 					},
@@ -425,8 +426,8 @@ type core_namespace
 				Spec:       securityv1alpha1.StoreSpec{CoreModule: coreModule},
 				Status:     securityv1alpha1.StoreStatus{StoreID: "id"},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						return nil
 					},
@@ -446,8 +447,8 @@ type core_namespace
 				Spec:       securityv1alpha1.StoreSpec{CoreModule: coreModule},
 				Status:     securityv1alpha1.StoreStatus{StoreID: "id"},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						return nil
 					},
@@ -479,8 +480,9 @@ type core_namespace
 			cluster := mocks.NewMockCluster(t)
 			client := mocks.NewMockClient(t)
 
-			if test.k8sMocks != nil {
-				test.k8sMocks(client)
+			kcpHelper := mocks.NewMockKcpHelper(t)
+			if test.kcpHelperMocks != nil {
+				test.kcpHelperMocks(kcpHelper)
 			}
 
 			manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Maybe()
@@ -509,8 +511,8 @@ type core_namespace
 				discoveryMock.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{}, nil).Maybe()
 			}
 
-			subroutine := subroutine.NewAuthorizationModelSubroutine(fga, manager, client, func(cfg *rest.Config) discovery.DiscoveryInterface { return discoveryMock }, logger.Logger)
-			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("path")))
+			subroutine := subroutine.NewAuthorizationModelSubroutine(fga, manager, kcpHelper, func(cfg *rest.Config) discovery.DiscoveryInterface { return discoveryMock }, logger.Logger)
+			ctx := mccontext.WithCluster(context.Background(), multicluster.ClusterName(logicalcluster.Name("path").String()))
 
 			_, err := subroutine.Process(ctx, test.store)
 			if test.expectError {

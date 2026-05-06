@@ -23,6 +23,7 @@ import (
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	"sigs.k8s.io/multicluster-runtime/pkg/handler"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
 	"k8s.io/apimachinery/pkg/types"
@@ -37,17 +38,12 @@ type StoreReconciler struct {
 	lifecycle *lifecycle.Lifecycle
 }
 
-func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config) *StoreReconciler {
-	allClient, err := iclient.GetAllClient(ctx, mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme(), cfg.APIExportEndpointSlices.CorePlatformMeshIO)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to create new client")
-	}
-
+func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config, kcpHelper iclient.KcpClientHelper) *StoreReconciler {
 	lc := lifecycle.New(mcMgr, "StoreReconciler", func() client.Object {
 		return &corev1alpha1.Store{}
 	},
-		subroutine.NewStoreSubroutine(fga, mcMgr),
-		subroutine.NewAuthorizationModelSubroutine(fga, mcMgr, allClient, func(cfg *rest.Config) discovery.DiscoveryInterface {
+		subroutine.NewStoreSubroutine(fga, mcMgr, kcpHelper),
+		subroutine.NewAuthorizationModelSubroutine(fga, mcMgr, kcpHelper, func(cfg *rest.Config) discovery.DiscoveryInterface {
 			return discovery.NewDiscoveryClientForConfigOrDie(cfg)
 		}, log),
 		subroutine.NewTupleSubroutine(fga, mcMgr),
@@ -76,7 +72,7 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 	return b.
 		Watches(
 			&corev1alpha1.AuthorizationModel{},
-			func(clusterName string, c cluster.Cluster) ctrhandler.TypedEventHandler[client.Object, mcreconcile.Request] {
+			func(_ multicluster.ClusterName, _ cluster.Cluster) ctrhandler.TypedEventHandler[client.Object, mcreconcile.Request] {
 				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
 					model, ok := obj.(*corev1alpha1.AuthorizationModel)
 					if !ok {
@@ -90,7 +86,7 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 									Name: model.Spec.StoreRef.Name,
 								},
 							},
-							ClusterName: model.Spec.StoreRef.Cluster,
+							ClusterName: multicluster.ClusterName(model.Spec.StoreRef.Cluster),
 						},
 					}
 				})

@@ -378,16 +378,16 @@ func (_c *MockManager_Elected_Call) RunAndReturn(run func() <-chan struct{}) *Mo
 }
 
 // Engage provides a mock function for the type MockManager
-func (_mock *MockManager) Engage(context1 context.Context, s string, cluster1 cluster.Cluster) error {
-	ret := _mock.Called(context1, s, cluster1)
+func (_mock *MockManager) Engage(context1 context.Context, clusterName multicluster.ClusterName, cluster1 cluster.Cluster) error {
+	ret := _mock.Called(context1, clusterName, cluster1)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Engage")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string, cluster.Cluster) error); ok {
-		r0 = returnFunc(context1, s, cluster1)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, multicluster.ClusterName, cluster.Cluster) error); ok {
+		r0 = returnFunc(context1, clusterName, cluster1)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -407,15 +407,15 @@ func (_e *MockManager_Expecter) Engage(context1 interface{}, s interface{}, clus
 	return &MockManager_Engage_Call{Call: _e.mock.On("Engage", context1, s, cluster1)}
 }
 
-func (_c *MockManager_Engage_Call) Run(run func(context1 context.Context, s string, cluster1 cluster.Cluster)) *MockManager_Engage_Call {
+func (_c *MockManager_Engage_Call) Run(run func(context1 context.Context, clusterName multicluster.ClusterName, cluster1 cluster.Cluster)) *MockManager_Engage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 multicluster.ClusterName
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(multicluster.ClusterName)
 		}
 		var arg2 cluster.Cluster
 		if args[2] != nil {
@@ -435,13 +435,13 @@ func (_c *MockManager_Engage_Call) Return(err error) *MockManager_Engage_Call {
 	return _c
 }
 
-func (_c *MockManager_Engage_Call) RunAndReturn(run func(context1 context.Context, s string, cluster1 cluster.Cluster) error) *MockManager_Engage_Call {
+func (_c *MockManager_Engage_Call) RunAndReturn(run func(context1 context.Context, clusterName multicluster.ClusterName, cluster1 cluster.Cluster) error) *MockManager_Engage_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // GetCluster provides a mock function for the type MockManager
-func (_mock *MockManager) GetCluster(ctx context.Context, clusterName string) (cluster.Cluster, error) {
+func (_mock *MockManager) GetCluster(ctx context.Context, clusterName multicluster.ClusterName) (cluster.Cluster, error) {
 	ret := _mock.Called(ctx, clusterName)
 
 	if len(ret) == 0 {
@@ -450,17 +450,17 @@ func (_mock *MockManager) GetCluster(ctx context.Context, clusterName string) (c
 
 	var r0 cluster.Cluster
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (cluster.Cluster, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, multicluster.ClusterName) (cluster.Cluster, error)); ok {
 		return returnFunc(ctx, clusterName)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) cluster.Cluster); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, multicluster.ClusterName) cluster.Cluster); ok {
 		r0 = returnFunc(ctx, clusterName)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(cluster.Cluster)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, multicluster.ClusterName) error); ok {
 		r1 = returnFunc(ctx, clusterName)
 	} else {
 		r1 = ret.Error(1)
@@ -480,15 +480,15 @@ func (_e *MockManager_Expecter) GetCluster(ctx interface{}, clusterName interfac
 	return &MockManager_GetCluster_Call{Call: _e.mock.On("GetCluster", ctx, clusterName)}
 }
 
-func (_c *MockManager_GetCluster_Call) Run(run func(ctx context.Context, clusterName string)) *MockManager_GetCluster_Call {
+func (_c *MockManager_GetCluster_Call) Run(run func(ctx context.Context, clusterName multicluster.ClusterName)) *MockManager_GetCluster_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 multicluster.ClusterName
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(multicluster.ClusterName)
 		}
 		run(
 			arg0,
@@ -503,7 +503,7 @@ func (_c *MockManager_GetCluster_Call) Return(cluster1 cluster.Cluster, err erro
 	return _c
 }
 
-func (_c *MockManager_GetCluster_Call) RunAndReturn(run func(ctx context.Context, clusterName string) (cluster.Cluster, error)) *MockManager_GetCluster_Call {
+func (_c *MockManager_GetCluster_Call) RunAndReturn(run func(ctx context.Context, clusterName multicluster.ClusterName) (cluster.Cluster, error)) *MockManager_GetCluster_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -689,7 +689,7 @@ func (_c *MockManager_GetLogger_Call) RunAndReturn(run func() logr.Logger) *Mock
 }
 
 // GetManager provides a mock function for the type MockManager
-func (_mock *MockManager) GetManager(ctx context.Context, clusterName string) (manager0.Manager, error) {
+func (_mock *MockManager) GetManager(ctx context.Context, clusterName multicluster.ClusterName) (manager0.Manager, error) {
 	ret := _mock.Called(ctx, clusterName)
 
 	if len(ret) == 0 {
@@ -698,17 +698,17 @@ func (_mock *MockManager) GetManager(ctx context.Context, clusterName string) (m
 
 	var r0 manager0.Manager
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (manager0.Manager, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, multicluster.ClusterName) (manager0.Manager, error)); ok {
 		return returnFunc(ctx, clusterName)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) manager0.Manager); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, multicluster.ClusterName) manager0.Manager); ok {
 		r0 = returnFunc(ctx, clusterName)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).(manager0.Manager)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, multicluster.ClusterName) error); ok {
 		r1 = returnFunc(ctx, clusterName)
 	} else {
 		r1 = ret.Error(1)
@@ -728,15 +728,15 @@ func (_e *MockManager_Expecter) GetManager(ctx interface{}, clusterName interfac
 	return &MockManager_GetManager_Call{Call: _e.mock.On("GetManager", ctx, clusterName)}
 }
 
-func (_c *MockManager_GetManager_Call) Run(run func(ctx context.Context, clusterName string)) *MockManager_GetManager_Call {
+func (_c *MockManager_GetManager_Call) Run(run func(ctx context.Context, clusterName multicluster.ClusterName)) *MockManager_GetManager_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 string
+		var arg1 multicluster.ClusterName
 		if args[1] != nil {
-			arg1 = args[1].(string)
+			arg1 = args[1].(multicluster.ClusterName)
 		}
 		run(
 			arg0,
@@ -751,7 +751,7 @@ func (_c *MockManager_GetManager_Call) Return(manager1 manager0.Manager, err err
 	return _c
 }
 
-func (_c *MockManager_GetManager_Call) RunAndReturn(run func(ctx context.Context, clusterName string) (manager0.Manager, error)) *MockManager_GetManager_Call {
+func (_c *MockManager_GetManager_Call) RunAndReturn(run func(ctx context.Context, clusterName multicluster.ClusterName) (manager0.Manager, error)) *MockManager_GetManager_Call {
 	_c.Call.Return(run)
 	return _c
 }

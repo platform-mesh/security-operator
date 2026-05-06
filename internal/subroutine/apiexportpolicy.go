@@ -78,13 +78,8 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Obje
 		// for orgs workspace we need to write 1 tuple in every store
 		// for this we need to get cluster id for every org's workspace
 		if workspacePath == orgsWorkspacePath {
-			allclient, err := a.kcpHelper.GetAllClient(ctx, a.cfg.APIExportEndpointSlices.CorePlatformMeshIO)
-			if err != nil {
-				return subroutines.OK(), fmt.Errorf("unable to create all client: %w", err)
-			}
-
 			var accountInfoList accountsv1alpha1.AccountInfoList
-			if err := allclient.List(ctx, &accountInfoList); err != nil {
+			if err := a.kcpHelper.List(ctx, &accountInfoList); err != nil {
 				return subroutines.OK(), fmt.Errorf("listing AccountInfo resources: %w", err)
 			}
 
@@ -249,13 +244,8 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 	}
 
 	if workspacePath == orgsWorkspacePath {
-		allclient, err := a.kcpHelper.GetAllClient(ctx, a.cfg.APIExportEndpointSlices.CorePlatformMeshIO)
-		if err != nil {
-			return fmt.Errorf("creating all client: %w", err)
-		}
-
 		var accountInfoList accountsv1alpha1.AccountInfoList
-		if err := allclient.List(ctx, &accountInfoList); err != nil {
+		if err := a.kcpHelper.List(ctx, &accountInfoList); err != nil {
 			return fmt.Errorf("listing AccountInfo resources for %s: %w", expression, err)
 		}
 
