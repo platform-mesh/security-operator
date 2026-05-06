@@ -186,6 +186,8 @@ github.com/platform-mesh/golang-commons v0.16.9 h1:zrgGt2WYkt6JQO7kTAug3l9oSJq6j
 github.com/platform-mesh/golang-commons v0.16.9/go.mod h1:NelsVrhXiB9P/4Xa0M1Ejb6mmRfTxBHPdHo9OLHmAs4=
 github.com/platform-mesh/subroutines v0.3.3 h1:WKz0ZJnceC5KvUYrbmAdGTRnECkI6I4YXAEq3vKEV3Q=
 github.com/platform-mesh/subroutines v0.3.3/go.mod h1:4NmIkZXmbndYu4JzHWPu9JNoDipJcXP4oy4OPnLNT0Q=
+github.com/platform-mesh/subroutines v0.4.3 h1:b/Op25a+N2x9H09Gmzyjl7/8HkHiJ5YEzCur95eU37c=
+github.com/platform-mesh/subroutines v0.4.3/go.mod h1:z8nW91Y/vuhaE1gNC6Tt3ZDlPX0czS1aUV/J7dnYhaM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
