@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/subroutines"
 	"github.com/rs/zerolog/log"
@@ -23,18 +24,18 @@ import (
 )
 
 type workspaceAuthSubroutine struct {
-	orgClient     client.Client
-	runtimeClient client.Client
-	mgr           mcmanager.Manager
-	cfg           config.Config
+	runtimeClient   client.Client
+	mgr             mcmanager.Manager
+	kcpClientGetter iclient.KCPClientGetter
+	cfg             config.Config
 }
 
-func NewWorkspaceAuthConfigurationSubroutine(orgClient, runtimeClient client.Client, mgr mcmanager.Manager, cfg config.Config) *workspaceAuthSubroutine {
+func NewWorkspaceAuthConfigurationSubroutine(runtimeClient client.Client, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg config.Config) *workspaceAuthSubroutine {
 	return &workspaceAuthSubroutine{
-		orgClient:     orgClient,
-		runtimeClient: runtimeClient,
-		mgr:           mgr,
-		cfg:           cfg,
+		runtimeClient:   runtimeClient,
+		mgr:             mgr,
+		kcpClientGetter: kcpClientGetter,
+		cfg:             cfg,
 	}
 }
 
@@ -129,8 +130,13 @@ func (r *workspaceAuthSubroutine) reconcile(ctx context.Context, obj client.Obje
 
 	}
 
+	orgsClient, err := r.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
+	}
+
 	authConfig := &kcptenancyv1alphav1.WorkspaceAuthenticationConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
-	_, err = controllerutil.CreateOrUpdate(ctx, r.orgClient, authConfig, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctx, orgsClient, authConfig, func() error {
 		authConfig.Spec = kcptenancyv1alphav1.WorkspaceAuthenticationConfigurationSpec{
 			JWT: []kcptenancyv1alphav1.JWTAuthenticator{
 				jwtAuthenticationConfiguration,
@@ -147,7 +153,7 @@ func (r *workspaceAuthSubroutine) reconcile(ctx context.Context, obj client.Obje
 		return subroutines.OK(), fmt.Errorf("failed to create WorkspaceAuthConfiguration resource: %w", err)
 	}
 
-	err = r.patchWorkspaceTypes(ctx, r.orgClient, workspaceName)
+	err = r.patchWorkspaceTypes(ctx, orgsClient, workspaceName)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to patch workspace types: %w", err)
 	}

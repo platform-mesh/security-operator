@@ -24,20 +24,20 @@ import (
 )
 
 func TestNewInviteSubroutine(t *testing.T) {
-	orgsClient := mocks.NewMockClient(t)
 	mgr := mocks.NewMockManager(t)
+	kcpHelper := mocks.NewMockKCPClientGetter(t)
 
-	subroutine, err := NewInviteSubroutine(orgsClient, mgr)
+	subroutine, err := NewInviteSubroutine(mgr, kcpHelper)
 	require.NoError(t, err)
 	assert.NotNil(t, subroutine)
-	assert.Equal(t, orgsClient, subroutine.orgsClient)
+	assert.Equal(t, kcpHelper, subroutine.kcpClientGetter)
 	assert.Equal(t, mgr, subroutine.mgr)
 }
 
 func TestInviteSubroutine_GetName(t *testing.T) {
-	orgsClient := mocks.NewMockClient(t)
 	mgr := mocks.NewMockManager(t)
-	subroutine, err := NewInviteSubroutine(orgsClient, mgr)
+	kcpHelper := mocks.NewMockKCPClientGetter(t)
+	subroutine, err := NewInviteSubroutine(mgr, kcpHelper)
 	require.NoError(t, err)
 
 	name := subroutine.GetName()
@@ -47,15 +47,16 @@ func TestInviteSubroutine_GetName(t *testing.T) {
 func TestInviteSubroutine_Initialize(t *testing.T) {
 	tests := []struct {
 		name                   string
-		setupMocks             func(*mocks.MockClient, *mocks.MockManager, *mocks.MockCluster)
+		setupMocks             func(wsClient *mocks.MockClient, orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPClientGetter)
 		lc                     *kcpcorev1alpha1.LogicalCluster
 		expectedErr            bool
 		expectedResult         subroutines.Result
 		expectedRequeueMessage string
 	}{
 		{
-			name:       "Empty workspace name - early return",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster) {},
+			name: "Empty workspace name - early return",
+			setupMocks: func(_ *mocks.MockClient, _ *mocks.MockClient, _ *mocks.MockManager, _ *mocks.MockKCPClientGetter) {
+			},
 			lc: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{},
@@ -65,9 +66,9 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 			expectedResult: subroutines.OK(),
 		},
 		{
-			name: "ClusterFromContext error",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster) {
-				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, assert.AnError).Once()
+			name: "KCP client getter error",
+			setupMocks: func(_ *mocks.MockClient, _ *mocks.MockClient, _ *mocks.MockManager, kcpHelper *mocks.MockKCPClientGetter) {
+				kcpHelper.EXPECT().NewClientFromContext(mock.Anything).Return(nil, assert.AnError).Once()
 			},
 			lc: &kcpcorev1alpha1.LogicalCluster{
 				ObjectMeta: metav1.ObjectMeta{
@@ -81,8 +82,9 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "Account Get error",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster) {
-				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
+			setupMocks: func(wsClient *mocks.MockClient, orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPClientGetter) {
+				kcpHelper.EXPECT().NewClientFromContext(mock.Anything).Return(wsClient, nil).Once()
+				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test"}, mock.AnythingOfType("*v1alpha1.Account")).
 					Return(assert.AnError).Once()
 			},
@@ -98,8 +100,9 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "Account not of type organization - skip invite creation",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster) {
-				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
+			setupMocks: func(wsClient *mocks.MockClient, orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPClientGetter) {
+				kcpHelper.EXPECT().NewClientFromContext(mock.Anything).Return(wsClient, nil).Once()
+				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "test"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
 						acc := obj.(*accountv1alpha1.Account)
@@ -121,8 +124,9 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "CreateOrUpdate Ready",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster) {
-				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
+			setupMocks: func(wsClient *mocks.MockClient, orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPClientGetter) {
+				kcpHelper.EXPECT().NewClientFromContext(mock.Anything).Return(wsClient, nil).Once()
+				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
 						acc := obj.(*accountv1alpha1.Account)
@@ -131,17 +135,16 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 						acc.Spec.Creator = &email
 						return nil
 					}).Once()
-				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
-				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Invite")).
+				wsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Invite")).
 					Return(apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "invites"}, "acme")).Once()
-				orgsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.Invite")).
+				wsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.Invite")).
 					RunAndReturn(func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
 						inv := obj.(*secopv1alpha1.Invite)
 						inv.Spec.Email = "owner@acme.io"
 						inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionTrue}}
 						return nil
 					}).Once()
-				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Invite")).
+				wsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "acme"}, mock.AnythingOfType("*v1alpha1.Invite")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
 						inv := obj.(*secopv1alpha1.Invite)
 						inv.Spec.Email = "owner@acme.io"
@@ -161,8 +164,9 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 		},
 		{
 			name: "CreateOrUpdate NotReady",
-			setupMocks: func(orgsClient *mocks.MockClient, mgr *mocks.MockManager, cluster *mocks.MockCluster) {
-				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Once()
+			setupMocks: func(wsClient *mocks.MockClient, orgsClient *mocks.MockClient, mgr *mocks.MockManager, kcpHelper *mocks.MockKCPClientGetter) {
+				kcpHelper.EXPECT().NewClientFromContext(mock.Anything).Return(wsClient, nil).Once()
+				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(orgsClient, nil).Once()
 				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Account")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
 						acc := obj.(*accountv1alpha1.Account)
@@ -171,17 +175,16 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 						acc.Spec.Creator = &email
 						return nil
 					}).Once()
-				cluster.EXPECT().GetClient().Return(orgsClient).Maybe()
-				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Invite")).
+				wsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Invite")).
 					Return(apierrors.NewNotFound(schema.GroupResource{Group: "core.platform-mesh.io", Resource: "invites"}, "beta")).Once()
-				orgsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.Invite")).
+				wsClient.EXPECT().Create(mock.Anything, mock.AnythingOfType("*v1alpha1.Invite")).
 					RunAndReturn(func(_ context.Context, obj client.Object, _ ...client.CreateOption) error {
 						inv := obj.(*secopv1alpha1.Invite)
 						inv.Spec.Email = "owner@beta.io"
 						inv.Status.Conditions = []metav1.Condition{{Type: "Ready", Status: metav1.ConditionFalse}}
 						return nil
 					}).Once()
-				orgsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Invite")).
+				wsClient.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "beta"}, mock.AnythingOfType("*v1alpha1.Invite")).
 					RunAndReturn(func(_ context.Context, _ types.NamespacedName, obj client.Object, _ ...client.GetOption) error {
 						inv := obj.(*secopv1alpha1.Invite)
 						inv.Spec.Email = "owner@beta.io"
@@ -203,13 +206,14 @@ func TestInviteSubroutine_Initialize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			wsClient := mocks.NewMockClient(t)
 			orgsClient := mocks.NewMockClient(t)
 			mgr := mocks.NewMockManager(t)
-			cluster := mocks.NewMockCluster(t)
-			subroutine, err := NewInviteSubroutine(orgsClient, mgr)
+			kcpHelper := mocks.NewMockKCPClientGetter(t)
+			subroutine, err := NewInviteSubroutine(mgr, kcpHelper)
 			require.NoError(t, err)
 
-			tt.setupMocks(orgsClient, mgr, cluster)
+			tt.setupMocks(wsClient, orgsClient, mgr, kcpHelper)
 
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())

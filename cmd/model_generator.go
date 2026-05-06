@@ -7,6 +7,7 @@ import (
 
 	platformeshcontext "github.com/platform-mesh/golang-commons/context"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/spf13/cobra"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -21,6 +22,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/kcp-dev/multicluster-provider/apiexport"
+	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 )
 
 var modelGeneratorCmd = &cobra.Command{
@@ -70,7 +72,7 @@ var modelGeneratorCmd = &cobra.Command{
 			return fmt.Errorf("scheme should not be nil")
 		}
 
-		provider, err := apiexport.New(restCfg, generatorCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
+		provider, err := pathaware.New(restCfg, generatorCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
@@ -84,7 +86,7 @@ var modelGeneratorCmd = &cobra.Command{
 			return err
 		}
 
-		if err := controller.NewAPIBindingReconciler(ctx, log, mgr, &generatorCfg).
+		if err := controller.NewAPIBindingReconciler(log, mgr, iclient.NewConfigSchemeKCPClientGetter(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme()), &generatorCfg).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Resource")
 			return err

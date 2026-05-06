@@ -34,6 +34,7 @@ import (
 
 	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
+	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
@@ -61,7 +62,8 @@ var operatorCmd = &cobra.Command{
 		}
 
 		if operatorCfg.MigrateAuthorizationModels {
-			if err := migrateAuthorizationModels(ctx, restCfg, &operatorCfg, scheme); err != nil {
+			kcpClientGetter := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme)
+			if err := migrateAuthorizationModels(ctx, kcpClientGetter, &operatorCfg); err != nil {
 				log.Error().Err(err).Msg("migration failed")
 				return err
 			}
@@ -121,7 +123,7 @@ var operatorCmd = &cobra.Command{
 			return fmt.Errorf("scheme should not be nil")
 		}
 
-		provider, err := apiexport.New(restCfg, operatorCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
+		provider, err := pathaware.New(restCfg, operatorCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
 			Scheme: mgrOpts.Scheme,
 		})
 		if err != nil {
@@ -157,13 +159,8 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("Failed to create in cluster client")
 			return err
 		}
-		orgClient, err := iclient.NewForLogicalCluster(restCfg, scheme, logicalcluster.Name("root:orgs"))
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create org client")
-			return err
-		}
-
-		if err = controller.NewStoreReconciler(ctx, log, fga, mgr, &operatorCfg).
+		allClientGetter := iclient.NewConfigSchemeKCPClientGetter(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
+		if err = controller.NewStoreReconciler(ctx, log, fga, mgr, allClientGetter, &operatorCfg).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
 			return err
@@ -174,7 +171,8 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
 			return err
 		}
-		inviteReconciler, err := controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log)
+		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr)
+		inviteReconciler, err := controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log, kcpClientGetter)
 		if err != nil {
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create reconciler")
 			return err
@@ -183,8 +181,7 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
 			return err
 		}
-
-		orgReconciler, err := controller.NewOrgLogicalClusterController(log, orgClient, operatorCfg, runtimeClient, mgr, controller.ControllerOptions{
+		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetter, operatorCfg, runtimeClient, mgr, controller.ControllerOptions{
 			Name: "OrgLogicalClusterReconciler",
 		})
 		if err != nil {
@@ -199,7 +196,7 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		alcReconciler, err := controller.NewAccountLogicalClusterController(log, operatorCfg, fga, storeIDGetter, mgr, controller.ControllerOptions{
+		alcReconciler, err := controller.NewAccountLogicalClusterController(log, operatorCfg, fga, storeIDGetter, mgr, kcpClientGetter, controller.ControllerOptions{
 			Name: "AccountLogicalClusterReconciler",
 		})
 		if err != nil {
@@ -246,8 +243,8 @@ var operatorCmd = &cobra.Command{
 }
 
 // this function can be removed after the operator has migrated the authz models in all environments
-func migrateAuthorizationModels(ctx context.Context, config *rest.Config, operatorCfg *config.Config, scheme *runtime.Scheme) error {
-	allClient, err := iclient.GetAllClient(ctx, config, scheme, operatorCfg.APIExportEndpointSlices.CorePlatformMeshIO)
+func migrateAuthorizationModels(ctx context.Context, kcpClientGetter iclient.KCPCombinedClientGetter, operatorCfg *config.Config) error {
+	allClient, err := kcpClientGetter.AllClient(ctx, operatorCfg.APIExportEndpointSlices.CorePlatformMeshIO)
 	if err != nil {
 		return fmt.Errorf("failed to create all-cluster client: %w", err)
 	}
@@ -269,7 +266,7 @@ func migrateAuthorizationModels(ctx context.Context, config *rest.Config, operat
 		}
 
 		clusterName := logicalcluster.From(item)
-		clusterClient, err := iclient.NewForLogicalCluster(config, scheme, clusterName)
+		clusterClient, err := kcpClientGetter.NewClientForLogicalCluster(ctx, clusterName.String())
 		if err != nil {
 			return fmt.Errorf("failed to create cluster client for AuthorizationModel %s (cluster %s): %w", item.GetName(), clusterName, err)
 		}

@@ -14,5 +14,4 @@ exclude:
     - internal/subroutine/workspace_initializer.go$
     - ^internal/client # requires a live KCP API server
     - ^internal/terminatingworkspaces # requires a live KCP API server
-    
- 
+    - ^internal/initializingworkspaces # requires a live KCP API server

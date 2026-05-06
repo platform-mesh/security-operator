@@ -10,6 +10,7 @@ import (
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/platform-mesh/security-operator/internal/fga"
+	"github.com/platform-mesh/security-operator/internal/initializingworkspaces/pathaware"
 	"github.com/platform-mesh/security-operator/internal/predicates"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -25,7 +26,6 @@ import (
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/rest"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/initializingworkspaces"
 )
 
@@ -63,7 +63,7 @@ var initializerCmd = &cobra.Command{
 			mgrOpts.LeaderElectionConfig = inClusterCfg
 		}
 
-		provider, err := initializingworkspaces.New(restCfg, initializerCfg.WorkspaceTypeName,
+		provider, err := pathaware.New(restCfg, initializerCfg.WorkspaceTypeName,
 			initializingworkspaces.Options{
 				Scheme: mgrOpts.Scheme,
 			},
@@ -83,12 +83,6 @@ var initializerCmd = &cobra.Command{
 		utilruntime.Must(sourcev1.AddToScheme(runtimeScheme))
 		utilruntime.Must(helmv2.AddToScheme(runtimeScheme))
 
-		orgClient, err := iclient.NewForLogicalCluster(restCfg, scheme, logicalcluster.Name("root:orgs"))
-		if err != nil {
-			setupLog.Error(err, "Failed to create org client")
-			os.Exit(1)
-		}
-
 		k8sCfg := ctrl.GetConfigOrDie()
 
 		runtimeClient, err := client.New(k8sCfg, client.Options{Scheme: scheme})
@@ -101,7 +95,8 @@ var initializerCmd = &cobra.Command{
 			initializerCfg.IDP.AdditionalRedirectURLs = []string{}
 		}
 
-		orgReconciler, err := controller.NewOrgLogicalClusterController(log, orgClient, initializerCfg, runtimeClient, mgr, controller.ControllerOptions{
+		kcpClientGetter := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme)
+		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetter, initializerCfg, runtimeClient, mgr, controller.ControllerOptions{
 			Name:            "OrgLogicalClusterInitializer",
 			InitializerName: initializerCfg.InitializerName(),
 		})
@@ -128,7 +123,7 @@ var initializerCmd = &cobra.Command{
 			log,
 		)
 
-		alcReconciler, err := controller.NewAccountLogicalClusterController(log, initializerCfg, fgaClient, storeIDGetter, mgr, controller.ControllerOptions{
+		alcReconciler, err := controller.NewAccountLogicalClusterController(log, initializerCfg, fgaClient, storeIDGetter, mgr, kcpClientGetter, controller.ControllerOptions{
 			Name:            "AccountLogicalClusterInitializer",
 			InitializerName: initializerCfg.InitializerName(),
 			TerminatorName:  initializerCfg.TerminatorName(),
