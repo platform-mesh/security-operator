@@ -81,6 +81,7 @@ var systemCmd = &cobra.Command{
 			setupLog.Error(err, "unable to create core apiexport provider")
 			return err
 		}
+		
 		multiProv := multiprovider.New(multiprovider.Options{})
 		if err := multiProv.AddProvider(config.SystemProviderName, systemProvider); err != nil {
 			return err
@@ -126,7 +127,7 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
-		kcpClientHelper := iclient.NewKcpHelper(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), coreProvider.Provider.Provider)
+		kcpClientHelper := iclient.NewKcpHelper(restCfg, scheme, coreProvider.Provider.Provider)
 
 		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, &systemCfg, storeIDGetter, kcpClientHelper).SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
