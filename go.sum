@@ -138,8 +138,8 @@ github.com/kcp-dev/apimachinery/v2 v2.31.1 h1:CHAPoYy5JEMsby1WUId/JLs1QEPDz1lSwQ
 github.com/kcp-dev/apimachinery/v2 v2.31.1/go.mod h1:ta+d3xQkLYWBEEg8ICed+PekW3MckEYqXG4amq6Uk9Y=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5 h1:JbYakokb+5Uinz09oTXomSUJVQsqfxEvU4RyHUYxHOU=
 github.com/kcp-dev/logicalcluster/v3 v3.0.5/go.mod h1:EWBUBxdr49fUB1cLMO4nOdBWmYifLbP1LfoL20KkXYY=
-github.com/kcp-dev/multicluster-provider v0.0.0-20260430101011-fa033a7d2e87 h1:42L/Nn5Y3oodjrOoBdtkF8zXFmCPsKc1CVkkdhUKYzU=
-github.com/kcp-dev/multicluster-provider v0.0.0-20260430101011-fa033a7d2e87/go.mod h1:JB+ntaOpqhRFDRd+O7AYM5QZvt8/I/Xeo7SrW7+77EQ=
+github.com/kcp-dev/multicluster-provider v0.7.0 h1:lO5yhWuf0GcvfG47CWV17iXJqyhXA5UcCbkIpy5x9x0=
+github.com/kcp-dev/multicluster-provider v0.7.0/go.mod h1:JB+ntaOpqhRFDRd+O7AYM5QZvt8/I/Xeo7SrW7+77EQ=
 github.com/kcp-dev/multicluster-provider/client v0.0.0-20260430101011-fa033a7d2e87 h1:XlZ5niiYWAlMmmr8cxWyt5vtXb0MbyktkyDKzfPKmkE=
 github.com/kcp-dev/multicluster-provider/client v0.0.0-20260430101011-fa033a7d2e87/go.mod h1:kK9CSLmECoRiOU+xKOhIE4tHpQBcBbBvWOgKORC/eqI=
 github.com/kcp-dev/sdk v0.31.0 h1:fLqgY6MHVmmBcttqR/V3h2Dnv7xmab84FTKTwV08+Bo=
@@ -184,8 +184,6 @@ github.com/platform-mesh/account-operator v0.14.25 h1:JgyZbo71xj99kn+2V7qwYWUhH4
 github.com/platform-mesh/account-operator v0.14.25/go.mod h1:i+bmuGgShn9GppYcbYLzYSo6p2dRcuKN4C/YZWO/mCQ=
 github.com/platform-mesh/golang-commons v0.16.9 h1:zrgGt2WYkt6JQO7kTAug3l9oSJq6jlHDZ8qcKo1kSq8=
 github.com/platform-mesh/golang-commons v0.16.9/go.mod h1:NelsVrhXiB9P/4Xa0M1Ejb6mmRfTxBHPdHo9OLHmAs4=
-github.com/platform-mesh/subroutines v0.3.3 h1:WKz0ZJnceC5KvUYrbmAdGTRnECkI6I4YXAEq3vKEV3Q=
-github.com/platform-mesh/subroutines v0.3.3/go.mod h1:4NmIkZXmbndYu4JzHWPu9JNoDipJcXP4oy4OPnLNT0Q=
 github.com/platform-mesh/subroutines v0.4.3 h1:b/Op25a+N2x9H09Gmzyjl7/8HkHiJ5YEzCur95eU37c=
 github.com/platform-mesh/subroutines v0.4.3/go.mod h1:z8nW91Y/vuhaE1gNC6Tt3ZDlPX0czS1aUV/J7dnYhaM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=

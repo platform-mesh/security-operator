@@ -10,8 +10,8 @@ require (
 	github.com/google/gnostic-models v0.7.1
 	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
-	github.com/kcp-dev/multicluster-provider v0.5.1
-	github.com/kcp-dev/multicluster-provider/client v0.0.0-00010101000000-000000000000
+	github.com/kcp-dev/multicluster-provider v0.7.0
+	github.com/kcp-dev/multicluster-provider/client v0.0.0-20260430101011-fa033a7d2e87
 	github.com/kcp-dev/sdk v0.31.0
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
 	github.com/openfga/language/pkg/go v0.2.1
@@ -134,7 +134,3 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.2 // indirect
 )
-
-replace github.com/kcp-dev/multicluster-provider => github.com/kcp-dev/multicluster-provider v0.0.0-20260430101011-fa033a7d2e87
-
-replace github.com/kcp-dev/multicluster-provider/client => github.com/kcp-dev/multicluster-provider/client v0.0.0-20260430101011-fa033a7d2e87
