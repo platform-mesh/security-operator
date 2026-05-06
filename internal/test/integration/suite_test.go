@@ -3,6 +3,7 @@ package test
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -46,12 +47,15 @@ import (
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	clusterclient "github.com/kcp-dev/multicluster-provider/client"
 	"github.com/kcp-dev/multicluster-provider/envtest"
+	"github.com/kcp-dev/multicluster-provider/initializingworkspaces"
 	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 	kcpcore "github.com/kcp-dev/sdk/apis/core"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
+	conditions "github.com/kcp-dev/sdk/apis/third_party/conditions/util/conditions"
+	initpathaware "github.com/platform-mesh/security-operator/internal/initializingworkspaces/pathaware"
 
 	_ "embed"
 )
@@ -160,14 +164,15 @@ func (suite *IntegrationSuite) SetupSuite() {
 
 	logcfg := logger.DefaultConfig()
 	logcfg.NoJSON = true
-	// logcfg.Output = io.Discard
 
 	testLogger, err := logger.New(logcfg)
 	require.NoError(suite.T(), err, "failed to create test logger")
 	ctrl.SetLogger(testLogger.Logr())
 
-	os.Setenv("KUBECONFIG", "/home/simt/src/security-operator/.kcp/admin.kubeconfig")
+	// Skips deleting workspace fixtures. KCP should be ephemeral anyway.
 	os.Setenv("PRESERVE", "true")
+
+	os.Setenv("KUBECONFIG", "/home/simt/src/security-operator/.kcp/admin.kubeconfig")
 	suite.env = &envtest.Environment{
 		UseExistingKcp:     ptr.To(true),
 		ExistingKcpContext: "base",
@@ -183,6 +188,7 @@ func (suite *IntegrationSuite) SetupSuite() {
 		suite.T().Log("kcp server has been stopped")
 	})
 
+	suite.awaitKCPReady(suite.T().Context())
 	suite.setupPlatformMesh(suite.T())
 	suite.setupOpenFGA()
 	coreDir := suite.T().TempDir()
@@ -204,6 +210,26 @@ func (suite *IntegrationSuite) SetupSuite() {
 
 func (suite *IntegrationSuite) TearDownSuite() {
 	suite.tearDownOpenFGA()
+}
+
+func (suite *IntegrationSuite) awaitKCPReady(ctx context.Context) {
+	httpClient, err := rest.HTTPClientFor(suite.kcpConfig)
+	suite.Require().NoError(err)
+	suite.Require().Eventually(func() bool {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, suite.kcpConfig.Host+"/readyz", nil)
+		if err != nil {
+			suite.T().Logf("kcp readyz request build failed: %v", err)
+			return false
+		}
+		resp, err := httpClient.Do(req)
+		if err != nil {
+			suite.T().Logf("kcp readyz request failed: %v", err)
+			return false
+		}
+		defer func() { _ = resp.Body.Close() }()
+		suite.T().Logf("kcp readyz status code: %d", resp.StatusCode)
+		return resp.StatusCode == http.StatusOK
+	}, 30*time.Second, 200*time.Millisecond, "kcp /readyz should return 200")
 }
 
 // setupOpenFGA starts a local OpenFGA testcontainer, opens a gRPC client,
@@ -386,9 +412,22 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 		}
 		return len(endpointSlice.Status.APIExportEndpoints) > 0 && endpointSlice.Status.APIExportEndpoints[0].URL != ""
 	}, 10*time.Second, 200*time.Millisecond, "KCP should automatically create APIExportEndpointSlice with populated endpoints")
-
 	suite.Require().NotEmpty(endpointSlice.Status.APIExportEndpoints, "APIExportEndpointSlice should have at least one endpoint")
 	suite.Require().NotEqual("", endpointSlice.Status.APIExportEndpoints[0].URL, "APIExportEndpointSlice endpoint URL should not be empty")
+	suite.Assert().Eventually(func() bool {
+		var workspaceType kcptenancyv1alpha1.WorkspaceType
+		if err := rootClient.Get(ctx, client.ObjectKey{Name: "security"}, &workspaceType); err != nil {
+			suite.T().Logf("WorkspaceType security poll: get failed: %v", err)
+			return false
+		}
+		statusYAML, err := yaml.Marshal(workspaceType.Status)
+		if err != nil {
+			suite.T().Logf("WorkspaceType security poll: status marshal failed: %v", err)
+		} else {
+			suite.T().Logf("WorkspaceType security poll status:\n%s", string(statusYAML))
+		}
+		return conditions.IsTrue(&workspaceType, kcptenancyv1alpha1.WorkspaceTypeVirtualWorkspaceURLsReady)
+	}, 10*time.Second, 200*time.Millisecond, "WorkspaceType security should be ready")
 
 	// set up config for virtual workspace
 	cfg := rest.CopyConfig(suite.kcpConfig)
@@ -397,21 +436,11 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	t.Logf("created apiExportEndpointSliceConfig with host: %s", suite.apiExportEndpointSliceConfig.Host)
 }
 
-// setupControllers constructs the multicluster manager, registers security
-// operator reconcilers (store, org and account logical clusters, API
-// binding) and account-operator reconcilers, then runs the manager in a
-// background goroutine with suite-scoped cleanup.
+// setupControllers wires two multicluster managers (initializer + API export
+// operator), starts them with shared cancel-based cleanup, and returns the
+// main operator manager for callers that need GetCluster.
 func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.CommonServiceConfig, testLogger *logger.Logger, coreModulePath string) mcmanager.Manager {
 	ctx := suite.T().Context()
-
-	providerConfig, err := suite.getPlatformMeshSystemConfig(suite.apiExportEndpointSliceConfig)
-	suite.Require().NoError(err)
-
-	provider, err := pathaware.New(providerConfig, "core.platform-mesh.io", apiexport.Options{Scheme: scheme.Scheme})
-	suite.Require().NoError(err)
-
-	mgr, err := mcmanager.New(providerConfig, provider, mcmanager.Options{Scheme: scheme.Scheme})
-	suite.Require().NoError(err)
 
 	operatorCfg := secconfig.NewConfig()
 	operatorCfg.FGA.Target = suite.openFGAConn.Target()
@@ -423,6 +452,74 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 	suite.Require().NotEmpty(operatorCfg.InitializerName())
 
 	storeIDGetter := ifga.NewCachingStoreIDGetter(suite.openFGAClient, operatorCfg.FGA.StoreIDCacheTTL, ctx, testLogger)
+
+	initMgr := suite.setupInitializerManager(defaultCfg, testLogger, operatorCfg, storeIDGetter)
+	mgr := suite.setupOperatorManager(defaultCfg, testLogger, operatorCfg, ctx, storeIDGetter)
+
+	managerCtx, cancel := context.WithCancel(ctx)
+	go func() {
+		if err := initMgr.Start(managerCtx); err != nil {
+			suite.T().Logf("initializer manager exited with error: %v", err)
+		}
+	}()
+	go func() {
+		if err := mgr.Start(managerCtx); err != nil {
+			suite.T().Logf("controller manager exited with error: %v", err)
+		}
+	}()
+
+	suite.T().Cleanup(func() {
+		cancel()
+	})
+
+	return mgr
+}
+
+// setupInitializerManager matches cmd/initializer.go: initializing-workspaces
+// provider on kcpConfig and org/account LogicalCluster controllers without
+// HasInitializerPredicate.
+func (suite *IntegrationSuite) setupInitializerManager(defaultCfg *platformeshconfig.CommonServiceConfig, testLogger *logger.Logger, operatorCfg secconfig.Config, storeIDGetter *ifga.CachingStoreIDGetter) mcmanager.Manager {
+	initProvider, err := initpathaware.New(suite.kcpConfig, operatorCfg.WorkspaceTypeName, initializingworkspaces.Options{Scheme: scheme.Scheme})
+	suite.Require().NoError(err)
+	initMgr, err := mcmanager.New(suite.kcpConfig, initProvider, mcmanager.Options{Scheme: scheme.Scheme})
+	suite.Require().NoError(err)
+
+	kcpGetter := iclient.NewConfigSchemeKCPClientGetter(suite.kcpConfig, scheme.Scheme)
+	initRuntimeClient := initMgr.GetLocalManager().GetClient()
+
+	orgInitOpts := controller.ControllerOptions{
+		Name:            "OrgLogicalClusterInitializer",
+		InitializerName: operatorCfg.InitializerName(),
+	}
+	orgInitReconciler, err := controller.NewOrgLogicalClusterController(testLogger, kcpGetter, operatorCfg, initRuntimeClient, initMgr, orgInitOpts)
+	suite.Require().NoError(err)
+	suite.Require().NoError(orgInitReconciler.SetupWithManager(initMgr, defaultCfg, predicates.LogicalClusterIsAccountTypeOrg()))
+
+	alcInitOpts := controller.ControllerOptions{
+		Name:            "AccountLogicalClusterInitializer",
+		InitializerName: operatorCfg.InitializerName(),
+		TerminatorName:  operatorCfg.TerminatorName(),
+	}
+	alcInitReconciler, err := controller.NewAccountLogicalClusterController(testLogger, operatorCfg, suite.openFGAClient, storeIDGetter, initMgr, kcpGetter, alcInitOpts)
+	suite.Require().NoError(err)
+	suite.Require().NoError(alcInitReconciler.SetupWithManager(initMgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())))
+
+	return initMgr
+}
+
+// setupOperatorManager matches cmd/operator.go multicluster wiring: API export
+// virtual workspace, store / APIBinding / account-operator reconcilers, and
+// org/account LogicalCluster controllers with HasInitializerPredicate.
+func (suite *IntegrationSuite) setupOperatorManager(defaultCfg *platformeshconfig.CommonServiceConfig, testLogger *logger.Logger, operatorCfg secconfig.Config, ctx context.Context, storeIDGetter *ifga.CachingStoreIDGetter) mcmanager.Manager {
+	// providerConfig, err := suite.getPlatformMeshSystemConfig(suite.apiExportEndpointSliceConfig)
+	// suite.Require().NoError(err)
+
+	apiExportProvider, err := pathaware.New(suite.kcpConfig, "core.platform-mesh.io", apiexport.Options{Scheme: scheme.Scheme})
+	suite.Require().NoError(err)
+
+	mgr, err := mcmanager.New(suite.kcpConfig, apiExportProvider, mcmanager.Options{Scheme: scheme.Scheme})
+	suite.Require().NoError(err)
+
 	kcpCombinedGetter := iclient.NewManagerKCPClientGetter(mgr)
 
 	storeReconciler := controller.NewStoreReconciler(ctx, testLogger, suite.openFGAClient, mgr, kcpCombinedGetter, &operatorCfg)
@@ -447,17 +544,6 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 	accountOpCfg.Kcp.ProviderWorkspace = kcpcore.RootCluster.Path().String()
 
 	suite.Require().NoError(acctsetup.InstallAccountAndAccountInfoReconcilers(testLogger, mgr, accountOpCfg, defaultCfg))
-
-	managerCtx, cancel := context.WithCancel(ctx)
-	go func() {
-		if err := mgr.Start(managerCtx); err != nil {
-			suite.T().Logf("controller manager exited with error: %v", err)
-		}
-	}()
-
-	suite.T().Cleanup(func() {
-		cancel()
-	})
 
 	return mgr
 }

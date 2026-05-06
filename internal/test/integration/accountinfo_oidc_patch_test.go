@@ -41,5 +41,5 @@ func (suite *IntegrationSuite) awaitAndPatchAccountInfoOIDC(ctx context.Context,
 			return false
 		}
 		return true
-	}, 20*time.Minute, 250*time.Millisecond, "persist AccountInfo OIDC for workspace %s", workspaceName)
+	}, 10*time.Minute, 250*time.Millisecond, "persist AccountInfo OIDC for workspace %s", workspaceName)
 }
