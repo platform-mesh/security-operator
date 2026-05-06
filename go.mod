@@ -16,7 +16,7 @@ require (
 	github.com/openfga/language/pkg/go v0.2.1
 	github.com/platform-mesh/account-operator v0.14.25
 	github.com/platform-mesh/golang-commons v0.16.9
-	github.com/platform-mesh/subroutines v0.3.3
+	github.com/platform-mesh/subroutines v0.4.2
 	github.com/rs/zerolog v1.35.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -31,7 +31,7 @@ require (
 	k8s.io/client-go v0.35.4
 	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5
 	sigs.k8s.io/controller-runtime v0.23.3
-	sigs.k8s.io/multicluster-runtime v0.23.1
+	sigs.k8s.io/multicluster-runtime v0.23.3
 	sigs.k8s.io/yaml v1.6.0
 )
 
