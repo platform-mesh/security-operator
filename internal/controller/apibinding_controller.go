@@ -21,10 +21,10 @@ import (
 	kcpapisv1alpha2 "github.com/kcp-dev/sdk/apis/apis/v1alpha2"
 )
 
-func NewAPIBindingReconciler(ctx context.Context, logger *logger.Logger, mcMgr mcmanager.Manager, cfg *config.Config, kcpHelper iclient.KcpClientHelper) *APIBindingReconciler {
+func NewAPIBindingReconciler(logger *logger.Logger, mcMgr mcmanager.Manager, clientGetter iclient.KCPCombinedClientGetter, cfg *config.Config) *APIBindingReconciler {
 	lc := lifecycle.New(mcMgr, "APIBindingReconciler", func() client.Object {
 		return &kcpapisv1alpha2.APIBinding{}
-	}, subroutine.NewAuthorizationModelGenerationSubroutine(mcMgr, kcpHelper))
+	}, subroutine.NewAuthorizationModelGenerationSubroutine(mcMgr, clientGetter, cfg.APIExportEndpointSlices.CorePlatformMeshIO))
 
 	return &APIBindingReconciler{
 		log:       logger,

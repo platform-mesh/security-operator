@@ -719,17 +719,13 @@ func TestSubroutineProcess(t *testing.T) {
 			configureOIDCProvider(t, mux, srv.URL)
 			ctx := context.WithValue(t.Context(), oauth2.HTTPClient, srv.Client())
 
-			mgr := mocks.NewMockManager(t)
-			cluster := mocks.NewMockCluster(t)
-
-			mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Maybe()
-
 			k8s := mocks.NewMockClient(t)
 			if test.setupK8sMocks != nil {
 				test.setupK8sMocks(k8s)
 			}
 
-			cluster.EXPECT().GetClient().Return(k8s).Maybe()
+			kcpClientGetter := mocks.NewMockKCPClientGetter(t)
+			kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, "cluster1").Return(k8s, nil).Maybe()
 
 			if test.setupKeycloakMocks != nil {
 				test.setupKeycloakMocks(mux)
@@ -746,7 +742,7 @@ func TestSubroutineProcess(t *testing.T) {
 				cfg.SetDefaultPassword = test.config.SetDefaultPassword
 			}
 
-			s, err := invite.New(ctx, cfg, mgr)
+			s, err := invite.New(ctx, cfg, kcpClientGetter)
 			assert.NoError(t, err)
 
 			l := testlogger.New()
@@ -774,7 +770,7 @@ func TestInviteNew_OIDCProviderError(t *testing.T) {
 
 	_, err := invite.New(ctx, &config.Config{
 		Keycloak: config.KeycloakConfig{BaseURL: srv.URL, ClientID: "security-operator"},
-	}, nil)
+	}, nil) //nolint:staticcheck
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "creating OIDC provider")
 }
@@ -787,11 +783,11 @@ func TestInviteSubroutine_NoClusterInContext(t *testing.T) {
 	configureOIDCProvider(t, mux, srv.URL)
 	ctx := context.WithValue(t.Context(), oauth2.HTTPClient, srv.Client())
 
-	mgr := mocks.NewMockManager(t)
+	kcpClientGetter := mocks.NewMockKCPClientGetter(t)
 	s, err := invite.New(ctx, &config.Config{
 		Keycloak:   config.KeycloakConfig{BaseURL: srv.URL, ClientID: "security-operator"},
 		BaseDomain: "portal.dev.local",
-	}, mgr)
+	}, kcpClientGetter)
 	assert.NoError(t, err)
 
 	l := testlogger.New()
@@ -803,7 +799,7 @@ func TestInviteSubroutine_NoClusterInContext(t *testing.T) {
 	assert.Contains(t, processErr.Error(), "failed to get cluster from context")
 }
 
-func TestInviteSubroutine_GetClusterFails(t *testing.T) {
+func TestInviteSubroutine_GetClientFails(t *testing.T) {
 	mux := http.NewServeMux()
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -811,13 +807,13 @@ func TestInviteSubroutine_GetClusterFails(t *testing.T) {
 	configureOIDCProvider(t, mux, srv.URL)
 	ctx := context.WithValue(t.Context(), oauth2.HTTPClient, srv.Client())
 
-	mgr := mocks.NewMockManager(t)
-	mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(nil, fmt.Errorf("cluster not found"))
+	kcpClientGetter := mocks.NewMockKCPClientGetter(t)
+	kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, "cluster1").Return(nil, fmt.Errorf("cluster not found"))
 
 	s, err := invite.New(ctx, &config.Config{
 		Keycloak:   config.KeycloakConfig{BaseURL: srv.URL, ClientID: "security-operator"},
 		BaseDomain: "portal.dev.local",
-	}, mgr)
+	}, kcpClientGetter)
 	assert.NoError(t, err)
 
 	l := testlogger.New()
@@ -826,7 +822,7 @@ func TestInviteSubroutine_GetClusterFails(t *testing.T) {
 
 	_, processErr := s.Process(ctx, &v1alpha1.Invite{Spec: v1alpha1.InviteSpec{Email: "test@test.com"}})
 	assert.Error(t, processErr)
-	assert.Contains(t, processErr.Error(), "failed to get cluster")
+	assert.Contains(t, processErr.Error(), "failed to get client for cluster")
 }
 
 func TestHelperFunctions(t *testing.T) {
@@ -842,7 +838,7 @@ func TestHelperFunctions(t *testing.T) {
 			BaseURL:  srv.URL,
 			ClientID: "security-operator",
 		},
-	}, nil)
+	}, nil) //nolint:staticcheck
 	assert.NoError(t, err)
 
 	assert.Equal(t, "Invite", s.GetName())

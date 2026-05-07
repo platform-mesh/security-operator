@@ -39,7 +39,7 @@ func toK8sName(parts ...string) string {
 	return strings.Trim(name, "-")
 }
 
-func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, kcpHelper iclient.KcpClientHelper) *AuthorizationModelGenerationSubroutine {
+func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, clientGetter iclient.KCPCombinedClientGetter, apiExportEndpointSliceName string) *AuthorizationModelGenerationSubroutine {
 	return &AuthorizationModelGenerationSubroutine{
 		mgr:       mcMgr,
 		kcpHelper: kcpHelper,
@@ -52,8 +52,9 @@ var (
 )
 
 type AuthorizationModelGenerationSubroutine struct {
-	mgr       mcmanager.Manager
-	kcpHelper iclient.KcpClientHelper
+	mgr                        mcmanager.Manager
+	clientGetter               iclient.KCPCombinedClientGetter
+	apiExportEndpointSliceName string
 }
 
 var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
@@ -108,6 +109,11 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 	bindingCluster, err := a.mgr.ClusterFromContext(ctx)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("unable to get cluster from context: %w", err)
+	}
+
+	allClient, err := a.clientGetter.AllClient(ctx, a.apiExportEndpointSliceName)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting all-cluster client: %w", err)
 	}
 
 	var bindings kcpapisv1alpha2.APIBindingList

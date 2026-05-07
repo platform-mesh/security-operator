@@ -39,10 +39,7 @@ func (_m *MockTokenRefresher) EXPECT() *MockTokenRefresher_Expecter {
 
 // RefreshToken provides a mock function for the type MockTokenRefresher
 func (_mock *MockTokenRefresher) RefreshToken(ctx context.Context, clientID string) (string, error) {
-	_va := []interface{}{ctx, clientID}
-	_ca := make([]interface{}, len(_va))
-	copy(_ca, _va)
-	ret := _mock.Called(_ca...)
+	ret := _mock.Called(ctx, clientID)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RefreshToken")
@@ -50,25 +47,23 @@ func (_mock *MockTokenRefresher) RefreshToken(ctx context.Context, clientID stri
 
 	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
-		return rf(ctx, clientID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) (string, error)); ok {
+		return returnFunc(ctx, clientID)
 	}
-	if rf, ok := ret.Get(0).(func(context.Context, string) string); ok {
-		r0 = rf(ctx, clientID)
+	if returnFunc, ok := ret.Get(0).(func(context.Context, string) string); ok {
+		r0 = returnFunc(ctx, clientID)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
-
-	if rf, ok := ret.Get(1).(func(context.Context, string) error); ok {
-		r1 = rf(ctx, clientID)
+	if returnFunc, ok := ret.Get(1).(func(context.Context, string) error); ok {
+		r1 = returnFunc(ctx, clientID)
 	} else {
 		r1 = ret.Error(1)
 	}
-
 	return r0, r1
 }
 
-// MockTokenRefresher_RefreshToken_Call is a *mock.Call that shadows *mock.Call with type safe methods.
+// MockTokenRefresher_RefreshToken_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RefreshToken'
 type MockTokenRefresher_RefreshToken_Call struct {
 	*mock.Call
 }
@@ -82,7 +77,18 @@ func (_e *MockTokenRefresher_Expecter) RefreshToken(ctx interface{}, clientID in
 
 func (_c *MockTokenRefresher_RefreshToken_Call) Run(run func(ctx context.Context, clientID string)) *MockTokenRefresher_RefreshToken_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -92,7 +98,7 @@ func (_c *MockTokenRefresher_RefreshToken_Call) Return(newToken string, err erro
 	return _c
 }
 
-func (_c *MockTokenRefresher_RefreshToken_Call) RunAndReturn(run func(context.Context, string) (string, error)) *MockTokenRefresher_RefreshToken_Call {
+func (_c *MockTokenRefresher_RefreshToken_Call) RunAndReturn(run func(ctx context.Context, clientID string) (string, error)) *MockTokenRefresher_RefreshToken_Call {
 	_c.Call.Return(run)
 	return _c
 }

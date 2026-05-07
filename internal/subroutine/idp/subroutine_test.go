@@ -10,6 +10,7 @@ import (
 
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/idp"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
@@ -60,7 +61,7 @@ func getTestScheme() *runtime.Scheme {
 	return scheme
 }
 
-func setupManagerAndCluster(t *testing.T, initialObjects ...client.Object) (*mocks.MockManager, *mocks.MockCluster, client.Client) {
+func setupManagerAndCluster(t *testing.T, orgsClient client.Client, initialObjects ...client.Object) (*mocks.MockManager, *mocks.MockCluster, client.Client) {
 	scheme := getTestScheme()
 
 	kcpClient := fake.NewClientBuilder().
@@ -71,9 +72,12 @@ func setupManagerAndCluster(t *testing.T, initialObjects ...client.Object) (*moc
 
 	mgr := mocks.NewMockManager(t)
 	cluster := mocks.NewMockCluster(t)
+	orgsCluster := mocks.NewMockCluster(t)
 
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Maybe()
+	mgr.EXPECT().GetCluster(mock.Anything, "root:orgs").Return(orgsCluster, nil).Maybe()
 	cluster.EXPECT().GetClient().Return(kcpClient).Maybe()
+	orgsCluster.EXPECT().GetClient().Return(orgsClient).Maybe()
 
 	return mgr, cluster, kcpClient
 }
@@ -98,7 +102,7 @@ func TestSubroutineProcess(t *testing.T) {
 		cfg                *config.Config
 		setupK8sMocks      func(m *mocks.MockClient, kcpClient client.Client)
 		setupKeycloakMocks func(mux *http.ServeMux, baseURL string)
-		setupManager       func(t *testing.T, initialObjects []client.Object) (*mocks.MockManager, client.Client)
+		setupManager       func(t *testing.T, orgsClient client.Client, initialObjects []client.Object) (*mocks.MockManager, client.Client)
 		expectNewErr       bool
 		expectErr          bool
 	}{
@@ -814,7 +818,7 @@ func TestSubroutineProcess(t *testing.T) {
 			expectErr:          true,
 			setupK8sMocks:      func(m *mocks.MockClient, kcpClient client.Client) {},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {},
-			setupManager: func(t *testing.T, initialObjects []client.Object) (*mocks.MockManager, client.Client) {
+			setupManager: func(t *testing.T, orgsClient client.Client, initialObjects []client.Object) (*mocks.MockManager, client.Client) {
 				mgr := mocks.NewMockManager(t)
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, fmt.Errorf("cluster error")).Once()
 				return mgr, fake.NewClientBuilder().WithScheme(getTestScheme()).Build()
@@ -896,16 +900,16 @@ func TestSubroutineProcess(t *testing.T) {
 			var mgr *mocks.MockManager
 			var kcpClient client.Client
 			if test.setupManager != nil {
-				mgr, kcpClient = test.setupManager(t, initialObjects)
+				mgr, kcpClient = test.setupManager(t, orgsClient, initialObjects)
 			} else {
-				mgr, _, kcpClient = setupManagerAndCluster(t, initialObjects...)
+				mgr, _, kcpClient = setupManagerAndCluster(t, orgsClient, initialObjects...)
 			}
 
 			if test.setupK8sMocks != nil {
 				test.setupK8sMocks(orgsClient, kcpClient)
 			}
 
-			s, err := idp.New(ctx, cfg, orgsClient, mgr)
+			s, err := idp.New(ctx, cfg, mgr, iclient.NewManagerKCPClientGetter(mgr))
 			if test.expectNewErr {
 				assert.Error(t, err)
 				return
@@ -1226,7 +1230,11 @@ func TestFinalize(t *testing.T) {
 
 			cfg := getTestConfig(test.cfg, srv.URL)
 
-			s, err := idp.New(ctx, cfg, orgsClient, mgr)
+			orgsCluster := mocks.NewMockCluster(t)
+			mgr.EXPECT().GetCluster(mock.Anything, "root:orgs").Return(orgsCluster, nil).Maybe()
+			orgsCluster.EXPECT().GetClient().Return(orgsClient).Maybe()
+
+			s, err := idp.New(ctx, cfg, mgr, iclient.NewManagerKCPClientGetter(mgr))
 			assert.NoError(t, err)
 
 			l := testlogger.New()
@@ -1250,14 +1258,15 @@ func TestHelperFunctions(t *testing.T) {
 	configureOIDCProvider(t, mux, srv.URL)
 	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, srv.Client())
 
-	mgr, _, _ := setupManagerAndCluster(t)
+	orgsClient := fake.NewClientBuilder().WithScheme(getTestScheme()).Build()
+	mgr, _, _ := setupManagerAndCluster(t, orgsClient)
 
 	s, err := idp.New(ctx, &config.Config{
 		Keycloak: config.KeycloakConfig{
 			BaseURL:  srv.URL,
 			ClientID: "security-operator",
 		},
-	}, nil, mgr)
+	}, mgr, iclient.NewManagerKCPClientGetter(mgr))
 	assert.NoError(t, err)
 
 	assert.Equal(t, "IdentityProviderConfiguration", s.GetName())

@@ -9,6 +9,7 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/invite"
 	"github.com/platform-mesh/subroutines/conditions"
@@ -30,8 +31,8 @@ type InviteReconciler struct {
 	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
 }
 
-func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, cfg *config.Config, log *logger.Logger) (*InviteReconciler, error) {
-	inviteSubroutine, err := invite.New(ctx, cfg, mgr)
+func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, cfg *config.Config, log *logger.Logger, kcpClientGetter iclient.KCPClientGetter) (*InviteReconciler, error) {
+	inviteSubroutine, err := invite.New(ctx, cfg, kcpClientGetter)
 	if err != nil {
 		return nil, fmt.Errorf("creating Invite subroutine: %w", err)
 	}

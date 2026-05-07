@@ -787,6 +787,7 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mockClient := mocks.NewMockClient(t)
+			kcpHelper := mocks.NewMockKCPClientGetter(t)
 			mgr := mocks.NewMockManager(t)
 			cluster := mocks.NewMockCluster(t)
 			mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Maybe()
@@ -797,8 +798,9 @@ func TestWorkspaceAuthSubroutine_Initialize(t *testing.T) {
 			}
 
 			cluster.EXPECT().GetClient().Return(mgrClient).Maybe()
+			kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, "root:orgs").Return(mockClient, nil).Maybe()
 
-			subroutine := NewWorkspaceAuthConfigurationSubroutine(mockClient, mockClient, mgr, tt.cfg)
+			subroutine := NewWorkspaceAuthConfigurationSubroutine(mockClient, mgr, kcpHelper, tt.cfg)
 
 			result, err := subroutine.Initialize(context.Background(), tt.logicalCluster)
 

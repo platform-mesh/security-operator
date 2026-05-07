@@ -21,7 +21,6 @@ import (
 
 	"k8s.io/client-go/rest"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 )
@@ -110,13 +109,8 @@ var systemCmd = &cobra.Command{
 			log,
 		)
 
-		orgClient, err := iclient.NewForLogicalCluster(restCfg, scheme, logicalcluster.Name("root:orgs"))
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create org client")
-			return err
-		}
-
-		idpReconciler, err := controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, orgClient, &systemCfg, log)
+		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr)
+		idpReconciler, err := controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, kcpClientGetter, &systemCfg, log)
 		if err != nil {
 			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create reconciler")
 			return err
@@ -126,9 +120,7 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
-		kcpClientHelper := iclient.NewKcpHelper(restCfg, scheme, coreProvider.Provider.Provider)
-
-		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, &systemCfg, storeIDGetter, kcpClientHelper).SetupWithManager(mgr, defaultCfg); err != nil {
+		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, kcpClientGetter, &systemCfg, storeIDGetter).SetupWithManager(mgr, defaultCfg, &systemCfg); err != nil {
 			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
 			return err
 		}

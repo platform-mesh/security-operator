@@ -29,7 +29,7 @@ type AccountTuplesSubroutine struct {
 	objectType      string
 	parentRelation  string
 	creatorRelation string
-	kcpHelper       iclient.KcpClientHelper
+	kcpClientGetter iclient.KCPClientGetter
 }
 
 // Process implements subroutines.Processor.
@@ -65,7 +65,7 @@ func (s *AccountTuplesSubroutine) reconcile(ctx context.Context, obj client.Obje
 
 	// Retrieve the Account resource out of the parent workspace to determine
 	// the creator
-	parentAccountClient, err := s.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(parentPath.String()))
+	parentAccountClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, parentPath.String())
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting client for parent account cluster: %w", err)
 	}
@@ -155,7 +155,7 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, obj client.Obje
 // GetName implements subroutines.Subroutine.
 func (s *AccountTuplesSubroutine) GetName() string { return "AccountTuplesSubroutine" }
 
-func NewAccountTuplesSubroutine(mgr mcmanager.Manager, fga openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, creatorRelation, parentRelation, objectType string, kcpHelper iclient.KcpClientHelper) *AccountTuplesSubroutine {
+func NewAccountTuplesSubroutine(mgr mcmanager.Manager, fga openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, creatorRelation, parentRelation, objectType string, kcpHelper iclient.KCPClientGetter) *AccountTuplesSubroutine {
 	return &AccountTuplesSubroutine{
 		mgr:             mgr,
 		fga:             fga,
@@ -163,7 +163,7 @@ func NewAccountTuplesSubroutine(mgr mcmanager.Manager, fga openfgav1.OpenFGAServ
 		creatorRelation: creatorRelation,
 		parentRelation:  parentRelation,
 		objectType:      objectType,
-		kcpHelper:       kcpHelper,
+		kcpClientGetter: kcpHelper,
 	}
 }
 
@@ -178,7 +178,7 @@ var (
 func (s *AccountTuplesSubroutine) clusterAndIDFromLogicalClusterForPath(ctx context.Context, p logicalcluster.Path) (string, kcpcorev1alpha1.LogicalCluster, error) {
 	var lc kcpcorev1alpha1.LogicalCluster
 
-	clusterClient, err := s.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(p.String()))
+	clusterClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, p.String())
 	if err != nil {
 		return "", lc, fmt.Errorf("getting account cluster client: %w", err)
 	}
