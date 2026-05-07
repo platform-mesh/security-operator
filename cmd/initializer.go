@@ -10,7 +10,6 @@ import (
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/platform-mesh/security-operator/internal/fga"
-	"github.com/platform-mesh/security-operator/internal/initializingworkspaces/pathaware"
 	"github.com/platform-mesh/security-operator/internal/predicates"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -63,7 +62,7 @@ var initializerCmd = &cobra.Command{
 			mgrOpts.LeaderElectionConfig = inClusterCfg
 		}
 
-		provider, err := pathaware.New(restCfg, initializerCfg.WorkspaceTypeName,
+		provider, err := initializingworkspaces.New(restCfg, initializerCfg.WorkspaceTypeName,
 			initializingworkspaces.Options{
 				Scheme: mgrOpts.Scheme,
 			},
