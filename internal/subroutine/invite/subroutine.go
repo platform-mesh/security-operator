@@ -13,12 +13,12 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/subroutines"
 	"golang.org/x/oauth2/clientcredentials"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	k8sclient "sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	"k8s.io/client-go/util/workqueue"
 )
@@ -34,7 +34,7 @@ type subroutine struct {
 	keycloakBaseURL    string
 	baseDomain         string
 	keycloak           *http.Client
-	mgr                mcmanager.Manager
+	kcpClientGetter    client.KCPClientGetter
 	setDefaultPassword bool
 	limiter            workqueue.TypedRateLimiter[*v1alpha1.Invite]
 }
@@ -58,7 +58,7 @@ type keycloakClient struct {
 	ClientID string `json:"clientId,omitempty"`
 }
 
-func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager) (*subroutine, error) {
+func New(ctx context.Context, cfg *config.Config, kcpClientGetter client.KCPClientGetter) (*subroutine, error) {
 
 	issuer := fmt.Sprintf("%s/realms/master", cfg.Keycloak.BaseURL)
 	provider, err := oidc.NewProvider(ctx, issuer)
@@ -83,8 +83,8 @@ func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager) (*subro
 	return &subroutine{
 		keycloakBaseURL:    cfg.Keycloak.BaseURL,
 		baseDomain:         cfg.BaseDomain,
-		mgr:                mgr,
 		keycloak:           httpClient,
+		kcpClientGetter:    kcpClientGetter,
 		setDefaultPassword: cfg.SetDefaultPassword,
 		limiter:            lim,
 	}, nil
@@ -94,7 +94,7 @@ var _ subroutines.Processor = &subroutine{}
 
 func (s *subroutine) GetName() string { return "Invite" }
 
-func (s *subroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+func (s *subroutine) Process(ctx context.Context, obj k8sclient.Object) (subroutines.Result, error) {
 	invite := obj.(*v1alpha1.Invite)
 	log := logger.LoadLoggerFromContext(ctx)
 
@@ -111,15 +111,13 @@ func (s *subroutine) Process(ctx context.Context, obj client.Object) (subroutine
 		return subroutines.OK(), fmt.Errorf("failed to get cluster from context")
 	}
 
-	cluster, err := s.mgr.GetCluster(ctx, clusterName)
+	cl, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, clusterName)
 	if err != nil {
-		return subroutines.OK(), fmt.Errorf("failed to get cluster %q: %w", clusterName, err)
+		return subroutines.OK(), fmt.Errorf("failed to get client for cluster %q: %w", clusterName, err)
 	}
 
-	cl := cluster.GetClient()
-
 	var accountInfo accountsv1alpha1.AccountInfo
-	if err := cl.Get(ctx, client.ObjectKey{Name: "account"}, &accountInfo); err != nil {
+	if err := cl.Get(ctx, k8sclient.ObjectKey{Name: "account"}, &accountInfo); err != nil {
 		log.Err(err).Msg("Failed to get AccountInfo")
 		return subroutines.OK(), err
 	}

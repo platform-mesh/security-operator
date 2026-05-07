@@ -7,6 +7,7 @@ import (
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/subroutines"
 	"github.com/rs/zerolog/log"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -23,16 +24,16 @@ import (
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
-func NewInviteSubroutine(orgsClient client.Client, mgr mcmanager.Manager) (*inviteSubroutine, error) {
+func NewInviteSubroutine(mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter) (*inviteSubroutine, error) {
 	lim, err := ratelimiter.NewStaticThenExponentialRateLimiter[*kcpcorev1alpha1.LogicalCluster](
 		ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 	return &inviteSubroutine{
-		orgsClient: orgsClient,
-		mgr:        mgr,
-		limiter:    lim,
+		mgr:             mgr,
+		kcpClientGetter: kcpClientGetter,
+		limiter:         lim,
 	}, nil
 }
 
@@ -42,9 +43,9 @@ var (
 )
 
 type inviteSubroutine struct {
-	orgsClient client.Client
-	mgr        mcmanager.Manager
-	limiter    workqueue.TypedRateLimiter[*kcpcorev1alpha1.LogicalCluster]
+	mgr             mcmanager.Manager
+	kcpClientGetter iclient.KCPClientGetter
+	limiter         workqueue.TypedRateLimiter[*kcpcorev1alpha1.LogicalCluster]
 }
 
 func (w *inviteSubroutine) GetName() string { return "InviteInitializationSubroutine" }
@@ -67,13 +68,17 @@ func (w *inviteSubroutine) reconcile(ctx context.Context, obj client.Object) (su
 		return subroutines.OK(), fmt.Errorf("failed to get workspace name")
 	}
 
-	cl, err := w.mgr.ClusterFromContext(ctx)
+	client, err := w.kcpClientGetter.NewClientFromContext(ctx)
 	if err != nil {
-		return subroutines.OK(), fmt.Errorf("failed to get cluster from context %w", err)
+		return subroutines.OK(), fmt.Errorf("getting client: %w", err)
 	}
 
+	orgsClient, err := w.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
+	}
 	var account accountv1alpha1.Account
-	err = w.orgsClient.Get(ctx, types.NamespacedName{Name: wsName}, &account)
+	err = orgsClient.Get(ctx, types.NamespacedName{Name: wsName}, &account)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to get account resource %w", err)
 	}
@@ -90,7 +95,7 @@ func (w *inviteSubroutine) reconcile(ctx context.Context, obj client.Object) (su
 
 	// the Invite resource is created in :root:orgs:<new org> workspace
 	invite := &v1alpha1.Invite{ObjectMeta: metav1.ObjectMeta{Name: wsName}}
-	_, err = controllerutil.CreateOrUpdate(ctx, cl.GetClient(), invite, func() error {
+	_, err = controllerutil.CreateOrUpdate(ctx, client, invite, func() error {
 		invite.Spec.Email = *account.Spec.Creator
 
 		return nil
@@ -103,7 +108,7 @@ func (w *inviteSubroutine) reconcile(ctx context.Context, obj client.Object) (su
 
 	err = wait.ExponentialBackoffWithContext(ctx, retry.DefaultBackoff,
 		func(ctx context.Context) (bool, error) {
-			if err := cl.GetClient().Get(ctx, types.NamespacedName{Name: wsName}, invite); err != nil {
+			if err := client.Get(ctx, types.NamespacedName{Name: wsName}, invite); err != nil {
 				return false, err
 			}
 

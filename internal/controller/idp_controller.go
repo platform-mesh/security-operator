@@ -9,6 +9,7 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/idp"
 	"github.com/platform-mesh/subroutines/conditions"
@@ -30,8 +31,8 @@ type IdentityProviderConfigurationReconciler struct {
 	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
 }
 
-func NewIdentityProviderConfigurationReconciler(ctx context.Context, mgr mcmanager.Manager, orgsClient client.Client, cfg *config.Config, log *logger.Logger) (*IdentityProviderConfigurationReconciler, error) {
-	idpSubroutine, err := idp.New(ctx, cfg, orgsClient, mgr)
+func NewIdentityProviderConfigurationReconciler(ctx context.Context, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg *config.Config, log *logger.Logger) (*IdentityProviderConfigurationReconciler, error) {
+	idpSubroutine, err := idp.New(ctx, cfg, mgr, kcpClientGetter)
 	if err != nil {
 		return nil, fmt.Errorf("creating IDP subroutine: %w", err)
 	}

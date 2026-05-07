@@ -11,6 +11,7 @@ import (
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -37,10 +38,11 @@ func toK8sName(parts ...string) string {
 	return strings.Trim(name, "-")
 }
 
-func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, allClient client.Client) *AuthorizationModelGenerationSubroutine {
+func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, clientGetter iclient.KCPCombinedClientGetter, apiExportEndpointSliceName string) *AuthorizationModelGenerationSubroutine {
 	return &AuthorizationModelGenerationSubroutine{
-		mgr:       mcMgr,
-		allClient: allClient,
+		mgr:                        mcMgr,
+		clientGetter:               clientGetter,
+		apiExportEndpointSliceName: apiExportEndpointSliceName,
 	}
 }
 
@@ -50,8 +52,9 @@ var (
 )
 
 type AuthorizationModelGenerationSubroutine struct {
-	mgr       mcmanager.Manager
-	allClient client.Client
+	mgr                        mcmanager.Manager
+	clientGetter               iclient.KCPCombinedClientGetter
+	apiExportEndpointSliceName string
 }
 
 var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
@@ -108,8 +111,13 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 		return subroutines.OK(), fmt.Errorf("unable to get cluster from context: %w", err)
 	}
 
+	allClient, err := a.clientGetter.AllClient(ctx, a.apiExportEndpointSliceName)
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting all-cluster client: %w", err)
+	}
+
 	var bindings kcpapisv1alpha2.APIBindingList
-	err = a.allClient.List(ctx, &bindings)
+	err = allClient.List(ctx, &bindings)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("listing APIBindings: %w", err)
 	}
