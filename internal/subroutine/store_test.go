@@ -163,7 +163,7 @@ func TestProcess(t *testing.T) {
 			}
 
 			manager := mocks.NewMockManager(t)
-			kcpHelper := mocks.NewMockKcpHelper(t)
+			kcpHelper := mocks.NewMockLister(t)
 			subroutine := subroutine.NewStoreSubroutine(fga, manager, kcpHelper)
 
 			_, err := subroutine.Process(context.Background(), test.store)
@@ -182,7 +182,7 @@ func TestFinalize(t *testing.T) {
 		name           string
 		store          *securityv1alpha1.Store
 		fgaMocks       func(*mocks.MockOpenFGAServiceClient)
-		kcpHelperMocks func(*mocks.MockKcpHelper)
+		kcpHelperMocks func(*mocks.MockLister)
 		expectError    bool
 	}{
 		{
@@ -203,7 +203,7 @@ func TestFinalize(t *testing.T) {
 					StoreID: "id",
 				},
 			},
-			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 					if list, ok := ol.(*securityv1alpha1.AuthorizationModelList); ok {
 						list.Items = []securityv1alpha1.AuthorizationModel{
@@ -232,7 +232,7 @@ func TestFinalize(t *testing.T) {
 					StoreID: "id",
 				},
 			},
-			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).Return(errors.New("error"))
 			},
 			expectError: true,
@@ -247,7 +247,7 @@ func TestFinalize(t *testing.T) {
 					StoreID: "id",
 				},
 			},
-			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
@@ -264,7 +264,7 @@ func TestFinalize(t *testing.T) {
 					StoreID: "id",
 				},
 			},
-			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
@@ -281,7 +281,7 @@ func TestFinalize(t *testing.T) {
 					StoreID: "id",
 				},
 			},
-			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).Return(nil)
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
@@ -299,7 +299,7 @@ func TestFinalize(t *testing.T) {
 			}
 
 			manager := mocks.NewMockManager(t)
-			kcpHelper := mocks.NewMockKcpHelper(t)
+			kcpHelper := mocks.NewMockLister(t)
 
 			// Only wire kcpHelper expectations when Finalize will actually query k8s (i.e., StoreID is set)
 			if test.store.Status.StoreID != "" && test.kcpHelperMocks != nil {

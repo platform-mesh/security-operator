@@ -401,10 +401,10 @@ type MockManager_Engage_Call struct {
 
 // Engage is a helper method to define mock.On call
 //   - context1 context.Context
-//   - s string
+//   - clusterName multicluster.ClusterName
 //   - cluster1 cluster.Cluster
-func (_e *MockManager_Expecter) Engage(context1 interface{}, s interface{}, cluster1 interface{}) *MockManager_Engage_Call {
-	return &MockManager_Engage_Call{Call: _e.mock.On("Engage", context1, s, cluster1)}
+func (_e *MockManager_Expecter) Engage(context1 interface{}, clusterName interface{}, cluster1 interface{}) *MockManager_Engage_Call {
+	return &MockManager_Engage_Call{Call: _e.mock.On("Engage", context1, clusterName, cluster1)}
 }
 
 func (_c *MockManager_Engage_Call) Run(run func(context1 context.Context, clusterName multicluster.ClusterName, cluster1 cluster.Cluster)) *MockManager_Engage_Call {
@@ -475,7 +475,7 @@ type MockManager_GetCluster_Call struct {
 
 // GetCluster is a helper method to define mock.On call
 //   - ctx context.Context
-//   - clusterName string
+//   - clusterName multicluster.ClusterName
 func (_e *MockManager_Expecter) GetCluster(ctx interface{}, clusterName interface{}) *MockManager_GetCluster_Call {
 	return &MockManager_GetCluster_Call{Call: _e.mock.On("GetCluster", ctx, clusterName)}
 }
@@ -723,7 +723,7 @@ type MockManager_GetManager_Call struct {
 
 // GetManager is a helper method to define mock.On call
 //   - ctx context.Context
-//   - clusterName string
+//   - clusterName multicluster.ClusterName
 func (_e *MockManager_Expecter) GetManager(ctx interface{}, clusterName interface{}) *MockManager_GetManager_Call {
 	return &MockManager_GetManager_Call{Call: _e.mock.On("GetManager", ctx, clusterName)}
 }

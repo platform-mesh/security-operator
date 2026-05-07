@@ -98,7 +98,7 @@ var initializerCmd = &cobra.Command{
 		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetter, initializerCfg, runtimeClient, mgr, controller.ControllerOptions{
 			Name:            "OrgLogicalClusterInitializer",
 			InitializerName: initializerCfg.InitializerName(),
-		}, kcpClientHelper)
+		})
 		if err != nil {
 			setupLog.Error(err, "unable to create LogicalCluster initializer")
 			os.Exit(1)
@@ -126,7 +126,7 @@ var initializerCmd = &cobra.Command{
 			Name:            "AccountLogicalClusterInitializer",
 			InitializerName: initializerCfg.InitializerName(),
 			TerminatorName:  initializerCfg.TerminatorName(),
-		}, kcpClientHelper)
+		})
 		if err != nil {
 			setupLog.Error(err, "unable to create AccountLogicalCluster reconciler")
 			os.Exit(1)

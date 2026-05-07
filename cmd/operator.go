@@ -31,7 +31,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
 	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 	kcpapisv1alpha1 "github.com/kcp-dev/sdk/apis/apis/v1alpha1"
@@ -143,8 +142,6 @@ var operatorCmd = &cobra.Command{
 			log,
 		)
 
-		kcpClientHelper := iclient.NewKcpHelper(restCfg, scheme, provider.Provider)
-
 		k8sCfg := ctrl.GetConfigOrDie()
 
 		runtimeClient, err := client.New(k8sCfg, client.Options{Scheme: scheme})
@@ -152,8 +149,9 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("Failed to create in cluster client")
 			return err
 		}
-		allClientGetter := iclient.NewConfigSchemeKCPClientGetter(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
-		if err = controller.NewStoreReconciler(ctx, log, fga, mgr, allClientGetter, &operatorCfg).
+		providerLister := iclient.NewProviderLister(provider.Provider.Provider)
+
+		if err = controller.NewStoreReconciler(ctx, log, fga, mgr, &operatorCfg, providerLister).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
 			return err
@@ -164,7 +162,8 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
 			return err
 		}
-		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr)
+
+		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr, provider.Provider.Provider)
 		inviteReconciler, err := controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log, kcpClientGetter)
 		if err != nil {
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create reconciler")
@@ -176,7 +175,7 @@ var operatorCmd = &cobra.Command{
 		}
 		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetter, operatorCfg, runtimeClient, mgr, controller.ControllerOptions{
 			Name: "OrgLogicalClusterReconciler",
-		}, kcpClientHelper)
+		})
 		if err != nil {
 			log.Error().Err(err).Str("controller", "logicalcluster").Msg("unable to create initializer")
 			return err
@@ -191,7 +190,7 @@ var operatorCmd = &cobra.Command{
 
 		alcReconciler, err := controller.NewAccountLogicalClusterController(log, operatorCfg, fga, storeIDGetter, mgr, kcpClientGetter, controller.ControllerOptions{
 			Name: "AccountLogicalClusterReconciler",
-		}, kcpClientHelper)
+		})
 		if err != nil {
 			log.Error().Err(err).Str("controller", "accounttypelogicalcluster").Msg("unable to create reconciler")
 			return err

@@ -78,15 +78,15 @@ type NewDiscoveryClientFunc func(cfg *rest.Config) discovery.DiscoveryInterface
 type authorizationModelSubroutine struct {
 	fga                    openfgav1.OpenFGAServiceClient
 	mgr                    mcmanager.Manager
-	kcpHelper              iclient.KcpClientHelper
+	lister                 iclient.Lister
 	newDiscoveryClientFunc NewDiscoveryClientFunc
 }
 
-func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, kcpHelper iclient.KcpClientHelper, newDiscoveryClientFunc NewDiscoveryClientFunc, log *logger.Logger) *authorizationModelSubroutine {
+func NewAuthorizationModelSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, lister iclient.Lister, newDiscoveryClientFunc NewDiscoveryClientFunc, log *logger.Logger) *authorizationModelSubroutine {
 	return &authorizationModelSubroutine{
 		fga:                    fga,
 		mgr:                    mgr,
-		kcpHelper:              kcpHelper,
+		lister:                 lister,
 		newDiscoveryClientFunc: newDiscoveryClientFunc,
 	}
 }
@@ -95,14 +95,14 @@ var _ subroutines.Processor = &authorizationModelSubroutine{}
 
 func (a *authorizationModelSubroutine) GetName() string { return "AuthorizationModel" }
 
-func getRelatedAuthorizationModels(ctx context.Context, kcpHelper iclient.KcpClientHelper, store *securityv1alpha1.Store) (securityv1alpha1.AuthorizationModelList, error) {
+func getRelatedAuthorizationModels(ctx context.Context, lister iclient.Lister, store *securityv1alpha1.Store) (securityv1alpha1.AuthorizationModelList, error) {
 	storeClusterKey, ok := mccontext.ClusterFrom(ctx)
 	if !ok {
 		return securityv1alpha1.AuthorizationModelList{}, fmt.Errorf("unable to get cluster key from context")
 	}
 
 	allAuthorizationModels := securityv1alpha1.AuthorizationModelList{}
-	if err := kcpHelper.List(ctx, &allAuthorizationModels); err != nil {
+	if err := lister.List(ctx, &allAuthorizationModels); err != nil {
 		return securityv1alpha1.AuthorizationModelList{}, err
 	}
 
@@ -121,7 +121,7 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj client.O
 	log := logger.LoadLoggerFromContext(ctx)
 	store := obj.(*securityv1alpha1.Store)
 
-	extendingModules, err := getRelatedAuthorizationModels(ctx, a.kcpHelper, store)
+	extendingModules, err := getRelatedAuthorizationModels(ctx, a.lister, store)
 	if err != nil {
 		log.Error().Err(err).Msg("unable to get related authorization models")
 		return subroutines.OK(), err

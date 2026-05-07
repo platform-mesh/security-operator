@@ -114,7 +114,7 @@ func (s *subroutine) Finalize(ctx context.Context, obj client.Object) (subroutin
 			},
 		}
 
-		orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
+		orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.CoreProviderName, config.OrgsClusterPath)))
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
 		}
@@ -263,7 +263,7 @@ func (s *subroutine) deleteRemovedClients(ctx context.Context, idpConfig *v1alph
 				Namespace: managedClient.SecretRef.Namespace,
 			},
 		}
-		orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
+		orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.CoreProviderName, config.OrgsClusterPath)))
 		if err != nil {
 			return fmt.Errorf("getting orgs client: %w", err)
 		}
@@ -320,7 +320,7 @@ func (s *subroutine) registerOrUpdateClient(ctx context.Context, ipc *v1alpha1.I
 func (s *subroutine) readRegistrationAccessToken(ctx context.Context, secretRef corev1.SecretReference) (string, error) {
 	secret := &corev1.Secret{}
 	key := client.ObjectKey{Name: secretRef.Name, Namespace: secretRef.Namespace}
-	orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
+	orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.CoreProviderName, config.OrgsClusterPath)))
 	if err != nil {
 		return "", fmt.Errorf("getting orgs client: %w", err)
 	}
@@ -342,7 +342,7 @@ func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig *v1a
 		},
 	}
 
-	orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
+	orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.CoreProviderName, config.OrgsClusterPath)))
 	if err != nil {
 		return fmt.Errorf("getting orgs client: %w", err)
 	}

@@ -19,10 +19,10 @@ import (
 type storeSubroutine struct {
 	fga       openfgav1.OpenFGAServiceClient
 	mgr       mcmanager.Manager
-	kcpHelper iclient.KcpClientHelper
+	kcpHelper iclient.Lister
 }
 
-func NewStoreSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, kcpHelper iclient.KcpClientHelper) *storeSubroutine {
+func NewStoreSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, kcpHelper iclient.Lister) *storeSubroutine {
 	return &storeSubroutine{
 		fga:       fga,
 		mgr:       mgr,

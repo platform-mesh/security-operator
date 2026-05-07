@@ -109,7 +109,7 @@ var systemCmd = &cobra.Command{
 			log,
 		)
 
-		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr)
+		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr, coreProvider.Provider.Provider)
 		idpReconciler, err := controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, kcpClientGetter, &systemCfg, log)
 		if err != nil {
 			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create reconciler")
@@ -120,7 +120,7 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, kcpClientGetter, &systemCfg, storeIDGetter).SetupWithManager(mgr, defaultCfg, &systemCfg); err != nil {
+		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, kcpClientGetter, &systemCfg, storeIDGetter).SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
 			return err
 		}

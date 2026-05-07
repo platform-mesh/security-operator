@@ -20,6 +20,7 @@ import (
 	"golang.org/x/oauth2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -75,7 +76,7 @@ func setupManagerAndCluster(t *testing.T, orgsClient client.Client, initialObjec
 	orgsCluster := mocks.NewMockCluster(t)
 
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Maybe()
-	mgr.EXPECT().GetCluster(mock.Anything, "root:orgs").Return(orgsCluster, nil).Maybe()
+	mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName(string(config.MultiProviderName(config.CoreProviderName, config.OrgsClusterPath)))).Return(orgsCluster, nil).Maybe()
 	cluster.EXPECT().GetClient().Return(kcpClient).Maybe()
 	orgsCluster.EXPECT().GetClient().Return(orgsClient).Maybe()
 
@@ -909,7 +910,7 @@ func TestSubroutineProcess(t *testing.T) {
 				test.setupK8sMocks(orgsClient, kcpClient)
 			}
 
-			s, err := idp.New(ctx, cfg, mgr, iclient.NewManagerKCPClientGetter(mgr))
+			s, err := idp.New(ctx, cfg, mgr, iclient.NewManagerKCPClientGetter(mgr, nil))
 			if test.expectNewErr {
 				assert.Error(t, err)
 				return
@@ -1231,10 +1232,10 @@ func TestFinalize(t *testing.T) {
 			cfg := getTestConfig(test.cfg, srv.URL)
 
 			orgsCluster := mocks.NewMockCluster(t)
-			mgr.EXPECT().GetCluster(mock.Anything, "root:orgs").Return(orgsCluster, nil).Maybe()
+			mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName(string(config.MultiProviderName(config.CoreProviderName, config.OrgsClusterPath)))).Return(orgsCluster, nil).Maybe()
 			orgsCluster.EXPECT().GetClient().Return(orgsClient).Maybe()
 
-			s, err := idp.New(ctx, cfg, mgr, iclient.NewManagerKCPClientGetter(mgr))
+			s, err := idp.New(ctx, cfg, mgr, iclient.NewManagerKCPClientGetter(mgr, nil))
 			assert.NoError(t, err)
 
 			l := testlogger.New()
@@ -1266,7 +1267,7 @@ func TestHelperFunctions(t *testing.T) {
 			BaseURL:  srv.URL,
 			ClientID: "security-operator",
 		},
-	}, mgr, iclient.NewManagerKCPClientGetter(mgr))
+	}, mgr, iclient.NewManagerKCPClientGetter(mgr, nil))
 	assert.NoError(t, err)
 
 	assert.Equal(t, "IdentityProviderConfiguration", s.GetName())

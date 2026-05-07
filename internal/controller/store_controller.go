@@ -38,12 +38,12 @@ type StoreReconciler struct {
 	lifecycle *lifecycle.Lifecycle
 }
 
-func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config, kcpHelper iclient.KcpClientHelper) *StoreReconciler {
+func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, cfg *config.Config, lister iclient.Lister) *StoreReconciler {
 	lc := lifecycle.New(mcMgr, "StoreReconciler", func() client.Object {
 		return &corev1alpha1.Store{}
 	},
-		subroutine.NewStoreSubroutine(fga, mcMgr, kcpHelper),
-		subroutine.NewAuthorizationModelSubroutine(fga, mcMgr, kcpHelper, func(cfg *rest.Config) discovery.DiscoveryInterface {
+		subroutine.NewStoreSubroutine(fga, mcMgr, lister),
+		subroutine.NewAuthorizationModelSubroutine(fga, mcMgr, lister, func(cfg *rest.Config) discovery.DiscoveryInterface {
 			return discovery.NewDiscoveryClientForConfigOrDie(cfg)
 		}, log),
 		subroutine.NewTupleSubroutine(fga, mcMgr),
