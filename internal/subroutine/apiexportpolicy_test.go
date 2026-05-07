@@ -54,7 +54,7 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name: "should fail when getting provider cluster ID fails - LogicalCluster not found",
+			name: "should fail when getting provider cluster ID fails - GetCluster fails",
 			policy: &corev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
@@ -68,7 +68,7 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 				},
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(nil, errors.New("logical cluster not found")).Maybe()
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(nil, errors.New("cluster not found"))
 			},
 			cfg:         &config.Config{},
 			expectError: true,
@@ -89,6 +89,7 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
+				providerCluster := mocks.NewMockCluster(t)
 				providerClient := fake.NewClientBuilder().
 					WithScheme(scheme).
 					WithObjects(&kcpcorev1alpha1.LogicalCluster{
@@ -98,13 +99,14 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 						},
 					}).
 					Build()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(providerClient, nil).Maybe()
+				providerCluster.EXPECT().GetClient().Return(providerClient)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 			},
 			cfg:         &config.Config{},
 			expectError: true,
 		},
 		{
-			name: "should handle wildcard expression with root:orgs path - GetAllClient fails",
+			name: "should handle wildcard expression with root:orgs path - List fails",
 			policy: &corev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
@@ -119,6 +121,7 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
+				providerCluster := mocks.NewMockCluster(t)
 				providerClient := fake.NewClientBuilder().
 					WithScheme(scheme).
 					WithObjects(&kcpcorev1alpha1.LogicalCluster{
@@ -128,7 +131,8 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 						},
 					}).
 					Build()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(providerClient, nil).Maybe()
+				providerCluster.EXPECT().GetClient().Return(providerClient)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).Return(errors.New("unable to list")).Maybe()
 			},
 			cfg:         &config.Config{},
@@ -187,13 +191,13 @@ func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 				},
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(nil, errors.New("failed to get clusterID")).Maybe()
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(nil, errors.New("failed to get cluster"))
 			},
 			cfg:         &config.Config{},
 			expectError: true,
 		},
 		{
-			name: "should handle finalize with wildcard expression - GetAllClient fails",
+			name: "should handle finalize with wildcard expression - NewClientForLogicalCluster fails",
 			policy: &corev1alpha1.APIExportPolicy{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-policy",
@@ -208,6 +212,7 @@ func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
+				providerCluster := mocks.NewMockCluster(t)
 				providerClient := fake.NewClientBuilder().
 					WithScheme(scheme).
 					WithObjects(&kcpcorev1alpha1.LogicalCluster{
@@ -217,7 +222,9 @@ func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 						},
 					}).
 					Build()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(providerClient, nil).Maybe()
+				providerCluster.EXPECT().GetClient().Return(providerClient)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
+				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(nil, errors.New("failed to get client"))
 			},
 			cfg:         &config.Config{},
 			expectError: true,
@@ -277,16 +284,9 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
 
-				// Provider cluster client
-				providerClient := fake.NewClientBuilder().
-					WithScheme(scheme).
-					WithObjects(&kcpcorev1alpha1.LogicalCluster{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:        "cluster",
-							Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
-						},
-					}).
-					Build()
+				// Provider cluster mock
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 
 				// Target workspace client with AccountInfo
 				targetClient := fake.NewClientBuilder().
@@ -319,9 +319,6 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 					WithStatusSubresource(&corev1alpha1.APIExportPolicy{}).
 					Build()
 
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
-					return name.String() == "root:providers:my-provider"
-				})).Return(providerClient, nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
 					return name.String() == "root:orgs:acme"
 				})).Return(targetClient, nil)
@@ -365,16 +362,9 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
 
-				// Provider cluster client
-				providerClient := fake.NewClientBuilder().
-					WithScheme(scheme).
-					WithObjects(&kcpcorev1alpha1.LogicalCluster{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:        "cluster",
-							Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
-						},
-					}).
-					Build()
+				// Provider cluster mock
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 
 				// Target workspace client with AccountInfo
 				targetClient := fake.NewClientBuilder().
@@ -407,9 +397,6 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 					WithStatusSubresource(&corev1alpha1.APIExportPolicy{}).
 					Build()
 
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
-					return name.String() == "root:providers:my-provider"
-				})).Return(providerClient, nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
 					return name.String() == "root:orgs:acme"
 				})).Return(targetClient, nil)
@@ -453,16 +440,9 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
 
-				// Provider cluster client
-				providerClient := fake.NewClientBuilder().
-					WithScheme(scheme).
-					WithObjects(&kcpcorev1alpha1.LogicalCluster{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:        "cluster",
-							Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
-						},
-					}).
-					Build()
+				// Provider cluster mock
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 
 				// All client with AccountInfo list
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
@@ -495,9 +475,6 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 					}).
 					WithStatusSubresource(&corev1alpha1.APIExportPolicy{}).
 					Build()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
-					return name.String() == "root:providers:my-provider"
-				})).Return(providerClient, nil)
 
 				storeIDGetter.EXPECT().Get(mock.Anything, "org1").Return("store-id-org1", nil)
 				storeIDGetter.EXPECT().Get(mock.Anything, "org2").Return("store-id-org2", nil)
@@ -591,16 +568,9 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
 
-				// Provider cluster client
-				providerClient := fake.NewClientBuilder().
-					WithScheme(scheme).
-					WithObjects(&kcpcorev1alpha1.LogicalCluster{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:        "cluster",
-							Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
-						},
-					}).
-					Build()
+				// Provider cluster mock
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 
 				// Target workspace client with AccountInfo
 				targetClient := fake.NewClientBuilder().
@@ -622,9 +592,6 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 					}).
 					Build()
 
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
-					return name.String() == "root:providers:my-provider"
-				})).Return(providerClient, nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
 					return name.String() == "root:orgs:acme"
 				})).Return(targetClient, nil)
@@ -665,16 +632,9 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
 
-				// Provider cluster client
-				providerClient := fake.NewClientBuilder().
-					WithScheme(scheme).
-					WithObjects(&kcpcorev1alpha1.LogicalCluster{
-						ObjectMeta: metav1.ObjectMeta{
-							Name:        "cluster",
-							Annotations: map[string]string{"kcp.io/cluster": "provider-cluster-id"},
-						},
-					}).
-					Build()
+				// Provider cluster mock
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 
 				// Target workspace client with AccountInfo
 				targetClient := fake.NewClientBuilder().
@@ -696,9 +656,6 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 					}).
 					Build()
 
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
-					return name.String() == "root:providers:my-provider"
-				})).Return(providerClient, nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(name logicalcluster.Name) bool {
 					return name.String() == "root:orgs:acme"
 				})).Return(targetClient, nil)
@@ -738,10 +695,11 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
 
-				// Provider cluster client
 				scheme := getAPIExportPolicyTestScheme()
-				providerClient := newProviderClient(scheme)
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(providerClient, nil).Maybe()
+
+				// Provider cluster mock
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 					if list, ok := ol.(*accountsv1alpha1.AccountInfoList); ok {
@@ -840,6 +798,13 @@ func newProviderClient(scheme *runtime.Scheme) client.Client {
 		Build()
 }
 
+func newProviderCluster(t *testing.T, scheme *runtime.Scheme) *mocks.MockCluster {
+	cluster := mocks.NewMockCluster(t)
+	client := newProviderClient(scheme)
+	cluster.EXPECT().GetClient().Return(client).Maybe()
+	return cluster
+}
+
 func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -857,8 +822,10 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 				},
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
+				providerCluster := mocks.NewMockCluster(t)
 				providerClient := mocks.NewMockClient(t)
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(providerClient, nil).Once()
+				providerCluster.EXPECT().GetClient().Return(providerClient)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				providerClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(assert.AnError)
 			},
 			cfg:         &config.Config{},
@@ -878,7 +845,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 					WithScheme(scheme).
 					WithObjects(&kcpcorev1alpha1.LogicalCluster{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}).
 					Build()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(noAnnotationClient, nil).Once()
+				noAnnotationCluster := mocks.NewMockCluster(t)
+				noAnnotationCluster.EXPECT().GetClient().Return(noAnnotationClient)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(noAnnotationCluster, nil)
 			},
 			cfg:         &config.Config{},
 			expectError: true,
@@ -893,8 +862,8 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
-				providerClient := newProviderClient(scheme)
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(providerClient, nil).Once()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil).Times(2)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(nil, assert.AnError).Once()
 			},
 			cfg:         &config.Config{},
@@ -915,9 +884,8 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
-					return n.String() == "root:providers:my-provider"
-				})).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
 					return n.String() == "root:orgs:acme"
 				})).Return(nil, assert.AnError).Once()
@@ -935,7 +903,8 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).Return(assert.AnError)
 			},
 			cfg:         &config.Config{},
@@ -951,7 +920,8 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
 					list := ol.(*accountsv1alpha1.AccountInfoList)
 					list.Items = []accountsv1alpha1.AccountInfo{
@@ -980,7 +950,8 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
 					list := ol.(*accountsv1alpha1.AccountInfoList)
 					list.Items = []accountsv1alpha1.AccountInfo{
@@ -1007,9 +978,8 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
-					return n.String() == "root:providers:my-provider"
-				})).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
 					return n.String() == "root:orgs:acme"
 				})).Return(nil, assert.AnError).Once()
@@ -1028,9 +998,8 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, cluster *mocks.MockCluster, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
 				targetClient := mocks.NewMockClient(t)
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
-					return n.String() == "root:providers:my-provider"
-				})).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
 					return n.String() == "root:orgs:acme"
 				})).Return(targetClient, nil).Once()
@@ -1054,9 +1023,8 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
 						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
-					return n.String() == "root:providers:my-provider"
-				})).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
 					return n.String() == "root:orgs:acme"
 				})).Return(targetClient, nil).Once()
@@ -1080,9 +1048,8 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
 						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
-					return n.String() == "root:providers:my-provider"
-				})).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
 					return n.String() == "root:orgs:acme"
 				})).Return(targetClient, nil).Once()
@@ -1108,9 +1075,8 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
 						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
-					return n.String() == "root:providers:my-provider"
-				})).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
 					return n.String() == "root:orgs:acme"
 				})).Return(targetClient, nil).Once()
@@ -1139,9 +1105,8 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 					}).Build()
 				// Empty cluster client — Status().Patch will fail with NotFound for "test-policy"
 				clusterClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
-					return n.String() == "root:providers:my-provider"
-				})).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
 					return n.String() == "root:orgs:acme"
 				})).Return(targetClient, nil).Once()
@@ -1201,7 +1166,8 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 			},
 			cfg:         &config.Config{},
 			expectError: true,
@@ -1216,7 +1182,8 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).Return(assert.AnError)
 			},
 			cfg:         &config.Config{},
@@ -1232,7 +1199,8 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).Return(assert.AnError)
 			},
 			cfg:         &config.Config{},
@@ -1248,7 +1216,8 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
 					list := ol.(*accountsv1alpha1.AccountInfoList)
 					list.Items = []accountsv1alpha1.AccountInfo{
@@ -1271,7 +1240,8 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(func(_ context.Context, ol client.ObjectList, _ ...client.ListOption) error {
 					list := ol.(*accountsv1alpha1.AccountInfoList)
 					list.Items = []accountsv1alpha1.AccountInfo{
@@ -1295,9 +1265,8 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 			},
 			setupMocks: func(t *testing.T, fga *mocks.MockOpenFGAServiceClient, mgr *mocks.MockManager, storeIDGetter *mocks.MockStoreIDGetter, kcpHelper *mocks.MockKcpHelper) {
 				scheme := getAPIExportPolicyTestScheme()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
-					return n.String() == "root:providers:my-provider"
-				})).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
 					return n.String() == "root:orgs:acme"
 				})).Return(nil, assert.AnError).Once()
@@ -1320,9 +1289,8 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
 						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
-					return n.String() == "root:providers:my-provider"
-				})).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
 					return n.String() == "root:orgs:acme"
 				})).Return(targetClient, nil).Once()
@@ -1346,9 +1314,8 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 						ObjectMeta: metav1.ObjectMeta{Name: "account"},
 						Spec:       accountsv1alpha1.AccountInfoSpec{Organization: accountsv1alpha1.AccountLocation{Name: "acme-org"}},
 					}).Build()
-				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
-					return n.String() == "root:providers:my-provider"
-				})).Return(newProviderClient(scheme), nil).Maybe()
+				providerCluster := newProviderCluster(t, scheme)
+				mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(providerCluster, nil)
 				kcpHelper.EXPECT().NewClientForLogicalCluster(mock.MatchedBy(func(n logicalcluster.Name) bool {
 					return n.String() == "root:orgs:acme"
 				})).Return(targetClient, nil).Once()

@@ -177,13 +177,13 @@ func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, obj client.Obj
 }
 
 func (a *APIExportPolicySubroutine) getClusterIDFromPath(ctx context.Context, clusterPath string) (string, error) {
-	lcClient, err := a.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(clusterPath))
+	cl, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.CoreProviderName, clusterPath))
 	if err != nil {
 		return "", fmt.Errorf("getting client for workspace %s: %w", clusterPath, err)
 	}
 
 	var lc kcpcorev1alpha1.LogicalCluster
-	if err := lcClient.Get(ctx, client.ObjectKey{Name: "cluster"}, &lc); err != nil {
+	if err := cl.GetClient().Get(ctx, client.ObjectKey{Name: "cluster"}, &lc); err != nil {
 		return "", fmt.Errorf("getting logical cluster for path %s: %w", clusterPath, err)
 	}
 

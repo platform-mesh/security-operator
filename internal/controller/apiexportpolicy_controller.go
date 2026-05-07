@@ -101,7 +101,7 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Context, mgr mcmanager.Manager) []mcreconcile.Request {
 	var policies corev1alpha1.APIExportPolicyList
 
-	cluster, err := mgr.GetCluster(ctx, multiProviderName(config.SystemProviderName, config.OrgsClusterPath))
+	cluster, err := mgr.GetCluster(ctx, config.MultiProviderName(config.SystemProviderName, config.OrgsClusterPath))
 	if err != nil {
 		r.log.Error().Err(err).Msg("failed to get root:orgs cluster")
 		return nil
@@ -120,7 +120,7 @@ func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Cont
 			trimmedExpr := strings.TrimPrefix(expr, ":")
 
 			if trimmedExpr == "root:orgs:*" {
-				clusterName := multiProviderName(config.SystemProviderName, logicalcluster.From(&policy).String())
+				clusterName := config.MultiProviderName(config.SystemProviderName, logicalcluster.From(&policy).String())
 				requests = append(requests, mcreconcile.Request{
 					Request: reconcile.Request{
 						NamespacedName: types.NamespacedName{
@@ -134,10 +134,4 @@ func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Cont
 		}
 	}
 	return requests
-}
-
-// multiProviderName returns a cluster name with provider prefix and separator for multi provider.
-// The multi.Provider prefixes cluster names as "providerName#clusterName"
-func multiProviderName(providerName, clusterName string) multicluster.ClusterName {
-	return multicluster.ClusterName(providerName + config.ProviderSeparator + clusterName)
 }
