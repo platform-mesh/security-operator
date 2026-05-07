@@ -24,7 +24,7 @@ import (
 func NewAPIBindingReconciler(logger *logger.Logger, mcMgr mcmanager.Manager, lister iclient.Lister, cfg *config.Config) *APIBindingReconciler {
 	lc := lifecycle.New(mcMgr, "APIBindingReconciler", func() client.Object {
 		return &kcpapisv1alpha2.APIBinding{}
-	}, subroutine.NewAuthorizationModelGenerationSubroutine(mcMgr, lister, cfg.APIExportEndpointSlices.CorePlatformMeshIO))
+	}, subroutine.NewAuthorizationModelGenerationSubroutine(mcMgr, lister))
 
 	return &APIBindingReconciler{
 		log:       logger,

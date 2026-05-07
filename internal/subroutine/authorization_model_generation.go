@@ -39,7 +39,7 @@ func toK8sName(parts ...string) string {
 	return strings.Trim(name, "-")
 }
 
-func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, lister iclient.Lister, apiExportEndpointSliceName string) *AuthorizationModelGenerationSubroutine {
+func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, lister iclient.Lister) *AuthorizationModelGenerationSubroutine {
 	return &AuthorizationModelGenerationSubroutine{
 		mgr:    mcMgr,
 		lister: lister,
@@ -52,9 +52,8 @@ var (
 )
 
 type AuthorizationModelGenerationSubroutine struct {
-	mgr                        mcmanager.Manager
-	lister                     iclient.Lister
-	apiExportEndpointSliceName string
+	mgr    mcmanager.Manager
+	lister iclient.Lister
 }
 
 var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
