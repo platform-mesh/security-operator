@@ -6,10 +6,12 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -67,11 +69,42 @@ func TestAccountTuplesSubroutine_Process(t *testing.T) {
 			}
 			return nil
 		}).Once()
-	fgaClient.EXPECT().Write(mock.Anything, mock.Anything).Return(&openfgav1.WriteResponse{}, nil)
+
+	expectedTuples, err := fga.InitialTuplesForAccount(fga.InitialTuplesForAccountInput{
+		BaseTuplesInput: fga.BaseTuplesInput{
+			Creator:                creator,
+			AccountOriginClusterID: parentClusterID,
+			AccountName:            "myaccount",
+			CreatorRelation:        "creator",
+			ObjectType:             "account",
+		},
+		ParentOriginClusterID: "grand-cluster-id",
+		ParentName:            "myorg",
+		ParentRelation:        "parent",
+	})
+	require.NoError(t, err)
+
+	fgaClient.EXPECT().Write(mock.Anything, mock.MatchedBy(func(req *openfgav1.WriteRequest) bool {
+		if req.StoreId != "store-id" || req.AuthorizationModelId != fga.AuthorizationModelIDLatest {
+			return false
+		}
+		if req.Writes == nil || req.Deletes != nil {
+			return false
+		}
+		if req.Writes.OnDuplicate != "ignore" || len(req.Writes.TupleKeys) != len(expectedTuples) {
+			return false
+		}
+		for i, tk := range req.Writes.TupleKeys {
+			if tk.User != expectedTuples[i].User || tk.Relation != expectedTuples[i].Relation || tk.Object != expectedTuples[i].Object {
+				return false
+			}
+		}
+		return true
+	})).Return(&openfgav1.WriteResponse{}, nil).Once()
 
 	sub := subroutine.NewAccountTuplesSubroutine(nil, fgaClient, storeIDGetter, "creator", "parent", "account", kcpHelper)
-	_, err := sub.Process(context.Background(), newAccountLogicalCluster())
-	assert.NoError(t, err)
+	_, procErr := sub.Process(context.Background(), newAccountLogicalCluster())
+	assert.NoError(t, procErr)
 }
 
 func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
