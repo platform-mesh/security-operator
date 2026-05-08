@@ -164,6 +164,8 @@ var operatorCmd = &cobra.Command{
 		}
 
 		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr, provider.Provider.Provider)
+		kcpClientGetterWithConfig := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme)
+
 		inviteReconciler, err := controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log, kcpClientGetter)
 		if err != nil {
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create reconciler")
@@ -173,7 +175,7 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Str("controller", "invite").Msg("unable to create controller")
 			return err
 		}
-		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetter, operatorCfg, runtimeClient, mgr, controller.ControllerOptions{
+		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetterWithConfig, operatorCfg, runtimeClient, mgr, controller.ControllerOptions{
 			Name: "OrgLogicalClusterReconciler",
 		})
 		if err != nil {
@@ -188,7 +190,7 @@ var operatorCmd = &cobra.Command{
 			return err
 		}
 
-		alcReconciler, err := controller.NewAccountLogicalClusterController(log, operatorCfg, fga, storeIDGetter, mgr, kcpClientGetter, controller.ControllerOptions{
+		alcReconciler, err := controller.NewAccountLogicalClusterController(log, operatorCfg, fga, storeIDGetter, mgr, kcpClientGetterWithConfig, controller.ControllerOptions{
 			Name: "AccountLogicalClusterReconciler",
 		})
 		if err != nil {
