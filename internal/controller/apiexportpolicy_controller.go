@@ -84,7 +84,7 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 					}
 
 					// we need to enqueue only when a new org is ready
-					if acc.Spec.Type != accountsv1alpha1.AccountTypeOrg || meta.FindStatusCondition(acc.GetConditions(), "Ready").Status != metav1.ConditionTrue {
+					if acc.Spec.Type != accountsv1alpha1.AccountTypeOrg || !meta.IsStatusConditionTrue(acc.GetConditions(), "Ready") {
 						return nil
 					}
 
