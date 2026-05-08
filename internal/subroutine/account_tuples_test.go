@@ -103,8 +103,8 @@ func TestAccountTuplesSubroutine_Process(t *testing.T) {
 	})).Return(&openfgav1.WriteResponse{}, nil).Once()
 
 	sub := subroutine.NewAccountTuplesSubroutine(nil, fgaClient, storeIDGetter, "creator", "parent", "account", kcpHelper)
-	_, procErr := sub.Process(context.Background(), newAccountLogicalCluster())
-	assert.NoError(t, procErr)
+	_, err = sub.Process(context.Background(), newAccountLogicalCluster())
+	assert.NoError(t, err)
 }
 
 func TestAccountTuplesSubroutine_Initialize(t *testing.T) {
