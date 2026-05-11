@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
+	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/logger"
@@ -25,17 +26,13 @@ import (
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	"sigs.k8s.io/multicluster-runtime/pkg/handler"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/kcp-dev/logicalcluster/v3"
-	kcptenancyv1alpha1 "github.com/kcp-dev/sdk/apis/tenancy/v1alpha1"
-)
-
-const (
-	orgsWorkspacePath = "root:orgs"
-	readyPhase        = "Ready"
 )
 
 type APIExportPolicyReconciler struct {
@@ -61,7 +58,7 @@ func (r *APIExportPolicyReconciler) Reconcile(ctx context.Context, req mcreconci
 	return r.lifecycle.Reconcile(ctx, req)
 }
 
-func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, operatorCfg *config.Config, evp ...predicate.Predicate) error {
+func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
 	opts := controller.TypedOptions[mcreconcile.Request]{
 		MaxConcurrentReconciles: cfg.MaxConcurrentReconciles,
 	}
@@ -69,40 +66,49 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("apiexportpolicy").
-		For(&corev1alpha1.APIExportPolicy{}).
+		For(&corev1alpha1.APIExportPolicy{},
+			mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
+				return strings.HasPrefix(string(clusterName), config.SystemProviderName)
+			}),
+		).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Watches(
-			&kcptenancyv1alpha1.Workspace{},
-			func(clusterName string, c cluster.Cluster) ctrhandler.TypedEventHandler[client.Object, mcreconcile.Request] {
+			&accountsv1alpha1.Account{},
+			func(_ multicluster.ClusterName, _ cluster.Cluster) ctrhandler.TypedEventHandler[client.Object, mcreconcile.Request] {
 				return handler.TypedEnqueueRequestsFromMapFuncWithClusterPreservation(func(ctx context.Context, obj client.Object) []mcreconcile.Request {
-					ws, ok := obj.(*kcptenancyv1alpha1.Workspace)
+					acc, ok := obj.(*accountsv1alpha1.Account)
 					if !ok {
 						return nil
 					}
 
-					// we need to enqueue only when a new org appears
-					if ws.Spec.Type.Path != orgsWorkspacePath || ws.Status.Phase != readyPhase {
+					// we need to enqueue only when a new org is ready
+					if acc.Spec.Type != accountsv1alpha1.AccountTypeOrg || !meta.IsStatusConditionTrue(acc.GetConditions(), "Ready") {
 						return nil
 					}
 
 					// List all APIExportPolicy resources and enqueue those with root:orgs:* expression
-					return r.enqueueAllAPIExportPolicies(ctx, operatorCfg)
+					return r.enqueueAllAPIExportPolicies(ctx, mgr)
 				})
 			},
+			mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
+				return strings.HasPrefix(string(clusterName), config.CoreProviderName)
+			}),
 		).Complete(r)
 }
 
-func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Context, cfg *config.Config) []mcreconcile.Request {
-	allClient, err := r.kcpClientGetter.AllClient(ctx, cfg.APIExportEndpointSlices.SystemPlatformMeshIO)
+func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Context, mgr mcmanager.Manager) []mcreconcile.Request {
+	var policies corev1alpha1.APIExportPolicyList
+
+	cluster, err := mgr.GetCluster(ctx, config.MultiProviderName(config.SystemProviderName, config.OrgsClusterPath))
 	if err != nil {
-		r.log.Error().Err(err).Msg("failed to create all-cluster client for APIExportPolicy listing")
+		r.log.Error().Err(err).Msg("failed to get root:orgs cluster")
 		return nil
 	}
 
-	var policies corev1alpha1.APIExportPolicyList
-	if err := allClient.List(ctx, &policies); err != nil {
-		r.log.Error().Err(err).Msg("failed to list APIExportPolicy resources")
+	err = cluster.GetClient().List(ctx, &policies)
+	if err != nil {
+		r.log.Error().Err(err).Msg("failed to list all APIExportPolicies")
 		return nil
 	}
 
@@ -113,14 +119,14 @@ func (r *APIExportPolicyReconciler) enqueueAllAPIExportPolicies(ctx context.Cont
 			trimmedExpr := strings.TrimPrefix(expr, ":")
 
 			if trimmedExpr == "root:orgs:*" {
-				clusterName := logicalcluster.From(&policy)
+				clusterName := config.MultiProviderName(config.SystemProviderName, logicalcluster.From(&policy).String())
 				requests = append(requests, mcreconcile.Request{
 					Request: reconcile.Request{
 						NamespacedName: types.NamespacedName{
 							Name: policy.Name,
 						},
 					},
-					ClusterName: clusterName.String(),
+					ClusterName: clusterName,
 				})
 				break
 			}

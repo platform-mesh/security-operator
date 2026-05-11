@@ -86,7 +86,9 @@ var modelGeneratorCmd = &cobra.Command{
 			return err
 		}
 
-		if err := controller.NewAPIBindingReconciler(log, mgr, iclient.NewConfigSchemeKCPClientGetter(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme()), &generatorCfg).
+		providerLister := iclient.NewProviderLister(provider.Provider.Provider)
+
+		if err := controller.NewAPIBindingReconciler(log, mgr, providerLister, &generatorCfg).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "Resource")
 			return err

@@ -243,7 +243,9 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 		},
 	}
 
-	err = controller.NewAPIBindingReconciler(testLogger, mgr, iclient.NewManagerKCPClientGetter(mgr), operatorCfg).SetupWithManager(mgr, defaultCfg)
+	providerLister := iclient.NewProviderLister(provider.Provider)
+
+	err = controller.NewAPIBindingReconciler(testLogger, mgr, providerLister, operatorCfg).SetupWithManager(mgr, defaultCfg)
 	suite.Require().NoError(err)
 
 	managerCtx, cancel := context.WithCancel(ctx)

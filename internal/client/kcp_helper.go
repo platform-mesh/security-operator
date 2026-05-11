@@ -7,11 +7,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/rest"
 
 	"github.com/kcp-dev/logicalcluster/v3"
+	"github.com/kcp-dev/multicluster-provider/pkg/provider"
 )
 
 type KCPClientGetter interface {
@@ -19,27 +21,28 @@ type KCPClientGetter interface {
 	NewClientFromContext(ctx context.Context) (client.Client, error)
 }
 
-type KCPAllClientGetter interface {
-	AllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error)
+type Lister interface {
+	List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error
 }
 
 type KCPCombinedClientGetter interface {
 	KCPClientGetter
-	KCPAllClientGetter
+	Lister
 }
 
 // ManagerKCPClientGetter retrieves cluster clients via the manager and builds
 // all-Clients via the manager's config and scheme.
 type ManagerKCPClientGetter struct {
-	mgr mcmanager.Manager
+	mgr      mcmanager.Manager
+	provider *provider.Provider
 }
 
-func NewManagerKCPClientGetter(mgr mcmanager.Manager) *ManagerKCPClientGetter {
-	return &ManagerKCPClientGetter{mgr: mgr}
+func NewManagerKCPClientGetter(mgr mcmanager.Manager, provider *provider.Provider) *ManagerKCPClientGetter {
+	return &ManagerKCPClientGetter{mgr: mgr, provider: provider}
 }
 
 func (f *ManagerKCPClientGetter) NewClientForLogicalCluster(ctx context.Context, cluster string) (client.Client, error) {
-	kcpCluster, err := f.mgr.GetCluster(ctx, cluster)
+	kcpCluster, err := f.mgr.GetCluster(ctx, multicluster.ClusterName(cluster))
 	if err != nil {
 		return nil, fmt.Errorf("getting cluster: %w", err)
 	}
@@ -56,8 +59,21 @@ func (f *ManagerKCPClientGetter) NewClientFromContext(ctx context.Context) (clie
 	return cl.GetClient(), nil
 }
 
-func (f *ManagerKCPClientGetter) AllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error) {
-	return NewAll(ctx, f.mgr.GetLocalManager().GetConfig(), f.mgr.GetLocalManager().GetScheme(), apiexportEndpointSliceName)
+func (f *ManagerKCPClientGetter) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	return f.provider.Lister().List(ctx, list, opts...)
+}
+
+type ProviderLister struct {
+	provider *provider.Provider
+}
+
+func NewProviderLister(provider *provider.Provider) *ProviderLister {
+	return &ProviderLister{provider: provider}
+}
+
+// List lists resources across all clusters on all cshards.
+func (p *ProviderLister) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	return p.provider.Lister().List(ctx, list, opts...)
 }
 
 // ConfigSchemeKCPClientGetter builds cluster and all-Clients via a given config
@@ -86,8 +102,4 @@ func (f *ConfigSchemeKCPClientGetter) NewClientFromContext(ctx context.Context) 
 	}
 
 	return NewForLogicalCluster(f.config, f.scheme, logicalcluster.Name(clusterName))
-}
-
-func (f *ConfigSchemeKCPClientGetter) AllClient(ctx context.Context, apiexportEndpointSliceName string) (client.Client, error) {
-	return NewAll(ctx, f.config, f.scheme, apiexportEndpointSliceName)
 }

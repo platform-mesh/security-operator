@@ -16,6 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	kerrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -38,11 +39,10 @@ func toK8sName(parts ...string) string {
 	return strings.Trim(name, "-")
 }
 
-func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, clientGetter iclient.KCPCombinedClientGetter, apiExportEndpointSliceName string) *AuthorizationModelGenerationSubroutine {
+func NewAuthorizationModelGenerationSubroutine(mcMgr mcmanager.Manager, lister iclient.Lister) *AuthorizationModelGenerationSubroutine {
 	return &AuthorizationModelGenerationSubroutine{
-		mgr:                        mcMgr,
-		clientGetter:               clientGetter,
-		apiExportEndpointSliceName: apiExportEndpointSliceName,
+		mgr:    mcMgr,
+		lister: lister,
 	}
 }
 
@@ -52,9 +52,8 @@ var (
 )
 
 type AuthorizationModelGenerationSubroutine struct {
-	mgr                        mcmanager.Manager
-	clientGetter               iclient.KCPCombinedClientGetter
-	apiExportEndpointSliceName string
+	mgr    mcmanager.Manager
+	lister iclient.Lister
 }
 
 var modelTpl = template.Must(template.New("model").Parse(`module {{ .Name }}
@@ -111,13 +110,8 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 		return subroutines.OK(), fmt.Errorf("unable to get cluster from context: %w", err)
 	}
 
-	allClient, err := a.clientGetter.AllClient(ctx, a.apiExportEndpointSliceName)
-	if err != nil {
-		return subroutines.OK(), fmt.Errorf("getting all-cluster client: %w", err)
-	}
-
 	var bindings kcpapisv1alpha2.APIBindingList
-	err = allClient.List(ctx, &bindings)
+	err = a.lister.List(ctx, &bindings)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("listing APIBindings: %w", err)
 	}
@@ -135,7 +129,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 			continue
 		}
 
-		bindingWsCluster, err := a.mgr.GetCluster(ctx, string(logicalcluster.From(&binding)))
+		bindingWsCluster, err := a.mgr.GetCluster(ctx, multicluster.ClusterName(logicalcluster.From(&binding).String()))
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("getting cluster for binding: %w", err)
 		}
@@ -165,7 +159,7 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 		return subroutines.OK(), nil
 	}
 
-	apiExportCluster, err := a.mgr.GetCluster(ctx, bindingToDelete.Status.APIExportClusterName)
+	apiExportCluster, err := a.mgr.GetCluster(ctx, multicluster.ClusterName(bindingToDelete.Status.APIExportClusterName))
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to get cluster %q: %w", bindingToDelete.Status.APIExportClusterName, err)
 	}
@@ -243,7 +237,7 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 		return subroutines.OK(), fmt.Errorf("getting AccountInfo: %w", err)
 	}
 
-	apiExportCluster, err := a.mgr.GetCluster(ctx, binding.Status.APIExportClusterName)
+	apiExportCluster, err := a.mgr.GetCluster(ctx, multicluster.ClusterName(binding.Status.APIExportClusterName))
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting APIExport cluster: %w", err)
 	}
