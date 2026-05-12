@@ -8,7 +8,6 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
@@ -38,17 +37,12 @@ type APIExportPolicySubroutine struct {
 }
 
 func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpClientGetter iclient.KCPCombinedClientGetter) (*APIExportPolicySubroutine, error) {
-	limiter, err := ratelimiter.NewStaticThenExponentialRateLimiter[*corev1alpha1.APIExportPolicy](ratelimiter.NewConfig())
-	if err != nil {
-		return nil, fmt.Errorf("creating RateLimiter: %w", err)
-	}
 	return &APIExportPolicySubroutine{
 		fga:             fgaClient,
 		mgr:             mgr,
 		cfg:             cfg,
 		storeIDGetter:   storeIDGetter,
 		kcpClientGetter: kcpClientGetter,
-		limiter:         limiter,
 	}, nil
 }
 
@@ -184,6 +178,7 @@ func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, obj client.Obj
 }
 
 func (a *APIExportPolicySubroutine) getClusterIDFromPath(ctx context.Context, clusterPath string) (string, error) {
+	// TODO use multi provider name when pathaware provider is fixed
 	cl, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, clusterPath)
 	if err != nil {
 		return "", fmt.Errorf("getting client for workspace %s: %w", clusterPath, err)
