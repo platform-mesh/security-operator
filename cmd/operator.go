@@ -164,7 +164,7 @@ var operatorCmd = &cobra.Command{
 		}
 
 		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr, provider.Provider.Provider)
-		kcpClientGetterWithConfig := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme)
+		kcpClientGetterWithConfig := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme, provider.Provider.Provider)
 
 		inviteReconciler, err := controller.NewInviteReconciler(ctx, mgr, &operatorCfg, log, kcpClientGetter)
 		if err != nil {

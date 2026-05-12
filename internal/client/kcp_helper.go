@@ -81,12 +81,14 @@ func (p *ProviderLister) List(ctx context.Context, list client.ObjectList, opts 
 type ConfigSchemeKCPClientGetter struct {
 	config *rest.Config
 	scheme *runtime.Scheme
+	provider *provider.Provider
 }
 
-func NewConfigSchemeKCPClientGetter(config *rest.Config, scheme *runtime.Scheme) *ConfigSchemeKCPClientGetter {
+func NewConfigSchemeKCPClientGetter(config *rest.Config, scheme *runtime.Scheme, provider *provider.Provider) *ConfigSchemeKCPClientGetter {
 	return &ConfigSchemeKCPClientGetter{
 		config: config,
 		scheme: scheme,
+		provider: provider,
 	}
 }
 
@@ -102,4 +104,8 @@ func (f *ConfigSchemeKCPClientGetter) NewClientFromContext(ctx context.Context) 
 	}
 
 	return NewForLogicalCluster(f.config, f.scheme, logicalcluster.Name(clusterName))
+}
+
+func (f *ConfigSchemeKCPClientGetter) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	return f.provider.Lister().List(ctx, list, opts...)
 }

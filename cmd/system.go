@@ -73,8 +73,10 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
+		coreProviderLogger := log.ComponentLogger("core-provider").Logr()
 		coreProvider, err := pathaware.New(restCfg, systemCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
 			Scheme: scheme,
+			Log:    &coreProviderLogger,
 		})
 		if err != nil {
 			setupLog.Error(err, "unable to create core apiexport provider")
@@ -110,6 +112,9 @@ var systemCmd = &cobra.Command{
 		)
 
 		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr, coreProvider.Provider.Provider)
+
+		kcpClientGetterWithCongig := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme, coreProvider.Provider.Provider)
+
 		idpReconciler, err := controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, kcpClientGetter, &systemCfg, log)
 		if err != nil {
 			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create reconciler")
@@ -120,7 +125,12 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, kcpClientGetter, &systemCfg, storeIDGetter).SetupWithManager(mgr, defaultCfg); err != nil {
+		apiExportPolicyReconciler, err := controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, kcpClientGetterWithCongig, &systemCfg, storeIDGetter)
+		if err != nil {
+			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create reconciler")
+			return err
+		}
+		if err = apiExportPolicyReconciler.SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
 			return err
 		}

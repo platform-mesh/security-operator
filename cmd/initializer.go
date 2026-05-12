@@ -94,7 +94,7 @@ var initializerCmd = &cobra.Command{
 			initializerCfg.IDP.AdditionalRedirectURLs = []string{}
 		}
 
-		kcpClientGetter := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme)
+		kcpClientGetter := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme, provider.Provider)
 		orgReconciler, err := controller.NewOrgLogicalClusterController(log, kcpClientGetter, initializerCfg, runtimeClient, mgr, controller.ControllerOptions{
 			Name:            "OrgLogicalClusterInitializer",
 			InitializerName: initializerCfg.InitializerName(),

@@ -8,12 +8,14 @@ import (
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
+	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/subroutines"
+	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
@@ -32,16 +34,22 @@ type APIExportPolicySubroutine struct {
 	cfg             *config.Config
 	storeIDGetter   fga.StoreIDGetter
 	kcpClientGetter iclient.KCPCombinedClientGetter
+	limiter         workqueue.TypedRateLimiter[*corev1alpha1.APIExportPolicy]
 }
 
-func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpClientGetter iclient.KCPCombinedClientGetter) *APIExportPolicySubroutine {
+func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpClientGetter iclient.KCPCombinedClientGetter) (*APIExportPolicySubroutine, error) {
+	limiter, err := ratelimiter.NewStaticThenExponentialRateLimiter[*corev1alpha1.APIExportPolicy](ratelimiter.NewConfig())
+	if err != nil {
+		return nil, fmt.Errorf("creating RateLimiter: %w", err)
+	}
 	return &APIExportPolicySubroutine{
 		fga:             fgaClient,
 		mgr:             mgr,
 		cfg:             cfg,
 		storeIDGetter:   storeIDGetter,
 		kcpClientGetter: kcpClientGetter,
-	}
+		limiter:         limiter,
+	}, nil
 }
 
 var _ subroutines.Subroutine = &APIExportPolicySubroutine{}
@@ -176,13 +184,13 @@ func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, obj client.Obj
 }
 
 func (a *APIExportPolicySubroutine) getClusterIDFromPath(ctx context.Context, clusterPath string) (string, error) {
-	cl, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.CoreProviderName, clusterPath))
+	cl, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, clusterPath)
 	if err != nil {
 		return "", fmt.Errorf("getting client for workspace %s: %w", clusterPath, err)
 	}
 
 	var lc kcpcorev1alpha1.LogicalCluster
-	if err := cl.GetClient().Get(ctx, client.ObjectKey{Name: "cluster"}, &lc); err != nil {
+	if err := cl.Get(ctx, client.ObjectKey{Name: "cluster"}, &lc); err != nil {
 		return "", fmt.Errorf("getting logical cluster for path %s: %w", clusterPath, err)
 	}
 
