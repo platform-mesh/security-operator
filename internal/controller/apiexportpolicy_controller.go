@@ -41,7 +41,7 @@ type APIExportPolicyReconciler struct {
 	kcpClientGetter iclient.KCPCombinedClientGetter
 }
 
-func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, kcpClientGetter iclient.KCPCombinedClientGetter, cfg *config.Config, storeIDGetter fga.StoreIDGetter) (*APIExportPolicyReconciler, error) {
+func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, kcpClientGetter iclient.KCPCombinedClientGetter, cfg *config.Config, storeIDGetter fga.StoreIDGetter) *APIExportPolicyReconciler {
 	lc := lifecycle.New(mcMgr, "APIExportPolicyReconciler", func() client.Object {
 		return &corev1alpha1.APIExportPolicy{}
 	}, subroutine.NewAPIExportPolicySubroutine(fgaClient, mcMgr, cfg, storeIDGetter, kcpClientGetter)).
@@ -51,7 +51,7 @@ func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFG
 		log:             log,
 		lifecycle:       lc,
 		kcpClientGetter: kcpClientGetter,
-	}, nil
+	}
 }
 
 func (r *APIExportPolicyReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {

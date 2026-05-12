@@ -111,7 +111,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Obje
 		// for all valid expressions except of :root:orgs:*
 		// e.g :root:orgs:A:B, find store id
 		// and clusterID of logical cluster where account B lives (logical cluster A)
-		lcClient, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.CoreProviderName, workspacePath)))
+		lcClient, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, workspacePath)
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("getting client: %w", err)
 		}
@@ -271,7 +271,7 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 		return nil
 	}
 
-	lcClient, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.CoreProviderName, workspacePath)))
+	lcClient, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, workspacePath)
 	if err != nil {
 		return fmt.Errorf("getting client for workspace %s: %w", workspacePath, err)
 	}
