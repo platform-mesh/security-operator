@@ -79,15 +79,15 @@ func (p *ProviderLister) List(ctx context.Context, list client.ObjectList, opts 
 // ConfigSchemeKCPClientGetter builds cluster and all-Clients via a given config
 // and scheme.
 type ConfigSchemeKCPClientGetter struct {
-	config *rest.Config
-	scheme *runtime.Scheme
+	config   *rest.Config
+	scheme   *runtime.Scheme
 	provider *provider.Provider
 }
 
 func NewConfigSchemeKCPClientGetter(config *rest.Config, scheme *runtime.Scheme, provider *provider.Provider) *ConfigSchemeKCPClientGetter {
 	return &ConfigSchemeKCPClientGetter{
-		config: config,
-		scheme: scheme,
+		config:   config,
+		scheme:   scheme,
 		provider: provider,
 	}
 }

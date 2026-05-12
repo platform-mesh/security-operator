@@ -14,7 +14,6 @@ import (
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/subroutines"
-	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
@@ -33,7 +32,6 @@ type APIExportPolicySubroutine struct {
 	cfg             *config.Config
 	storeIDGetter   fga.StoreIDGetter
 	kcpClientGetter iclient.KCPCombinedClientGetter
-	limiter         workqueue.TypedRateLimiter[*corev1alpha1.APIExportPolicy]
 }
 
 func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpClientGetter iclient.KCPCombinedClientGetter) *APIExportPolicySubroutine {
