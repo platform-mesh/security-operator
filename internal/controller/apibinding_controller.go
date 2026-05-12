@@ -2,12 +2,14 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/logger"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/security-operator/internal/metrics"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -38,7 +40,15 @@ type APIBindingReconciler struct {
 }
 
 func (r *APIBindingReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	return r.lifecycle.Reconcile(ctx, req)
+	start := time.Now()
+	result, err := r.lifecycle.Reconcile(ctx, req)
+	labelResult := "success"
+	if err != nil {
+		labelResult = "error"
+	}
+	metrics.ReconcileTotal.WithLabelValues("apibinding", labelResult).Inc()
+	metrics.ReconcileDuration.WithLabelValues("apibinding").Observe(time.Since(start).Seconds())
+	return result, err
 }
 
 func (r *APIBindingReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {

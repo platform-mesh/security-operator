@@ -7,6 +7,7 @@ import (
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	"github.com/platform-mesh/security-operator/internal/metrics"
 )
 
 // AuthorizationModelIDLatest is to explicitely acknowledge that no ID means
@@ -57,10 +58,12 @@ func (m *TupleManager) Apply(ctx context.Context, tuples []v1alpha1.Tuple) error
 		},
 	})
 	if err != nil {
+		metrics.FGAOperations.WithLabelValues("apply", "error").Inc()
 		return err
 	}
 
 	m.logger.Debug().Int("count", len(tuples)).Msg("Ensured tuples")
+	metrics.FGAOperations.WithLabelValues("apply", "success").Inc()
 	return nil
 }
 
@@ -89,10 +92,12 @@ func (m *TupleManager) Delete(ctx context.Context, tuples []v1alpha1.Tuple) erro
 		},
 	})
 	if err != nil {
+		metrics.FGAOperations.WithLabelValues("delete", "error").Inc()
 		return err
 	}
 
 	m.logger.Debug().Int("count", len(tuples)).Msg("Deleted tuples")
+	metrics.FGAOperations.WithLabelValues("delete", "success").Inc()
 	return nil
 }
 
@@ -112,6 +117,7 @@ func (m *TupleManager) ListWithFilter(ctx context.Context, filter TupleFilter) (
 			ContinuationToken: continuationToken,
 		})
 		if err != nil {
+			metrics.FGAOperations.WithLabelValues("list", "error").Inc()
 			return nil, err
 		}
 
@@ -135,6 +141,7 @@ func (m *TupleManager) ListWithFilter(ctx context.Context, filter TupleFilter) (
 		}
 	}
 
+	metrics.FGAOperations.WithLabelValues("list", "success").Inc()
 	return result, nil
 }
 
@@ -150,6 +157,7 @@ func (m *TupleManager) ListWithKey(ctx context.Context, key *openfgav1.ReadReque
 			ContinuationToken: continuationToken,
 		})
 		if err != nil {
+			metrics.FGAOperations.WithLabelValues("list", "error").Inc()
 			return nil, err
 		}
 
@@ -170,5 +178,6 @@ func (m *TupleManager) ListWithKey(ctx context.Context, key *openfgav1.ReadReque
 		}
 	}
 
+	metrics.FGAOperations.WithLabelValues("list", "success").Inc()
 	return result, nil
 }
