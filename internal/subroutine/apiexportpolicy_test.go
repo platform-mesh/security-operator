@@ -14,7 +14,6 @@ import (
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -36,14 +35,12 @@ func getAPIExportPolicyTestScheme() *runtime.Scheme {
 }
 
 func TestAPIExportPolicySubroutine_GetName(t *testing.T) {
-	sub, err := subroutine.NewAPIExportPolicySubroutine(nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	sub := subroutine.NewAPIExportPolicySubroutine(nil, nil, nil, nil, nil)
 	assert.Equal(t, "APIExportPolicySubroutine", sub.GetName())
 }
 
 func TestAPIExportPolicySubroutine_Finalizers(t *testing.T) {
-	sub, err := subroutine.NewAPIExportPolicySubroutine(nil, nil, nil, nil, nil)
-	require.NoError(t, err)
+	sub := subroutine.NewAPIExportPolicySubroutine(nil, nil, nil, nil, nil)
 	assert.Equal(t, []string{"system.platform-mesh.io/apiexportpolicy-finalizer"}, sub.Finalizers(nil))
 }
 
@@ -157,9 +154,9 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub, err := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
 
-			_, err = sub.Process(ctx, tt.policy)
+			_, err := sub.Process(ctx, tt.policy)
 
 			if tt.expectError {
 				assert.NotNil(t, err)
@@ -247,9 +244,9 @@ func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub, err := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
 
-			_, err = sub.Finalize(ctx, tt.policy)
+			_, err := sub.Finalize(ctx, tt.policy)
 
 			if tt.expectError {
 				assert.NotNil(t, err)
@@ -532,9 +529,9 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub, err := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
 
-			_, err = sub.Process(ctx, tt.policy)
+			_, err := sub.Process(ctx, tt.policy)
 
 			if tt.expectError {
 				assert.NotNil(t, err)
@@ -775,9 +772,9 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub, err := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
 
-			_, err = sub.Finalize(ctx, tt.policy)
+			_, err := sub.Finalize(ctx, tt.policy)
 
 			if tt.expectError {
 				assert.NotNil(t, err)
@@ -1137,9 +1134,9 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub, err := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
 
-			_, err = sub.Process(ctx, tt.policy)
+			_, err := sub.Process(ctx, tt.policy)
 
 			if tt.expectError {
 				assert.NotNil(t, err)
@@ -1343,9 +1340,9 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub, err := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
 
-			_, err = sub.Finalize(ctx, tt.policy)
+			_, err := sub.Finalize(ctx, tt.policy)
 
 			if tt.expectError {
 				assert.NotNil(t, err)

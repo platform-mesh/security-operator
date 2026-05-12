@@ -36,14 +36,14 @@ type APIExportPolicySubroutine struct {
 	limiter         workqueue.TypedRateLimiter[*corev1alpha1.APIExportPolicy]
 }
 
-func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpClientGetter iclient.KCPCombinedClientGetter) (*APIExportPolicySubroutine, error) {
+func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpClientGetter iclient.KCPCombinedClientGetter) *APIExportPolicySubroutine {
 	return &APIExportPolicySubroutine{
 		fga:             fgaClient,
 		mgr:             mgr,
 		cfg:             cfg,
 		storeIDGetter:   storeIDGetter,
 		kcpClientGetter: kcpClientGetter,
-	}, nil
+	}
 }
 
 var _ subroutines.Subroutine = &APIExportPolicySubroutine{}

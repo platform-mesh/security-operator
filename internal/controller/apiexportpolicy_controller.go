@@ -42,14 +42,9 @@ type APIExportPolicyReconciler struct {
 }
 
 func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, kcpClientGetter iclient.KCPCombinedClientGetter, cfg *config.Config, storeIDGetter fga.StoreIDGetter) (*APIExportPolicyReconciler, error) {
-	sub, err := subroutine.NewAPIExportPolicySubroutine(fgaClient, mcMgr, cfg, storeIDGetter, kcpClientGetter)
-	if err != nil {
-		return nil, err
-	}
-
 	lc := lifecycle.New(mcMgr, "APIExportPolicyReconciler", func() client.Object {
 		return &corev1alpha1.APIExportPolicy{}
-	}, sub).
+	}, subroutine.NewAPIExportPolicySubroutine(fgaClient, mcMgr, cfg, storeIDGetter, kcpClientGetter)).
 		WithConditions(conditions.NewManager())
 
 	return &APIExportPolicyReconciler{
