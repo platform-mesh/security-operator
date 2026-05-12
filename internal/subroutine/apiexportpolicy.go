@@ -31,16 +31,18 @@ type APIExportPolicySubroutine struct {
 	mgr             mcmanager.Manager
 	cfg             *config.Config
 	storeIDGetter   fga.StoreIDGetter
-	kcpClientGetter iclient.KCPCombinedClientGetter
+	kcpClientGetter iclient.KCPClientGetter
+	lister          iclient.Lister
 }
 
-func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpClientGetter iclient.KCPCombinedClientGetter) *APIExportPolicySubroutine {
+func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpClientGetter iclient.KCPClientGetter, lister iclient.Lister) *APIExportPolicySubroutine {
 	return &APIExportPolicySubroutine{
 		fga:             fgaClient,
 		mgr:             mgr,
 		cfg:             cfg,
 		storeIDGetter:   storeIDGetter,
 		kcpClientGetter: kcpClientGetter,
+		lister:          lister,
 	}
 }
 
@@ -78,7 +80,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Obje
 		// for this we need to get cluster id for every org's workspace
 		if workspacePath == orgsWorkspacePath {
 			var accountInfoList accountsv1alpha1.AccountInfoList
-			if err := a.kcpClientGetter.List(ctx, &accountInfoList); err != nil {
+			if err := a.lister.List(ctx, &accountInfoList); err != nil {
 				return subroutines.OK(), fmt.Errorf("listing AccountInfo resources: %w", err)
 			}
 
@@ -245,7 +247,7 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 
 	if workspacePath == orgsWorkspacePath {
 		var accountInfoList accountsv1alpha1.AccountInfoList
-		if err := a.kcpClientGetter.List(ctx, &accountInfoList); err != nil {
+		if err := a.lister.List(ctx, &accountInfoList); err != nil {
 			return fmt.Errorf("listing AccountInfo resources for %s: %w", expression, err)
 		}
 

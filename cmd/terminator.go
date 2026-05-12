@@ -85,7 +85,7 @@ var terminatorCmd = &cobra.Command{
 			cmd.Context(),
 			log,
 		)
-		kcpClientGetter := iclient.NewConfigSchemeKCPClientGetter(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme(), provider.Provider)
+		kcpClientGetter := iclient.NewConfigSchemeKCPClientGetter(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
 
 		alcReconciler, err := controller.NewAccountLogicalClusterController(log, terminatorCfg, fgaClient, storeIDGetter, mgr, kcpClientGetter, controller.ControllerOptions{
 			Name:           "AccountLogicalClusterTerminator",

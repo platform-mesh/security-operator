@@ -38,13 +38,13 @@ import (
 type APIExportPolicyReconciler struct {
 	log             *logger.Logger
 	lifecycle       *lifecycle.Lifecycle
-	kcpClientGetter iclient.KCPCombinedClientGetter
+	kcpClientGetter iclient.KCPClientGetter
 }
 
-func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, kcpClientGetter iclient.KCPCombinedClientGetter, cfg *config.Config, storeIDGetter fga.StoreIDGetter) *APIExportPolicyReconciler {
+func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, lister iclient.Lister, cfg *config.Config, storeIDGetter fga.StoreIDGetter) *APIExportPolicyReconciler {
 	lc := lifecycle.New(mcMgr, "APIExportPolicyReconciler", func() client.Object {
 		return &corev1alpha1.APIExportPolicy{}
-	}, subroutine.NewAPIExportPolicySubroutine(fgaClient, mcMgr, cfg, storeIDGetter, kcpClientGetter)).
+	}, subroutine.NewAPIExportPolicySubroutine(fgaClient, mcMgr, cfg, storeIDGetter, kcpClientGetter, lister)).
 		WithConditions(conditions.NewManager())
 
 	return &APIExportPolicyReconciler{

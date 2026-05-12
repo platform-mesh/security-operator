@@ -79,16 +79,14 @@ func (p *ProviderLister) List(ctx context.Context, list client.ObjectList, opts 
 // ConfigSchemeKCPClientGetter builds cluster and all-Clients via a given config
 // and scheme.
 type ConfigSchemeKCPClientGetter struct {
-	config   *rest.Config
-	scheme   *runtime.Scheme
-	provider *provider.Provider
+	config *rest.Config
+	scheme *runtime.Scheme
 }
 
-func NewConfigSchemeKCPClientGetter(config *rest.Config, scheme *runtime.Scheme, provider *provider.Provider) *ConfigSchemeKCPClientGetter {
+func NewConfigSchemeKCPClientGetter(config *rest.Config, scheme *runtime.Scheme) *ConfigSchemeKCPClientGetter {
 	return &ConfigSchemeKCPClientGetter{
-		config:   config,
-		scheme:   scheme,
-		provider: provider,
+		config: config,
+		scheme: scheme,
 	}
 }
 
@@ -104,8 +102,4 @@ func (f *ConfigSchemeKCPClientGetter) NewClientFromContext(ctx context.Context) 
 	}
 
 	return NewForLogicalCluster(f.config, f.scheme, logicalcluster.Name(clusterName))
-}
-
-func (f *ConfigSchemeKCPClientGetter) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
-	return f.provider.Lister().List(ctx, list, opts...)
 }

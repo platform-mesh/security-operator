@@ -35,12 +35,12 @@ func getAPIExportPolicyTestScheme() *runtime.Scheme {
 }
 
 func TestAPIExportPolicySubroutine_GetName(t *testing.T) {
-	sub := subroutine.NewAPIExportPolicySubroutine(nil, nil, nil, nil, nil)
+	sub := subroutine.NewAPIExportPolicySubroutine(nil, nil, nil, nil, nil, nil)
 	assert.Equal(t, "APIExportPolicySubroutine", sub.GetName())
 }
 
 func TestAPIExportPolicySubroutine_Finalizers(t *testing.T) {
-	sub := subroutine.NewAPIExportPolicySubroutine(nil, nil, nil, nil, nil)
+	sub := subroutine.NewAPIExportPolicySubroutine(nil, nil, nil, nil, nil, nil)
 	assert.Equal(t, []string{"system.platform-mesh.io/apiexportpolicy-finalizer"}, sub.Finalizers(nil))
 }
 
@@ -134,7 +134,7 @@ func TestAPIExportPolicySubroutine_Process(t *testing.T) {
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper, kcpHelper)
 
 			_, err := sub.Process(ctx, tt.policy)
 
@@ -214,7 +214,7 @@ func TestAPIExportPolicySubroutine_Finalize(t *testing.T) {
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper, kcpHelper)
 
 			_, err := sub.Finalize(ctx, tt.policy)
 
@@ -502,7 +502,7 @@ func TestAPIExportPolicySubroutine_Process_Success(t *testing.T) {
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper, kcpHelper)
 
 			_, err := sub.Process(ctx, tt.policy)
 
@@ -748,7 +748,7 @@ func TestAPIExportPolicySubroutine_Finalize_Success(t *testing.T) {
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper, kcpHelper)
 
 			_, err := sub.Finalize(ctx, tt.policy)
 
@@ -1110,7 +1110,7 @@ func TestAPIExportPolicySubroutine_Process_AdditionalErrorPaths(t *testing.T) {
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper, kcpHelper)
 
 			_, err := sub.Process(ctx, tt.policy)
 
@@ -1316,7 +1316,7 @@ func TestAPIExportPolicySubroutine_Finalize_AdditionalErrorPaths(t *testing.T) {
 			l := testlogger.New()
 			ctx := l.WithContext(context.Background())
 
-			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper)
+			sub := subroutine.NewAPIExportPolicySubroutine(fga, mgr, tt.cfg, storeIDGetter, kcpHelper, kcpHelper)
 
 			_, err := sub.Finalize(ctx, tt.policy)
 

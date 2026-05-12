@@ -123,9 +123,10 @@ var systemCmd = &cobra.Command{
 		}
 
 		//TODO use Manager getter instead when path-aware provider is fixed
-		kcpClientGetterWithCongig := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme, coreProvider.Provider.Provider)
+		kcpClientGetterWithCongig := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme)
+		providerLister := iclient.NewProviderLister(coreProvider.Provider.Provider)
 
-		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, kcpClientGetterWithCongig, &systemCfg, storeIDGetter).SetupWithManager(mgr, defaultCfg); err != nil {
+		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, kcpClientGetterWithCongig, providerLister, &systemCfg, storeIDGetter).SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
 			return err
 		}
