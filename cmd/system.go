@@ -80,6 +80,7 @@ var systemCmd = &cobra.Command{
 			setupLog.Error(err, "unable to create core apiexport provider")
 			return err
 		}
+
 		multiProv := multiprovider.New(multiprovider.Options{})
 		if err := multiProv.AddProvider(config.SystemProviderName, systemProvider); err != nil {
 			return err
@@ -110,6 +111,7 @@ var systemCmd = &cobra.Command{
 		)
 
 		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr, coreProvider.Provider.Provider)
+
 		idpReconciler, err := controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, kcpClientGetter, &systemCfg, log)
 		if err != nil {
 			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create reconciler")
@@ -120,7 +122,11 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, kcpClientGetter, &systemCfg, storeIDGetter).SetupWithManager(mgr, defaultCfg); err != nil {
+		//TODO use Manager getter instead when path-aware provider is fixed
+		kcpClientGetterWithCongig := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme)
+		providerLister := iclient.NewProviderLister(coreProvider.Provider.Provider)
+
+		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, kcpClientGetterWithCongig, providerLister, &systemCfg, storeIDGetter).SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
 			return err
 		}

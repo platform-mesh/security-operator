@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"strings"
+	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
@@ -13,6 +14,7 @@ import (
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/fga"
+	"github.com/platform-mesh/security-operator/internal/metrics"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/subroutines/conditions"
 	"github.com/platform-mesh/subroutines/lifecycle"
@@ -38,13 +40,13 @@ import (
 type APIExportPolicyReconciler struct {
 	log             *logger.Logger
 	lifecycle       *lifecycle.Lifecycle
-	kcpClientGetter iclient.KCPCombinedClientGetter
+	kcpClientGetter iclient.KCPClientGetter
 }
 
-func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, kcpClientGetter iclient.KCPCombinedClientGetter, cfg *config.Config, storeIDGetter fga.StoreIDGetter) *APIExportPolicyReconciler {
+func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, lister iclient.Lister, cfg *config.Config, storeIDGetter fga.StoreIDGetter) *APIExportPolicyReconciler {
 	lc := lifecycle.New(mcMgr, "APIExportPolicyReconciler", func() client.Object {
 		return &corev1alpha1.APIExportPolicy{}
-	}, subroutine.NewAPIExportPolicySubroutine(fgaClient, mcMgr, cfg, storeIDGetter, kcpClientGetter)).
+	}, subroutine.NewAPIExportPolicySubroutine(fgaClient, mcMgr, cfg, storeIDGetter, kcpClientGetter, lister)).
 		WithConditions(conditions.NewManager())
 
 	return &APIExportPolicyReconciler{
@@ -55,7 +57,15 @@ func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFG
 }
 
 func (r *APIExportPolicyReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	return r.lifecycle.Reconcile(ctx, req)
+	start := time.Now()
+	result, err := r.lifecycle.Reconcile(ctx, req)
+	labelResult := "success"
+	if err != nil {
+		labelResult = "error"
+	}
+	metrics.ReconcileTotal.WithLabelValues("apiexportpolicy", labelResult).Inc()
+	metrics.ReconcileDuration.WithLabelValues("apiexportpolicy").Observe(time.Since(start).Seconds())
+	return result, err
 }
 
 func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {

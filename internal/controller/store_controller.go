@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
@@ -10,6 +11,7 @@ import (
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/security-operator/internal/metrics"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/subroutines/conditions"
 	"github.com/platform-mesh/subroutines/lifecycle"
@@ -57,7 +59,15 @@ func NewStoreReconciler(ctx context.Context, log *logger.Logger, fga openfgav1.O
 }
 
 func (r *StoreReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	return r.lifecycle.Reconcile(ctx, req)
+	start := time.Now()
+	result, err := r.lifecycle.Reconcile(ctx, req)
+	labelResult := "success"
+	if err != nil {
+		labelResult = "error"
+	}
+	metrics.ReconcileTotal.WithLabelValues("store", labelResult).Inc()
+	metrics.ReconcileDuration.WithLabelValues("store").Observe(time.Since(start).Seconds())
+	return result, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
