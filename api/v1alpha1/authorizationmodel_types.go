@@ -1,7 +1,7 @@
 package v1alpha1
 
 import (
-	lifecycleapi "github.com/platform-mesh/golang-commons/controller/lifecycle/api"
+	"github.com/platform-mesh/subroutines/conditions"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -41,17 +41,17 @@ type AuthorizationModel struct {
 	Status AuthorizationModelStatus `json:"status,omitempty"`
 }
 
-// GetConditions implements lifecycle.RuntimeObjectConditions.
+// GetConditions implements conditions.ConditionAccessor.
 func (in *AuthorizationModel) GetConditions() []metav1.Condition {
 	return in.Status.Conditions
 }
 
-// SetConditions implements lifecycle.RuntimeObjectConditions.
+// SetConditions implements conditions.ConditionAccessor.
 func (in *AuthorizationModel) SetConditions(conditions []metav1.Condition) {
 	in.Status.Conditions = conditions
 }
 
-var _ lifecycleapi.RuntimeObjectConditions = &AuthorizationModel{}
+var _ conditions.ConditionAccessor = &AuthorizationModel{}
 
 // +kubebuilder:object:root=true
 

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -356,6 +357,12 @@ func TestClient_Delete(t *testing.T) {
 			require.NoError(t, err)
 		})
 	}
+}
+
+func TestWithHTTPClient(t *testing.T) {
+	custom := &http.Client{Timeout: 5 * time.Second}
+	cl := NewClient(WithHTTPClient(custom)).(*client)
+	assert.Equal(t, custom, cl.httpClient)
 }
 
 func TestHTTPError(t *testing.T) {

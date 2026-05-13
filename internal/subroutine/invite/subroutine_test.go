@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	accountsv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
 	"github.com/platform-mesh/security-operator/internal/config"
@@ -18,7 +17,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/oauth2"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
 
@@ -55,7 +53,7 @@ func configureOIDCProvider(t *testing.T, mux *http.ServeMux, baseURL string) {
 func TestSubroutineProcess(t *testing.T) {
 	testCases := []struct {
 		desc               string
-		obj                runtimeobject.RuntimeObject
+		obj                client.Object
 		config             *config.Config
 		setupK8sMocks      func(m *mocks.MockClient)
 		setupKeycloakMocks func(mux *http.ServeMux)
@@ -342,7 +340,7 @@ func TestSubroutineProcess(t *testing.T) {
 					Email: "requeue@acme.corp",
 				},
 			},
-			expectErr: true,
+			expectErr: false,
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
 					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
@@ -481,6 +479,236 @@ func TestSubroutineProcess(t *testing.T) {
 				})
 			},
 		},
+		{
+			desc: "user already exists, skipping invite",
+			obj:  &v1alpha1.Invite{Spec: v1alpha1.InviteSpec{Email: "existing@acme.corp"}},
+			setupK8sMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						*o.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								Organization: accountsv1alpha1.AccountLocation{Name: "acme"},
+							},
+						}
+						return nil
+					}).Once()
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				mux.HandleFunc("GET /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode([]map[string]any{{"id": "existing-id", "email": "existing@acme.corp"}})
+				})
+			},
+			expectErr: false,
+		},
+		{
+			desc: "GET users returns invalid JSON",
+			obj:  &v1alpha1.Invite{Spec: v1alpha1.InviteSpec{Email: "test@acme.corp"}},
+			setupK8sMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						*o.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								Organization: accountsv1alpha1.AccountLocation{Name: "acme"},
+							},
+						}
+						return nil
+					}).Once()
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				mux.HandleFunc("GET /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte("not-valid-json"))
+				})
+			},
+			expectErr: true,
+		},
+		{
+			desc: "GET clients returns invalid JSON",
+			obj:  &v1alpha1.Invite{Spec: v1alpha1.InviteSpec{Email: "test@acme.corp"}},
+			setupK8sMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						*o.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								Organization: accountsv1alpha1.AccountLocation{Name: "acme"},
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
+								},
+							},
+						}
+						return nil
+					}).Once()
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				mux.HandleFunc("GET /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode([]map[string]any{})
+				})
+				mux.HandleFunc("GET /admin/realms/acme/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_, _ = w.Write([]byte("not-valid-json"))
+				})
+			},
+			expectErr: true,
+		},
+		{
+			desc: "POST users returns non-201 status",
+			obj:  &v1alpha1.Invite{Spec: v1alpha1.InviteSpec{Email: "test@acme.corp"}},
+			setupK8sMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						*o.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								Organization: accountsv1alpha1.AccountLocation{Name: "acme"},
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
+								},
+							},
+						}
+						return nil
+					}).Once()
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				mux.HandleFunc("GET /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode([]map[string]any{})
+				})
+				mux.HandleFunc("GET /admin/realms/acme/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode([]map[string]any{{"id": "client-uuid", "clientId": "acme"}})
+				})
+				mux.HandleFunc("POST /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusBadRequest)
+				})
+			},
+			expectErr: true,
+		},
+		{
+			desc: "second GET users returns non-200",
+			obj:  &v1alpha1.Invite{Spec: v1alpha1.InviteSpec{Email: "test@acme.corp"}},
+			setupK8sMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						*o.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								Organization: accountsv1alpha1.AccountLocation{Name: "acme"},
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
+								},
+							},
+						}
+						return nil
+					}).Once()
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				callCount := 0
+				mux.HandleFunc("GET /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					callCount++
+					w.Header().Set("Content-Type", "application/json")
+					if callCount == 1 {
+						w.WriteHeader(http.StatusOK)
+						_ = json.NewEncoder(w).Encode([]map[string]any{})
+					} else {
+						w.WriteHeader(http.StatusInternalServerError)
+					}
+				})
+				mux.HandleFunc("GET /admin/realms/acme/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode([]map[string]any{{"id": "client-uuid", "clientId": "acme"}})
+				})
+				mux.HandleFunc("POST /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusCreated)
+				})
+			},
+			expectErr: true,
+		},
+		{
+			desc: "second GET users returns invalid JSON",
+			obj:  &v1alpha1.Invite{Spec: v1alpha1.InviteSpec{Email: "test@acme.corp"}},
+			setupK8sMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						*o.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								Organization: accountsv1alpha1.AccountLocation{Name: "acme"},
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
+								},
+							},
+						}
+						return nil
+					}).Once()
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				callCount := 0
+				mux.HandleFunc("GET /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					callCount++
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					if callCount == 1 {
+						_ = json.NewEncoder(w).Encode([]map[string]any{})
+					} else {
+						_, _ = w.Write([]byte("not-valid-json"))
+					}
+				})
+				mux.HandleFunc("GET /admin/realms/acme/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode([]map[string]any{{"id": "client-uuid", "clientId": "acme"}})
+				})
+				mux.HandleFunc("POST /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusCreated)
+				})
+			},
+			expectErr: true,
+		},
+		{
+			desc: "PUT execute-actions-email returns non-204",
+			obj:  &v1alpha1.Invite{Spec: v1alpha1.InviteSpec{Email: "test@acme.corp"}},
+			setupK8sMocks: func(m *mocks.MockClient) {
+				m.EXPECT().Get(mock.Anything, types.NamespacedName{Name: "account"}, mock.AnythingOfType("*v1alpha1.AccountInfo"), mock.Anything).
+					RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
+						*o.(*accountsv1alpha1.AccountInfo) = accountsv1alpha1.AccountInfo{
+							Spec: accountsv1alpha1.AccountInfoSpec{
+								Organization: accountsv1alpha1.AccountLocation{Name: "acme"},
+								OIDC: &accountsv1alpha1.OIDCInfo{
+									Clients: map[string]accountsv1alpha1.ClientInfo{"acme": {ClientID: "acme"}},
+								},
+							},
+						}
+						return nil
+					}).Once()
+			},
+			setupKeycloakMocks: func(mux *http.ServeMux) {
+				users := []map[string]any{}
+				mux.HandleFunc("GET /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode(users)
+				})
+				mux.HandleFunc("GET /admin/realms/acme/clients", func(w http.ResponseWriter, r *http.Request) {
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					_ = json.NewEncoder(w).Encode([]map[string]any{{"id": "client-uuid", "clientId": "acme"}})
+				})
+				mux.HandleFunc("POST /admin/realms/acme/users", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusCreated)
+					users = append(users, map[string]any{"id": "new-user-id", "email": "test@acme.corp"})
+				})
+				mux.HandleFunc("PUT /admin/realms/acme/users/{id}/execute-actions-email", func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusOK) // should be 204
+				})
+			},
+			expectErr: true,
+		},
 	}
 	for _, test := range testCases {
 		t.Run(test.desc, func(t *testing.T) {
@@ -491,26 +719,22 @@ func TestSubroutineProcess(t *testing.T) {
 			configureOIDCProvider(t, mux, srv.URL)
 			ctx := context.WithValue(t.Context(), oauth2.HTTPClient, srv.Client())
 
-			mgr := mocks.NewMockManager(t)
-			cluster := mocks.NewMockCluster(t)
-
-			mgr.EXPECT().GetCluster(mock.Anything, mock.Anything).Return(cluster, nil).Maybe()
-
 			k8s := mocks.NewMockClient(t)
 			if test.setupK8sMocks != nil {
 				test.setupK8sMocks(k8s)
 			}
 
-			cluster.EXPECT().GetClient().Return(k8s).Maybe()
+			kcpClientGetter := mocks.NewMockKCPClientGetter(t)
+			kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, "cluster1").Return(k8s, nil).Maybe()
 
 			if test.setupKeycloakMocks != nil {
 				test.setupKeycloakMocks(mux)
 			}
 
 			cfg := &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  srv.URL,
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  srv.URL,
+					ClientID: "security-operator",
 				},
 				BaseDomain: "portal.dev.local:8443",
 			}
@@ -518,7 +742,7 @@ func TestSubroutineProcess(t *testing.T) {
 				cfg.SetDefaultPassword = test.config.SetDefaultPassword
 			}
 
-			s, err := invite.New(ctx, cfg, mgr)
+			s, err := invite.New(ctx, cfg, kcpClientGetter)
 			assert.NoError(t, err)
 
 			l := testlogger.New()
@@ -526,14 +750,79 @@ func TestSubroutineProcess(t *testing.T) {
 
 			ctx = mccontext.WithCluster(ctx, "cluster1")
 
-			_, opErr := s.Process(ctx, test.obj)
+			_, processErr := s.Process(ctx, test.obj)
 			if test.expectErr {
-				assert.NotNil(t, opErr, "expected an operator error")
+				assert.NotNil(t, processErr, "expected an error")
 			} else {
-				assert.Nil(t, opErr, "did not expect an operator error")
+				assert.Nil(t, processErr, "did not expect an error")
 			}
 		})
 	}
+}
+
+func TestInviteNew_OIDCProviderError(t *testing.T) {
+	mux := http.NewServeMux()
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	// Deliberately omit OIDC discovery endpoint so oidc.NewProvider fails.
+	ctx := context.WithValue(t.Context(), oauth2.HTTPClient, srv.Client())
+
+	_, err := invite.New(ctx, &config.Config{
+		Keycloak: config.KeycloakConfig{BaseURL: srv.URL, ClientID: "security-operator"},
+	}, nil) //nolint:staticcheck
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "creating OIDC provider")
+}
+
+func TestInviteSubroutine_NoClusterInContext(t *testing.T) {
+	mux := http.NewServeMux()
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	configureOIDCProvider(t, mux, srv.URL)
+	ctx := context.WithValue(t.Context(), oauth2.HTTPClient, srv.Client())
+
+	kcpClientGetter := mocks.NewMockKCPClientGetter(t)
+	s, err := invite.New(ctx, &config.Config{
+		Keycloak:   config.KeycloakConfig{BaseURL: srv.URL, ClientID: "security-operator"},
+		BaseDomain: "portal.dev.local",
+	}, kcpClientGetter)
+	assert.NoError(t, err)
+
+	l := testlogger.New()
+	// Deliberately omit mccontext.WithCluster so ClusterFrom returns !ok.
+	ctx = l.WithContext(t.Context())
+
+	_, processErr := s.Process(ctx, &v1alpha1.Invite{Spec: v1alpha1.InviteSpec{Email: "test@test.com"}})
+	assert.Error(t, processErr)
+	assert.Contains(t, processErr.Error(), "failed to get cluster from context")
+}
+
+func TestInviteSubroutine_GetClientFails(t *testing.T) {
+	mux := http.NewServeMux()
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	configureOIDCProvider(t, mux, srv.URL)
+	ctx := context.WithValue(t.Context(), oauth2.HTTPClient, srv.Client())
+
+	kcpClientGetter := mocks.NewMockKCPClientGetter(t)
+	kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, "cluster1").Return(nil, fmt.Errorf("cluster not found"))
+
+	s, err := invite.New(ctx, &config.Config{
+		Keycloak:   config.KeycloakConfig{BaseURL: srv.URL, ClientID: "security-operator"},
+		BaseDomain: "portal.dev.local",
+	}, kcpClientGetter)
+	assert.NoError(t, err)
+
+	l := testlogger.New()
+	ctx = l.WithContext(t.Context())
+	ctx = mccontext.WithCluster(ctx, "cluster1")
+
+	_, processErr := s.Process(ctx, &v1alpha1.Invite{Spec: v1alpha1.InviteSpec{Email: "test@test.com"}})
+	assert.Error(t, processErr)
+	assert.Contains(t, processErr.Error(), "failed to get client for cluster")
 }
 
 func TestHelperFunctions(t *testing.T) {
@@ -545,17 +834,12 @@ func TestHelperFunctions(t *testing.T) {
 	ctx := context.WithValue(t.Context(), oauth2.HTTPClient, srv.Client())
 
 	s, err := invite.New(ctx, &config.Config{
-		Invite: config.InviteConfig{
-			KeycloakBaseURL:  srv.URL,
-			KeycloakClientID: "security-operator",
+		Keycloak: config.KeycloakConfig{
+			BaseURL:  srv.URL,
+			ClientID: "security-operator",
 		},
-	}, nil)
+	}, nil) //nolint:staticcheck
 	assert.NoError(t, err)
 
 	assert.Equal(t, "Invite", s.GetName())
-	assert.Equal(t, []string{}, s.Finalizers(nil))
-
-	res, finalizerErr := s.Finalize(ctx, &v1alpha1.Invite{})
-	assert.Nil(t, finalizerErr)
-	assert.Equal(t, ctrl.Result{}, res)
 }

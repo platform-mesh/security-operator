@@ -6,8 +6,8 @@ vars:
   ENVTEST_K8S_VERSION: "1.31.0"
   ENVTEST_VERSION: release-0.19
   CRD_DIRECTORY: config/crd/bases
-  KCP_APIGEN_VERSION: v0.29.0
-  KCP_VERSION: 0.28.3
+  KCP_APIGEN_VERSION: v0.30.1
+  KCP_VERSION: 0.30.1
   GOLANGCI_LINT_VERSION: v2.8.0
   GOARCH:
     sh: go env GOARCH
@@ -53,7 +53,15 @@ tasks:
   setup:kcp:
     cmds:
       - test -s {{.LOCAL_BIN}}/kcp || GOBIN=$(pwd)/{{.LOCAL_BIN}} ./hack/download-tool.sh https://github.com/kcp-dev/kcp/releases/download/v{{ .KCP_VERSION }}/kcp_{{ .KCP_VERSION }}_{{ .GOOS }}_{{ .GOARCH }}.tar.gz kcp {{.KCP_VERSION}}
+  setup:mockery:
+    internal: true
+    cmds:
+      - test -s {{.LOCAL_BIN}}/mockery || GOBIN=$(pwd)/{{.LOCAL_BIN}} go install github.com/vektra/mockery/v3@v3.7.0
   ## Development
+  mockery:
+    deps: [setup:mockery]
+    cmds:
+      - "{{.LOCAL_BIN}}/mockery"
   manifests:
     deps: [setup:controller-gen,setup:kcp-api-gen]
     cmds:
@@ -61,6 +69,7 @@ tasks:
   generate:
     cmds:
       - task: manifests
+      - task: mockery
       - "{{.LOCAL_BIN}}/controller-gen object paths=./..."
       - "{{.LOCAL_BIN}}/apigen --input-dir {{.CRD_DIRECTORY}} --output-dir ./config/resources"
   build:
@@ -118,8 +127,20 @@ tasks:
     cmds:
       - go run ./cmd/main.go operator
 
-  docker:kind:
-    desc: "Build container image with current tag from kind cluster and load it"
+  fuzz:
+    desc: "Run fuzz tests with a configurable duration (default 30s per target)"
+    vars:
+      FUZZTIME: '{{.FUZZTIME | default "30s"}}'
+    cmds:
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzStoreRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzAuthorizationModelRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzAPIExportPolicyRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzIdentityProviderConfigurationRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./api/v1alpha1/ -run=^$ -fuzz=FuzzInviteRoundTrip -fuzztime={{.FUZZTIME}} -count=1
+      - go test ./internal/webhook/ -run=^$ -fuzz=FuzzIdentityProviderConfigurationValidateCreate -fuzztime={{.FUZZTIME}} -count=1
+
+  docker:kind:load:
+    desc: "Build container image with current tag from kind cluster and load it into kind"
     vars:
       CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME | default "docker"}}'
       KIND_CLUSTER: '{{.KIND_CLUSTER | default "platform-mesh"}}'
@@ -143,8 +164,31 @@ tasks:
         else
           kind load docker-image {{.IMAGE_NAME}} --name {{.KIND_CLUSTER}}
         fi
+      - echo "Image loaded into kind cluster {{.KIND_CLUSTER}}"
+  docker:kind:restart:
+    desc: "Restart security-operator deployments to pick up new image"
+    vars:
+      DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE | default "platform-mesh-system"}}'
+    cmds:
       - kubectl rollout restart deployment/security-operator -n {{.DEPLOYMENT_NAMESPACE}}
       - kubectl rollout restart deployment/security-operator-generator -n {{.DEPLOYMENT_NAMESPACE}}
       - kubectl rollout restart deployment/security-operator-initializer -n {{.DEPLOYMENT_NAMESPACE}}
-      - echo "Image loaded and all deployments restarted"
+      - kubectl rollout restart deployment/security-operator-terminator -n {{.DEPLOYMENT_NAMESPACE}}
+      - kubectl rollout restart deployment/security-operator-system -n {{.DEPLOYMENT_NAMESPACE}}
+      - echo "All deployments restarted"
+  docker:kind:
+    desc: "Build container image, load it into kind cluster, and restart deployments"
+    vars:
+      DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE | default "platform-mesh-system"}}'
+      CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME | default "docker"}}'
+      KIND_CLUSTER: '{{.KIND_CLUSTER | default "platform-mesh"}}'
+    cmds:
+      - task: docker:kind:load
+        vars:
+          DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE}}'
+          CONTAINER_RUNTIME: '{{.CONTAINER_RUNTIME}}'
+          KIND_CLUSTER: '{{.KIND_CLUSTER}}'
+      - task: docker:kind:restart
+        vars:
+          DEPLOYMENT_NAMESPACE: '{{.DEPLOYMENT_NAMESPACE}}'
 

@@ -2,7 +2,6 @@ package test
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
@@ -51,7 +50,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Process() {
 
 	_ = suite.createTestAPIBinding(ctx, testAccountClient, apiExportName, suite.platformMeshSysPath.String(), apiExportName)
 
-	expectedModelName := fmt.Sprintf("%s-%s", pluralResourceSchemaName, testOrgName)
+	expectedModelName := "process-test-example-com-testresources-generator-test-process"
 	var model securityv1alpha1.AuthorizationModel
 	suite.Assert().Eventually(func() bool {
 		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &model)
@@ -113,7 +112,7 @@ func (suite *IntegrationSuite) TestAuthorizationModelGeneration_Finalize() {
 			binding2.Status.Phase == kcpapiv1alpha1.APIBindingPhaseBound
 	}, 10*time.Second, 200*time.Millisecond, "APIBindings should be bound before checking finalizers")
 
-	expectedModelName := fmt.Sprintf("%s-%s", pluralResourceSchemaName, testOrgName)
+	expectedModelName := "generator-test-example-com-testresources-generator-test-finalize"
 	var model securityv1alpha1.AuthorizationModel
 	suite.Assert().Eventually(func() bool {
 		err := suite.platformMeshSystemClient.Get(ctx, client.ObjectKey{Name: expectedModelName}, &model)

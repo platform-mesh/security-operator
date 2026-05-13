@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -70,7 +71,7 @@ func TestTupleProcessWithStore(t *testing.T) {
 				},
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
-				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil).Times(3)
+				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil)
 			},
 		},
 		{
@@ -108,11 +109,8 @@ func TestTupleProcessWithStore(t *testing.T) {
 				},
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
-				// write calls
-				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil).Times(3)
-
-				// delete call
-				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil)
+				// Apply (batch write) + Delete (batch delete)
+				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil).Twice()
 			},
 		},
 		{
@@ -171,7 +169,7 @@ func TestTupleProcessWithStore(t *testing.T) {
 
 			_, err := subroutine.Process(context.Background(), test.store)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, err)
 			} else {
 				assert.Nil(t, err)
 				assert.Equal(t, test.store.Status.ManagedTuples, test.store.Spec.Tuples)
@@ -223,7 +221,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				},
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
-				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil).Times(3)
+				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil)
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
 				// Not used for AuthorizationModel
@@ -231,7 +229,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 			mgrMocks: func(mgr *mocks.MockManager) {
 				storeCluster := mocks.NewMockCluster(t)
 				storeClient := mocks.NewMockClient(t)
-				mgr.EXPECT().GetCluster(mock.Anything, "store-cluster").Return(storeCluster, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*securityv1alpha1.Store)
@@ -287,11 +285,8 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 				},
 			},
 			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
-				// write calls
-				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil).Times(3)
-
-				// delete call
-				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil)
+				// Apply (batch write) + Delete (batch delete)
+				fga.EXPECT().Write(mock.Anything, mock.Anything).Return(nil, nil).Twice()
 			},
 			k8sMocks: func(k8s *mocks.MockClient) {
 				// Not used for AuthorizationModel
@@ -299,7 +294,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 			mgrMocks: func(mgr *mocks.MockManager) {
 				storeCluster := mocks.NewMockCluster(t)
 				storeClient := mocks.NewMockClient(t)
-				mgr.EXPECT().GetCluster(mock.Anything, "store-cluster").Return(storeCluster, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*securityv1alpha1.Store)
@@ -335,7 +330,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 
 			_, err := subroutine.Process(ctx, test.store)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, err)
 			} else {
 				assert.Nil(t, err)
 				assert.Equal(t, test.store.Status.ManagedTuples, test.store.Spec.Tuples)
@@ -388,7 +383,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 			mgrMocks: func(mgr *mocks.MockManager) {
 				storeCluster := mocks.NewMockCluster(t)
 				storeClient := mocks.NewMockClient(t)
-				mgr.EXPECT().GetCluster(mock.Anything, "store-cluster").Return(storeCluster, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
 				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*securityv1alpha1.Store)
@@ -424,7 +419,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 
 			_, err := subroutine.Finalize(ctx, test.store)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, err)
 			} else {
 				assert.Nil(t, err)
 				assert.Empty(t, test.store.Status.ManagedTuples)
@@ -497,7 +492,7 @@ func TestTupleFinalizationWithStore(t *testing.T) {
 
 			_, err := subroutine.Finalize(context.Background(), test.store)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, err)
 			} else {
 				assert.Nil(t, err)
 				assert.Empty(t, test.store.Status.ManagedTuples)

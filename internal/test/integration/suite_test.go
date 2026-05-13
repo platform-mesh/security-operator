@@ -12,8 +12,9 @@ import (
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/controller"
-	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -52,6 +53,9 @@ var (
 
 	//go:embed yaml/apiresourceschema-stores.core.platform-mesh.io.yaml
 	StoreSchemaYAML []byte
+
+	//go:embed yaml/apiresourceschema-invites.core.platform-mesh.io.yaml
+	InviteSchemaYAML []byte
 
 	//go:embed yaml/apiexport-core.platform-mesh.io.yaml
 	ApiExportPlatformMeshSystemYAML []byte
@@ -92,11 +96,7 @@ func TestIntegrationSuite(t *testing.T) {
 }
 
 func (suite *IntegrationSuite) SetupSuite() {
-	rootCmd := &cobra.Command{
-		Use: "security-operator",
-	}
-	_, defaultCfg, err := platformeshconfig.NewDefaultConfig(rootCmd)
-	suite.Require().NoError(err)
+	defaultCfg := platformeshconfig.NewDefaultConfig()
 
 	logcfg := logger.DefaultConfig()
 	logcfg.Output = io.Discard
@@ -136,7 +136,7 @@ func (suite *IntegrationSuite) setupPlatformMesh(t *testing.T) {
 	suite.platformMeshSystemClient = cli.Cluster(platformMeshSystemClusterPath)
 
 	// register api-resource schemas
-	schemas := [][]byte{AccountInfoSchemaYAML, AccountSchemaYAML, AuthorizationModelSchemaYAML, StoreSchemaYAML}
+	schemas := [][]byte{AccountInfoSchemaYAML, AccountSchemaYAML, AuthorizationModelSchemaYAML, StoreSchemaYAML, InviteSchemaYAML}
 	for _, schemaYAML := range schemas {
 		var schema apisv1alpha1.APIResourceSchema
 		suite.Require().NoError(yaml.Unmarshal(schemaYAML, &schema))
@@ -237,7 +237,15 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 	})
 	suite.Require().NoError(err)
 
-	err = controller.NewAPIBindingReconciler(testLogger, mgr).SetupWithManager(mgr, defaultCfg)
+	operatorCfg := &config.Config{
+		APIExportEndpointSlices: config.APIExportEndpointSlices{
+			CorePlatformMeshIO: "core.platform-mesh.io",
+		},
+	}
+
+	providerLister := iclient.NewProviderLister(provider.Provider)
+
+	err = controller.NewAPIBindingReconciler(testLogger, mgr, providerLister, operatorCfg).SetupWithManager(mgr, defaultCfg)
 	suite.Require().NoError(err)
 
 	managerCtx, cancel := context.WithCancel(ctx)

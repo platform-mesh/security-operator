@@ -79,6 +79,8 @@ spec:
                   - redirectUris
                   type: object
                 type: array
+              registrationAllowed:
+                type: boolean
             required:
             - clients
             type: object

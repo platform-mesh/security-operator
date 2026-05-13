@@ -1,10 +1,14 @@
 apiVersion: apis.kcp.io/v1alpha2
 kind: APIExport
 metadata:
-  creationTimestamp: null
   name: core.platform-mesh.io
 spec:
   resources:
+  - group: core.platform-mesh.io
+    name: apiexportpolicies
+    schema: v260313-c8b198d.apiexportpolicies.core.platform-mesh.io
+    storage:
+      crd: {}
   - group: core.platform-mesh.io
     name: authorizationmodels
     schema: v260112-5925c7e.authorizationmodels.core.platform-mesh.io
@@ -12,12 +16,12 @@ spec:
       crd: {}
   - group: core.platform-mesh.io
     name: identityproviderconfigurations
-    schema: v260123-dbda1fc.identityproviderconfigurations.core.platform-mesh.io
+    schema: v260217-2c67392.identityproviderconfigurations.core.platform-mesh.io
     storage:
       crd: {}
   - group: core.platform-mesh.io
     name: invites
-    schema: v251007-1d3512f.invites.core.platform-mesh.io
+    schema: v260213-fbdf981.invites.core.platform-mesh.io
     storage:
       crd: {}
   - group: core.platform-mesh.io

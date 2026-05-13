@@ -8,15 +8,14 @@ import (
 	"time"
 
 	"github.com/coreos/go-oidc"
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/pkg/clientreg"
 	"github.com/platform-mesh/security-operator/pkg/clientreg/keycloak"
+	"github.com/platform-mesh/subroutines"
 	"golang.org/x/oauth2/clientcredentials"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
@@ -29,32 +28,32 @@ import (
 type subroutine struct {
 	keycloakBaseURL string
 	adminClient     *http.Client
-	orgsClient      client.Client
 	mgr             mcmanager.Manager
 	cfg             *config.Config
+	kcpClientGetter iclient.KCPClientGetter
 }
 
-func New(ctx context.Context, cfg *config.Config, orgsClient client.Client, mgr mcmanager.Manager) (*subroutine, error) {
-	issuer := fmt.Sprintf("%s/realms/master", cfg.Invite.KeycloakBaseURL)
+func New(ctx context.Context, cfg *config.Config, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter) (*subroutine, error) {
+	issuer := fmt.Sprintf("%s/realms/master", cfg.Keycloak.BaseURL)
 	provider, err := oidc.NewProvider(ctx, issuer)
 	if err != nil {
 		return nil, err
 	}
 
 	cCfg := clientcredentials.Config{
-		ClientID:     cfg.Invite.KeycloakClientID,
-		ClientSecret: cfg.Invite.KeycloakClientSecret,
+		ClientID:     cfg.Keycloak.ClientID,
+		ClientSecret: cfg.Keycloak.ClientSecret,
 		TokenURL:     provider.Endpoint().TokenURL,
 	}
 
 	adminClient := cCfg.Client(ctx)
 
 	return &subroutine{
-		keycloakBaseURL: cfg.Invite.KeycloakBaseURL,
+		keycloakBaseURL: cfg.Keycloak.BaseURL,
 		adminClient:     adminClient,
-		orgsClient:      orgsClient,
 		mgr:             mgr,
 		cfg:             cfg,
+		kcpClientGetter: kcpClientGetter,
 	}, nil
 }
 
@@ -74,8 +73,8 @@ func (s *subroutine) newOIDCClient(realmName string) (clientreg.Client, *keycloa
 	return oidcClient, adminClient
 }
 
-func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	idpToDelete := instance.(*v1alpha1.IdentityProviderConfiguration)
+func (s *subroutine) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	idpToDelete := obj.(*v1alpha1.IdentityProviderConfiguration)
 	log := logger.LoadLoggerFromContext(ctx)
 	realmName := idpToDelete.Name
 
@@ -88,7 +87,7 @@ func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.Runtim
 				log.Info().Str("secretName", clientToDelete.SecretRef.Name).Msg("Secret not found, client was likely deleted")
 				continue
 			}
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
+			return subroutines.OK(), fmt.Errorf("failed to get registration access token from secret: %w", err)
 		}
 
 		clientIDToDelete := idpToDelete.Status.ManagedClients[clientToDelete.ClientName].ClientID
@@ -105,7 +104,7 @@ func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.Runtim
 
 		err = oidcClient.Delete(ctx, clientIDToDelete, registrationClientURIToDelete, registrationAccessToken)
 		if err != nil && !clientreg.IsNotFound(err) {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete oidc client: %w", err), true, false)
+			return subroutines.OK(), fmt.Errorf("failed to delete oidc client: %w", err)
 		}
 
 		secretToDelete := &corev1.Secret{
@@ -114,43 +113,48 @@ func (s *subroutine) Finalize(ctx context.Context, instance runtimeobject.Runtim
 				Namespace: clientToDelete.SecretRef.Namespace,
 			},
 		}
-		if err := s.orgsClient.Delete(ctx, secretToDelete); err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete client secret: %w", err), true, false)
+
+		orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.CoreProviderName, config.OrgsClusterPath)))
+		if err != nil {
+			return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
+		}
+		if err := orgsClient.Delete(ctx, secretToDelete); err != nil {
+			return subroutines.OK(), fmt.Errorf("failed to delete client secret: %w", err)
 		}
 	}
 
 	if err := adminClient.DeleteRealm(ctx, realmName); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to delete realm: %w", err), true, false)
+		return subroutines.OK(), fmt.Errorf("failed to delete realm: %w", err)
 	}
 
-	return ctrl.Result{}, nil
+	return subroutines.OK(), nil
 }
 
-func (s *subroutine) Finalizers(_ runtimeobject.RuntimeObject) []string {
+func (s *subroutine) Finalizers(_ client.Object) []string {
 	return []string{"core.platform-mesh.io/idp-finalizer"}
 }
 
 func (s *subroutine) GetName() string { return "IdentityProviderConfiguration" }
 
-func (s *subroutine) Process(ctx context.Context, instance runtimeobject.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	idpConfig := instance.(*v1alpha1.IdentityProviderConfiguration)
+func (s *subroutine) Process(ctx context.Context, obj client.Object) (subroutines.Result, error) {
+	idpConfig := obj.(*v1alpha1.IdentityProviderConfiguration)
 	log := logger.LoadLoggerFromContext(ctx)
 
 	cl, err := s.mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to get cluster from context: %w", err), true, true)
+		return subroutines.OK(), fmt.Errorf("failed to get cluster from context: %w", err)
 	}
 	kcpClient := cl.GetClient()
 
 	realmName := idpConfig.Name
 	oidcClient, adminClient := s.newOIDCClient(realmName)
 
-	if err := s.ensureRealm(ctx, adminClient, realmName, log); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(err, true, false)
+	if err := s.ensureRealm(ctx, adminClient, realmName, idpConfig.Spec.RegistrationAllowed, log); err != nil {
+		return subroutines.OK(), err
 	}
 
 	if err := s.deleteRemovedClients(ctx, idpConfig, oidcClient, log); err != nil {
-		return ctrl.Result{}, err
+		return subroutines.OK(), err
 	}
 
 	managedClients := make(map[string]v1alpha1.ManagedClient)
@@ -159,11 +163,11 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 
 		clientInfo, err := s.registerOrUpdateClient(ctx, idpConfig, clientConfig, realmName, oidcClient, adminClient)
 		if err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to process client %s: %w", clientConfig.ClientName, err), true, true)
+			return subroutines.OK(), fmt.Errorf("failed to process client %s: %w", clientConfig.ClientName, err)
 		}
 
 		if err := s.createOrUpdateSecret(ctx, clientConfig, clientInfo, idpConfig.Name); err != nil {
-			return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to create or update kubernetes secret: %w", err), true, true)
+			return subroutines.OK(), fmt.Errorf("failed to create or update kubernetes secret: %w", err)
 		}
 
 		managedClients[clientConfig.ClientName] = v1alpha1.ManagedClient{
@@ -176,21 +180,21 @@ func (s *subroutine) Process(ctx context.Context, instance runtimeobject.Runtime
 	// Update status
 	original := idpConfig.DeepCopy()
 	idpConfig.Status.ManagedClients = managedClients
-	if err := kcpClient.Status().Patch(ctx, idpConfig, client.MergeFrom(original)); err != nil { // coverage-ignore
-		return ctrl.Result{}, errors.NewOperatorError(fmt.Errorf("failed to patch IDP status: %w", err), true, true) // coverage-ignore
+	if err := kcpClient.Status().Patch(ctx, idpConfig, client.MergeFrom(original)); err != nil {
+		return subroutines.OK(), fmt.Errorf("failed to patch IDP status: %w", err)
 	}
 
-	return ctrl.Result{}, nil
+	return subroutines.OK(), nil
 }
 
-func (s *subroutine) ensureRealm(ctx context.Context, adminClient *keycloak.AdminClient, realmName string, log *logger.Logger) error {
+func (s *subroutine) ensureRealm(ctx context.Context, adminClient *keycloak.AdminClient, realmName string, registrationAllowed bool, log *logger.Logger) error {
 	realmConfig := keycloak.RealmConfig{
 		Realm:                       realmName,
 		DisplayName:                 realmName,
 		Enabled:                     true,
 		LoginWithEmailAllowed:       true,
 		RegistrationEmailAsUsername: true,
-		RegistrationAllowed:         s.cfg.IDP.RegistrationAllowed,
+		RegistrationAllowed:         registrationAllowed,
 		SSOSessionIdleTimeout:       s.cfg.IDP.AccessTokenLifespan,
 		AccessTokenLifespan:         s.cfg.IDP.AccessTokenLifespan,
 	}
@@ -227,7 +231,7 @@ func (s *subroutine) ensureRealm(ctx context.Context, adminClient *keycloak.Admi
 	return nil
 }
 
-func (s *subroutine) deleteRemovedClients(ctx context.Context, idpConfig *v1alpha1.IdentityProviderConfiguration, oidcClient clientreg.Client, log *logger.Logger) errors.OperatorError {
+func (s *subroutine) deleteRemovedClients(ctx context.Context, idpConfig *v1alpha1.IdentityProviderConfiguration, oidcClient clientreg.Client, log *logger.Logger) error {
 	for clientName, managedClient := range idpConfig.Status.ManagedClients {
 		exists := slices.ContainsFunc(idpConfig.Spec.Clients,
 			func(c v1alpha1.IdentityProviderClientConfig) bool {
@@ -246,11 +250,11 @@ func (s *subroutine) deleteRemovedClients(ctx context.Context, idpConfig *v1alph
 				log.Info().Str("secretName", managedClient.SecretRef.Name).Msg("Secret not found, client was likely deleted")
 				continue
 			}
-			return errors.NewOperatorError(fmt.Errorf("failed to get registration access token from secret: %w", err), true, true)
+			return fmt.Errorf("failed to get registration access token from secret: %w", err)
 		}
 
 		if err := oidcClient.Delete(ctx, managedClient.ClientID, managedClient.RegistrationClientURI, registrationAccessToken); err != nil && !clientreg.IsNotFound(err) {
-			return errors.NewOperatorError(fmt.Errorf("failed to delete client %s: %w", clientName, err), true, false)
+			return fmt.Errorf("failed to delete client %s: %w", clientName, err)
 		}
 
 		secretToDelete := &corev1.Secret{
@@ -259,8 +263,12 @@ func (s *subroutine) deleteRemovedClients(ctx context.Context, idpConfig *v1alph
 				Namespace: managedClient.SecretRef.Namespace,
 			},
 		}
-		if err := s.orgsClient.Delete(ctx, secretToDelete); err != nil {
-			return errors.NewOperatorError(fmt.Errorf("failed to delete client secret %s: %w", managedClient.SecretRef.Name, err), true, false)
+		orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.CoreProviderName, config.OrgsClusterPath)))
+		if err != nil {
+			return fmt.Errorf("getting orgs client: %w", err)
+		}
+		if err := orgsClient.Delete(ctx, secretToDelete); err != nil {
+			return fmt.Errorf("failed to delete client secret %s: %w", managedClient.SecretRef.Name, err)
 		}
 	}
 
@@ -312,7 +320,11 @@ func (s *subroutine) registerOrUpdateClient(ctx context.Context, ipc *v1alpha1.I
 func (s *subroutine) readRegistrationAccessToken(ctx context.Context, secretRef corev1.SecretReference) (string, error) {
 	secret := &corev1.Secret{}
 	key := client.ObjectKey{Name: secretRef.Name, Namespace: secretRef.Namespace}
-	if err := s.orgsClient.Get(ctx, key, secret); err != nil {
+	orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.CoreProviderName, config.OrgsClusterPath)))
+	if err != nil {
+		return "", fmt.Errorf("getting orgs client: %w", err)
+	}
+	if err := orgsClient.Get(ctx, key, secret); err != nil {
 		return "", err
 	}
 	return string(secret.Data["registration_access_token"]), nil
@@ -330,7 +342,11 @@ func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig *v1a
 		},
 	}
 
-	_, err := controllerutil.CreateOrUpdate(ctx, s.orgsClient, secret, func() error {
+	orgsClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.CoreProviderName, config.OrgsClusterPath)))
+	if err != nil {
+		return fmt.Errorf("getting orgs client: %w", err)
+	}
+	_, err = controllerutil.CreateOrUpdate(ctx, orgsClient, secret, func() error {
 		if secret.Data == nil {
 			secret.Data = make(map[string][]byte)
 		}
@@ -343,5 +359,6 @@ func (s *subroutine) createOrUpdateSecret(ctx context.Context, clientConfig *v1a
 		secret.Type = corev1.SecretTypeOpaque
 		return nil
 	})
+
 	return err
 }

@@ -17,6 +17,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mccontext "sigs.k8s.io/multicluster-runtime/pkg/context"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/discovery"
@@ -86,25 +87,15 @@ func TestAuthorizationModelGetName(t *testing.T) {
 	assert.Equal(t, "AuthorizationModel", subroutine.GetName())
 }
 
-func TestAuthorizationModelFinalizers(t *testing.T) {
-	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil, nil, nil)
-	assert.Equal(t, []string(nil), subroutine.Finalizers(nil))
-}
-
-func TestAuthorizationModelFinalize(t *testing.T) {
-	subroutine := subroutine.NewAuthorizationModelSubroutine(nil, nil, nil, nil, nil)
-	_, err := subroutine.Finalize(t.Context(), nil)
-	assert.Nil(t, err)
-}
-
 func TestAuthorizationModelProcess(t *testing.T) {
 	tests := []struct {
-		name        string
-		store       *securityv1alpha1.Store
-		fgaMocks    func(*mocks.MockOpenFGAServiceClient)
-		k8sMocks    func(*mocks.MockClient)
-		mgrMocks    func(*mocks.MockManager)
-		expectError bool
+		name           string
+		store          *securityv1alpha1.Store
+		fgaMocks       func(*mocks.MockOpenFGAServiceClient)
+		kcpHelperMocks func(*mocks.MockLister)
+		mgrMocks       func(*mocks.MockManager)
+		discoveryMocks func(*mocks.MockDiscoveryInterface)
+		expectError    bool
 	}{
 		{
 			name: "should reconcile and apply the merged model",
@@ -119,8 +110,8 @@ func TestAuthorizationModelProcess(t *testing.T) {
 					StoreID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*securityv1alpha1.AuthorizationModelList)
 						am.Items = []securityv1alpha1.AuthorizationModel{
@@ -176,8 +167,8 @@ func TestAuthorizationModelProcess(t *testing.T) {
 					AuthorizationModelID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*securityv1alpha1.AuthorizationModelList)
 						am.Items = []securityv1alpha1.AuthorizationModel{
@@ -257,8 +248,8 @@ type core_namespace
 					AuthorizationModelID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*securityv1alpha1.AuthorizationModelList)
 						am.Items = []securityv1alpha1.AuthorizationModel{
@@ -291,8 +282,8 @@ type core_namespace
 					StoreID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*securityv1alpha1.AuthorizationModelList)
 						am.Items = []securityv1alpha1.AuthorizationModel{
@@ -325,8 +316,8 @@ type core_namespace
 					StoreID: "id",
 				},
 			},
-			k8sMocks: func(k8s *mocks.MockClient) {
-				k8s.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
 					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
 						am := ol.(*securityv1alpha1.AuthorizationModelList)
 						am.Items = []securityv1alpha1.AuthorizationModel{
@@ -349,6 +340,129 @@ type core_namespace
 			},
 			expectError: true,
 		},
+		{
+			name: "non-matching authorization model is filtered",
+			store: &securityv1alpha1.Store{
+				ObjectMeta: metav1.ObjectMeta{Name: "orgs"},
+				Spec:       securityv1alpha1.StoreSpec{CoreModule: coreModule},
+				Status:     securityv1alpha1.StoreStatus{StoreID: "id"},
+			},
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+						am := ol.(*securityv1alpha1.AuthorizationModelList)
+						am.Items = []securityv1alpha1.AuthorizationModel{
+							{
+								Spec: securityv1alpha1.AuthorizationModelSpec{
+									Model: extensionModel,
+									StoreRef: securityv1alpha1.WorkspaceStoreRef{
+										Name:    "different-store",
+										Cluster: "path",
+									},
+								},
+							},
+						}
+						return nil
+					},
+				).Once()
+			},
+			discoveryMocks: func(d *mocks.MockDiscoveryInterface) {},
+			fgaMocks: func(fga *mocks.MockOpenFGAServiceClient) {
+				fga.EXPECT().WriteAuthorizationModel(mock.Anything, mock.Anything).Return(
+					&openfgav1.WriteAuthorizationModelResponse{AuthorizationModelId: "new-id"}, nil,
+				)
+			},
+			expectError: false,
+		},
+		{
+			name: "discovery returns namespaced and grouped resources",
+			store: &securityv1alpha1.Store{
+				ObjectMeta: metav1.ObjectMeta{Name: "store"},
+				Spec:       securityv1alpha1.StoreSpec{CoreModule: coreModule},
+				Status:     securityv1alpha1.StoreStatus{StoreID: "id"},
+			},
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+						return nil
+					},
+				).Once()
+			},
+			discoveryMocks: func(d *mocks.MockDiscoveryInterface) {
+				d.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{
+					GroupVersion: "apps/v1",
+					APIResources: []metav1.APIResource{
+						{Name: "deployments", SingularName: "deployment", Namespaced: true, Group: ""},
+						{Name: "daemonsets", SingularName: "daemonset", Namespaced: false, Group: "apps"},
+					},
+				}, nil).Once()
+				d.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{}, nil).Maybe()
+			},
+			expectError: true,
+		},
+		{
+			name: "core discoverAndRender fails",
+			store: &securityv1alpha1.Store{
+				ObjectMeta: metav1.ObjectMeta{Name: "store"},
+				Spec:       securityv1alpha1.StoreSpec{CoreModule: coreModule},
+				Status:     securityv1alpha1.StoreStatus{StoreID: "id"},
+			},
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+						return nil
+					},
+				).Once()
+			},
+			discoveryMocks: func(d *mocks.MockDiscoveryInterface) {
+				d.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(nil, errors.New("discovery unavailable")).Once()
+			},
+			expectError: true,
+		},
+		{
+			name: "privileged discoverAndRender fails",
+			store: &securityv1alpha1.Store{
+				ObjectMeta: metav1.ObjectMeta{Name: "store"},
+				Spec:       securityv1alpha1.StoreSpec{CoreModule: coreModule},
+				Status:     securityv1alpha1.StoreStatus{StoreID: "id"},
+			},
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+						return nil
+					},
+				).Once()
+			},
+			discoveryMocks: func(d *mocks.MockDiscoveryInterface) {
+				// 5 core groupVersions succeed, then 1 privileged groupVersion fails
+				d.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{}, nil).Times(5)
+				d.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(nil, errors.New("privileged discovery unavailable")).Once()
+			},
+			expectError: true,
+		},
+		{
+			name: "ParseGroupVersion fails for returned resource list",
+			store: &securityv1alpha1.Store{
+				ObjectMeta: metav1.ObjectMeta{Name: "store"},
+				Spec:       securityv1alpha1.StoreSpec{CoreModule: coreModule},
+				Status:     securityv1alpha1.StoreStatus{StoreID: "id"},
+			},
+			kcpHelperMocks: func(kcpHelper *mocks.MockLister) {
+				kcpHelper.EXPECT().List(mock.Anything, mock.Anything).RunAndReturn(
+					func(ctx context.Context, ol client.ObjectList, lo ...client.ListOption) error {
+						return nil
+					},
+				).Once()
+			},
+			discoveryMocks: func(d *mocks.MockDiscoveryInterface) {
+				// GroupVersion with more than one slash is invalid for schema.ParseGroupVersion
+				d.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{
+					GroupVersion: "a/b/c/d",
+					APIResources: []metav1.APIResource{{Name: "pods", SingularName: "pod"}},
+				}, nil).Once()
+			},
+			expectError: true,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -366,8 +480,9 @@ type core_namespace
 			cluster := mocks.NewMockCluster(t)
 			client := mocks.NewMockClient(t)
 
-			if test.k8sMocks != nil {
-				test.k8sMocks(client)
+			kcpHelper := mocks.NewMockLister(t)
+			if test.kcpHelperMocks != nil {
+				test.kcpHelperMocks(kcpHelper)
 			}
 
 			manager.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Maybe()
@@ -375,29 +490,33 @@ type core_namespace
 
 			logger := testlogger.New()
 
-			ctrlManager := mocks.NewCTRLManager(t)
+			ctrlManager := mocks.NewMockCTRLManager(t)
 			manager.EXPECT().GetLocalManager().Return(ctrlManager).Maybe()
 			ctrlManager.EXPECT().GetConfig().Return(&rest.Config{}).Maybe()
 
 			discoveryMock := mocks.NewMockDiscoveryInterface(t)
-			discoveryMock.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{
-				APIResources: []metav1.APIResource{
-					{
-						Name:         "namespaces",
-						SingularName: "namespace",
-						Namespaced:   false,
-						Group:        "",
+			if test.discoveryMocks != nil {
+				test.discoveryMocks(discoveryMock)
+			} else {
+				discoveryMock.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{
+					APIResources: []metav1.APIResource{
+						{
+							Name:         "namespaces",
+							SingularName: "namespace",
+							Namespaced:   false,
+							Group:        "",
+						},
 					},
-				},
-			}, nil).Once().Maybe()
-			discoveryMock.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{}, nil).Maybe()
+				}, nil).Once().Maybe()
+				discoveryMock.EXPECT().ServerResourcesForGroupVersion(mock.Anything).Return(&metav1.APIResourceList{}, nil).Maybe()
+			}
 
-			subroutine := subroutine.NewAuthorizationModelSubroutine(fga, manager, client, func(cfg *rest.Config) discovery.DiscoveryInterface { return discoveryMock }, logger.Logger)
-			ctx := mccontext.WithCluster(context.Background(), string(logicalcluster.Name("path")))
+			subroutine := subroutine.NewAuthorizationModelSubroutine(fga, manager, kcpHelper, func(cfg *rest.Config) discovery.DiscoveryInterface { return discoveryMock }, logger.Logger)
+			ctx := mccontext.WithCluster(context.Background(), multicluster.ClusterName(logicalcluster.Name("path").String()))
 
 			_, err := subroutine.Process(ctx, test.store)
 			if test.expectError {
-				assert.Error(t, err.Err())
+				assert.Error(t, err)
 			} else {
 				assert.Nil(t, err)
 			}

@@ -5,11 +5,9 @@ import (
 	"time"
 
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
-	lifecyclecontrollerruntime "github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
-	lifecyclesubroutine "github.com/platform-mesh/golang-commons/controller/lifecycle/subroutine"
-	"github.com/platform-mesh/golang-commons/errors"
 	"github.com/platform-mesh/golang-commons/logger"
-	ctrl "sigs.k8s.io/controller-runtime"
+	"github.com/platform-mesh/subroutines"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
@@ -31,32 +29,28 @@ func NewAccountInfoFinalizerSubroutine(mgr mcmanager.Manager) *AccountInfoFinali
 	}
 }
 
-var _ lifecyclesubroutine.Subroutine = &AccountInfoFinalizerSubroutine{}
+var _ subroutines.Subroutine = &AccountInfoFinalizerSubroutine{}
 
 func (a *AccountInfoFinalizerSubroutine) GetName() string {
 	return "AccountInfoFinalizer"
 }
 
-func (a *AccountInfoFinalizerSubroutine) Finalizers(_ lifecyclecontrollerruntime.RuntimeObject) []string {
+func (a *AccountInfoFinalizerSubroutine) Finalizers(_ client.Object) []string {
 	return []string{AccountInfoFinalizer}
 }
 
-func (a *AccountInfoFinalizerSubroutine) Process(_ context.Context, _ lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
-	return ctrl.Result{}, nil
-}
-
-func (a *AccountInfoFinalizerSubroutine) Finalize(ctx context.Context, instance lifecyclecontrollerruntime.RuntimeObject) (ctrl.Result, errors.OperatorError) {
+func (a *AccountInfoFinalizerSubroutine) Finalize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	log := logger.LoadLoggerFromContext(ctx)
-	_ = instance.(*accountv1alpha1.AccountInfo)
+	_ = obj.(*accountv1alpha1.AccountInfo)
 
 	cluster, err := a.mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		return subroutines.OK(), err
 	}
 
 	var apiBindings kcpapisv1alpha2.APIBindingList
 	if err := cluster.GetClient().List(ctx, &apiBindings); err != nil {
-		return ctrl.Result{}, errors.NewOperatorError(err, true, true)
+		return subroutines.OK(), err
 	}
 
 	for _, binding := range apiBindings.Items {
@@ -64,10 +58,10 @@ func (a *AccountInfoFinalizerSubroutine) Finalize(ctx context.Context, instance 
 			log.Debug().
 				Str("apibinding", binding.Name).
 				Msg("APIBinding still has finalizer, requeuing AccountInfo deletion")
-			return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+			return subroutines.StopWithRequeue(5*time.Second, "APIBinding still has finalizer, requeuing AccountInfo deletion"), nil
 		}
 	}
 
 	log.Info().Msg("No APIBindings with finalizer found, allowing AccountInfo deletion")
-	return ctrl.Result{}, nil
+	return subroutines.OK(), nil
 }

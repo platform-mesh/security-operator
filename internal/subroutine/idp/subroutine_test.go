@@ -8,18 +8,19 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/platform-mesh/golang-commons/controller/lifecycle/runtimeobject"
 	"github.com/platform-mesh/golang-commons/logger/testlogger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/subroutine/idp"
 	"github.com/platform-mesh/security-operator/internal/subroutine/mocks"
+	"github.com/platform-mesh/subroutines"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"golang.org/x/oauth2"
-	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -61,7 +62,7 @@ func getTestScheme() *runtime.Scheme {
 	return scheme
 }
 
-func setupManagerAndCluster(t *testing.T, initialObjects ...client.Object) (*mocks.MockManager, *mocks.MockCluster, client.Client) {
+func setupManagerAndCluster(t *testing.T, orgsClient client.Client, initialObjects ...client.Object) (*mocks.MockManager, *mocks.MockCluster, client.Client) {
 	scheme := getTestScheme()
 
 	kcpClient := fake.NewClientBuilder().
@@ -72,9 +73,12 @@ func setupManagerAndCluster(t *testing.T, initialObjects ...client.Object) (*moc
 
 	mgr := mocks.NewMockManager(t)
 	cluster := mocks.NewMockCluster(t)
+	orgsCluster := mocks.NewMockCluster(t)
 
 	mgr.EXPECT().ClusterFromContext(mock.Anything).Return(cluster, nil).Maybe()
+	mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName(string(config.MultiProviderName(config.CoreProviderName, config.OrgsClusterPath)))).Return(orgsCluster, nil).Maybe()
 	cluster.EXPECT().GetClient().Return(kcpClient).Maybe()
+	orgsCluster.EXPECT().GetClient().Return(orgsClient).Maybe()
 
 	return mgr, cluster, kcpClient
 }
@@ -82,24 +86,24 @@ func setupManagerAndCluster(t *testing.T, initialObjects ...client.Object) (*moc
 func getTestConfig(cfg *config.Config, baseURL string) *config.Config {
 	if cfg == nil {
 		return &config.Config{
-			Invite: config.InviteConfig{
-				KeycloakBaseURL:  baseURL,
-				KeycloakClientID: "security-operator",
+			Keycloak: config.KeycloakConfig{
+				BaseURL:  baseURL,
+				ClientID: "security-operator",
 			},
 		}
 	}
-	cfg.Invite.KeycloakBaseURL = baseURL
+	cfg.Keycloak.BaseURL = baseURL
 	return cfg
 }
 
 func TestSubroutineProcess(t *testing.T) {
 	testCases := []struct {
 		desc               string
-		obj                runtimeobject.RuntimeObject
+		obj                client.Object
 		cfg                *config.Config
 		setupK8sMocks      func(m *mocks.MockClient, kcpClient client.Client)
 		setupKeycloakMocks func(mux *http.ServeMux, baseURL string)
-		setupManager       func(t *testing.T, initialObjects []client.Object) (*mocks.MockManager, client.Client)
+		setupManager       func(t *testing.T, orgsClient client.Client, initialObjects []client.Object) (*mocks.MockManager, client.Client)
 		expectNewErr       bool
 		expectErr          bool
 	}{
@@ -124,9 +128,9 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  "http://localhost",
+					ClientID: "security-operator",
 				},
 			},
 			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
@@ -182,9 +186,9 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  "http://localhost",
+					ClientID: "security-operator",
 				},
 			},
 			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
@@ -255,9 +259,9 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  "http://localhost",
+					ClientID: "security-operator",
 				},
 			},
 			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
@@ -336,9 +340,9 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  "http://localhost",
+					ClientID: "security-operator",
 				},
 			},
 			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
@@ -428,9 +432,9 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  "http://localhost",
+					ClientID: "security-operator",
 				},
 			},
 			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
@@ -509,9 +513,9 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  "http://localhost",
+					ClientID: "security-operator",
 				},
 			},
 			expectErr: true,
@@ -547,9 +551,9 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  "http://localhost",
+					ClientID: "security-operator",
 				},
 			},
 			expectErr: true,
@@ -583,9 +587,9 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  "http://localhost",
+					ClientID: "security-operator",
 				},
 			},
 			expectErr: true,
@@ -621,9 +625,9 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  "http://localhost",
+					ClientID: "security-operator",
 				},
 			},
 			expectErr: true,
@@ -658,7 +662,7 @@ func TestSubroutineProcess(t *testing.T) {
 					}},
 				},
 			},
-			cfg:           &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
+			cfg:           &config.Config{Keycloak: config.KeycloakConfig{BaseURL: "http://localhost", ClientID: "security-operator"}},
 			expectErr:     true,
 			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {
@@ -687,9 +691,9 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  "http://localhost",
+					ClientID: "security-operator",
 				},
 			},
 			expectErr: true,
@@ -733,9 +737,9 @@ func TestSubroutineProcess(t *testing.T) {
 				},
 			},
 			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  "http://localhost",
+					ClientID: "security-operator",
 				},
 			},
 			expectErr: true,
@@ -775,7 +779,7 @@ func TestSubroutineProcess(t *testing.T) {
 					}},
 				},
 			},
-			cfg:       &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
+			cfg:       &config.Config{Keycloak: config.KeycloakConfig{BaseURL: "http://localhost", ClientID: "security-operator"}},
 			expectErr: true,
 			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
 				secret := &corev1.Secret{
@@ -811,11 +815,11 @@ func TestSubroutineProcess(t *testing.T) {
 		{
 			desc:               "error cluster from context",
 			obj:                &v1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: "test-realm"}, Spec: v1alpha1.IdentityProviderConfigurationSpec{}},
-			cfg:                &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
+			cfg:                &config.Config{Keycloak: config.KeycloakConfig{BaseURL: "http://localhost", ClientID: "security-operator"}},
 			expectErr:          true,
 			setupK8sMocks:      func(m *mocks.MockClient, kcpClient client.Client) {},
 			setupKeycloakMocks: func(mux *http.ServeMux, baseURL string) {},
-			setupManager: func(t *testing.T, initialObjects []client.Object) (*mocks.MockManager, client.Client) {
+			setupManager: func(t *testing.T, orgsClient client.Client, initialObjects []client.Object) (*mocks.MockManager, client.Client) {
 				mgr := mocks.NewMockManager(t)
 				mgr.EXPECT().ClusterFromContext(mock.Anything).Return(nil, fmt.Errorf("cluster error")).Once()
 				return mgr, fake.NewClientBuilder().WithScheme(getTestScheme()).Build()
@@ -833,7 +837,7 @@ func TestSubroutineProcess(t *testing.T) {
 					}},
 				},
 			},
-			cfg:       &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
+			cfg:       &config.Config{Keycloak: config.KeycloakConfig{BaseURL: "http://localhost", ClientID: "security-operator"}},
 			expectErr: true,
 			setupK8sMocks: func(m *mocks.MockClient, kcpClient client.Client) {
 				m.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).Return(apierrors.NewNotFound(schema.GroupResource{Resource: "secrets"}, "portal-client-secret-test-realm")).Maybe()
@@ -897,16 +901,16 @@ func TestSubroutineProcess(t *testing.T) {
 			var mgr *mocks.MockManager
 			var kcpClient client.Client
 			if test.setupManager != nil {
-				mgr, kcpClient = test.setupManager(t, initialObjects)
+				mgr, kcpClient = test.setupManager(t, orgsClient, initialObjects)
 			} else {
-				mgr, _, kcpClient = setupManagerAndCluster(t, initialObjects...)
+				mgr, _, kcpClient = setupManagerAndCluster(t, orgsClient, initialObjects...)
 			}
 
 			if test.setupK8sMocks != nil {
 				test.setupK8sMocks(orgsClient, kcpClient)
 			}
 
-			s, err := idp.New(ctx, cfg, orgsClient, mgr)
+			s, err := idp.New(ctx, cfg, mgr, iclient.NewManagerKCPClientGetter(mgr, nil))
 			if test.expectNewErr {
 				assert.Error(t, err)
 				return
@@ -929,7 +933,7 @@ func TestSubroutineProcess(t *testing.T) {
 func TestFinalize(t *testing.T) {
 	testCases := []struct {
 		desc               string
-		obj                runtimeobject.RuntimeObject
+		obj                client.Object
 		cfg                *config.Config
 		setupK8sMocks      func(m *mocks.MockClient)
 		setupKeycloakMocks func(mux *http.ServeMux, baseURL string)
@@ -966,9 +970,9 @@ func TestFinalize(t *testing.T) {
 				},
 			},
 			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  "http://localhost",
+					ClientID: "security-operator",
 				},
 			},
 			setupK8sMocks: func(m *mocks.MockClient) {
@@ -1021,7 +1025,7 @@ func TestFinalize(t *testing.T) {
 					},
 				},
 			},
-			cfg:       &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
+			cfg:       &config.Config{Keycloak: config.KeycloakConfig{BaseURL: "http://localhost", ClientID: "security-operator"}},
 			expectErr: true,
 			setupK8sMocks: func(m *mocks.MockClient) {
 				m.EXPECT().Get(mock.Anything, mock.MatchedBy(func(key client.ObjectKey) bool {
@@ -1053,7 +1057,7 @@ func TestFinalize(t *testing.T) {
 					},
 				},
 			},
-			cfg:       &config.Config{Invite: config.InviteConfig{KeycloakBaseURL: "http://localhost", KeycloakClientID: "security-operator"}},
+			cfg:       &config.Config{Keycloak: config.KeycloakConfig{BaseURL: "http://localhost", ClientID: "security-operator"}},
 			expectErr: true,
 			setupK8sMocks: func(m *mocks.MockClient) {
 				secret := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: "portal-client-secret-test-realm", Namespace: "default"}, Data: map[string][]byte{"registration_access_token": []byte("delete-token")}}
@@ -1099,9 +1103,9 @@ func TestFinalize(t *testing.T) {
 				},
 			},
 			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  "http://localhost",
+					ClientID: "security-operator",
 				},
 			},
 			expectErr: true,
@@ -1160,9 +1164,9 @@ func TestFinalize(t *testing.T) {
 				},
 			},
 			cfg: &config.Config{
-				Invite: config.InviteConfig{
-					KeycloakBaseURL:  "http://localhost",
-					KeycloakClientID: "security-operator",
+				Keycloak: config.KeycloakConfig{
+					BaseURL:  "http://localhost",
+					ClientID: "security-operator",
 				},
 			},
 			expectErr: true,
@@ -1227,7 +1231,11 @@ func TestFinalize(t *testing.T) {
 
 			cfg := getTestConfig(test.cfg, srv.URL)
 
-			s, err := idp.New(ctx, cfg, orgsClient, mgr)
+			orgsCluster := mocks.NewMockCluster(t)
+			mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName(string(config.MultiProviderName(config.CoreProviderName, config.OrgsClusterPath)))).Return(orgsCluster, nil).Maybe()
+			orgsCluster.EXPECT().GetClient().Return(orgsClient).Maybe()
+
+			s, err := idp.New(ctx, cfg, mgr, iclient.NewManagerKCPClientGetter(mgr, nil))
 			assert.NoError(t, err)
 
 			l := testlogger.New()
@@ -1251,14 +1259,15 @@ func TestHelperFunctions(t *testing.T) {
 	configureOIDCProvider(t, mux, srv.URL)
 	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, srv.Client())
 
-	mgr, _, _ := setupManagerAndCluster(t)
+	orgsClient := fake.NewClientBuilder().WithScheme(getTestScheme()).Build()
+	mgr, _, _ := setupManagerAndCluster(t, orgsClient)
 
 	s, err := idp.New(ctx, &config.Config{
-		Invite: config.InviteConfig{
-			KeycloakBaseURL:  srv.URL,
-			KeycloakClientID: "security-operator",
+		Keycloak: config.KeycloakConfig{
+			BaseURL:  srv.URL,
+			ClientID: "security-operator",
 		},
-	}, nil, mgr)
+	}, mgr, iclient.NewManagerKCPClientGetter(mgr, nil))
 	assert.NoError(t, err)
 
 	assert.Equal(t, "IdentityProviderConfiguration", s.GetName())
@@ -1266,5 +1275,5 @@ func TestHelperFunctions(t *testing.T) {
 
 	res, finalizerErr := s.Finalize(ctx, &v1alpha1.IdentityProviderConfiguration{})
 	assert.Nil(t, finalizerErr)
-	assert.Equal(t, ctrl.Result{}, res)
+	assert.Equal(t, subroutines.OK(), res)
 }

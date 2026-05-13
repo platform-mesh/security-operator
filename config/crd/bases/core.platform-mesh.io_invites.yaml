@@ -40,6 +40,8 @@ spec:
             description: spec defines the desired state of Invite
             properties:
               email:
+                format: email
+                pattern: '[a-zA-Z0-9!#$%&''*+/=?^_`{|}~.-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*'
                 type: string
             required:
             - email
