@@ -2,13 +2,14 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
-	iclient "github.com/platform-mesh/security-operator/internal/client"
+	"github.com/platform-mesh/security-operator/internal/metrics"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -38,7 +39,15 @@ func NewAuthorizationModelReconciler(log *logger.Logger, fga openfgav1.OpenFGASe
 }
 
 func (r *AuthorizationModelReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	return r.lifecycle.Reconcile(ctx, req)
+	start := time.Now()
+	result, err := r.lifecycle.Reconcile(ctx, req)
+	labelResult := "success"
+	if err != nil {
+		labelResult = "error"
+	}
+	metrics.ReconcileTotal.WithLabelValues("authorizationmodel", labelResult).Inc()
+	metrics.ReconcileDuration.WithLabelValues("authorizationmodel").Observe(time.Since(start).Seconds())
+	return result, err
 }
 
 func (r *AuthorizationModelReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {

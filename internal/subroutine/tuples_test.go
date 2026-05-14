@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -233,7 +234,8 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 			},
 			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
 				storeClient := mocks.NewMockClient(t)
-				kcpHelper.EXPECT().NewClientForLogicalCluster(logicalcluster.Name("store-cluster")).Return(storeClient, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
+				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*securityv1alpha1.Store)
 					*store = securityv1alpha1.Store{
@@ -293,7 +295,8 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 			},
 			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
 				storeClient := mocks.NewMockClient(t)
-				kcpHelper.EXPECT().NewClientForLogicalCluster(logicalcluster.Name("store-cluster")).Return(storeClient, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
+				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*securityv1alpha1.Store)
 					*store = securityv1alpha1.Store{
@@ -373,7 +376,8 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 			},
 			kcpHelperMocks: func(kcpHelper *mocks.MockKcpHelper) {
 				storeClient := mocks.NewMockClient(t)
-				kcpHelper.EXPECT().NewClientForLogicalCluster(logicalcluster.Name("store-cluster")).Return(storeClient, nil)
+				mgr.EXPECT().GetCluster(mock.Anything, multicluster.ClusterName("store-cluster")).Return(storeCluster, nil)
+				storeCluster.EXPECT().GetClient().Return(storeClient)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*securityv1alpha1.Store)
 					*store = securityv1alpha1.Store{

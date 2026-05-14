@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/filter"
@@ -10,6 +11,7 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/security-operator/internal/metrics"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/subroutines"
 	"github.com/platform-mesh/subroutines/lifecycle"
@@ -40,35 +42,33 @@ type OrgLogicalClusterController struct {
 	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
 }
 
-func NewOrgLogicalClusterController(log *logger.Logger, orgClient client.Client, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager, opts ControllerOptions) (*OrgLogicalClusterController, error) {
+func NewOrgLogicalClusterController(log *logger.Logger, kcpClientGetter iclient.KCPClientGetter, cfg config.Config, inClusterClient client.Client, mgr mcmanager.Manager, opts ControllerOptions) (*OrgLogicalClusterController, error) {
 	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[mcreconcile.Request](ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 
-	kcpClientHelper := iclient.NewKcpHelper(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
-
 	var subs []subroutines.Subroutine
 
 	if cfg.Initializer.WorkspaceInitializerEnabled {
-		subs = append(subs, subroutine.NewWorkspaceInitializer(orgClient, cfg, mgr, cfg.FGA.CreatorRelation, cfg.FGA.ObjectType, kcpClientHelper))
+		subs = append(subs, subroutine.NewWorkspaceInitializer(cfg, mgr, kcpClientGetter, cfg.FGA.CreatorRelation, cfg.FGA.ObjectType, kcpClientGetter))
 	}
 	if cfg.Initializer.IDPEnabled {
-		idpSub, err := subroutine.NewIDPSubroutine(orgClient, mgr, cfg)
+		idpSub, err := subroutine.NewIDPSubroutine(mgr, kcpClientGetter, cfg)
 		if err != nil {
 			return nil, fmt.Errorf("creating IDP subroutine: %w", err)
 		}
 		subs = append(subs, idpSub)
 	}
 	if cfg.Initializer.InviteEnabled {
-		inviteSub, err := subroutine.NewInviteSubroutine(orgClient, mgr)
+		inviteSub, err := subroutine.NewInviteSubroutine(mgr, kcpClientGetter)
 		if err != nil {
 			return nil, fmt.Errorf("creating Invite subroutine: %w", err)
 		}
 		subs = append(subs, inviteSub)
 	}
 	if cfg.Initializer.WorkspaceAuthEnabled {
-		subs = append(subs, subroutine.NewWorkspaceAuthConfigurationSubroutine(orgClient, inClusterClient, mgr, cfg))
+		subs = append(subs, subroutine.NewWorkspaceAuthConfigurationSubroutine(inClusterClient, mgr, kcpClientGetter, cfg))
 	}
 
 	lc := lifecycle.New(mgr, opts.Name, func() client.Object {
@@ -91,7 +91,15 @@ func NewOrgLogicalClusterController(log *logger.Logger, orgClient client.Client,
 }
 
 func (r *OrgLogicalClusterController) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	return r.lifecycle.Reconcile(ctx, req)
+	start := time.Now()
+	result, err := r.lifecycle.Reconcile(ctx, req)
+	labelResult := "success"
+	if err != nil {
+		labelResult = "error"
+	}
+	metrics.ReconcileTotal.WithLabelValues(r.name, labelResult).Inc()
+	metrics.ReconcileDuration.WithLabelValues(r.name).Observe(time.Since(start).Seconds())
+	return result, err
 }
 
 func (r *OrgLogicalClusterController) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {

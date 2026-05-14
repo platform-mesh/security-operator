@@ -21,8 +21,8 @@ import (
 
 	"k8s.io/client-go/rest"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	"github.com/kcp-dev/multicluster-provider/apiexport"
+	pathaware "github.com/kcp-dev/multicluster-provider/path-aware"
 )
 
 var systemCmd = &cobra.Command{
@@ -80,6 +80,7 @@ var systemCmd = &cobra.Command{
 			setupLog.Error(err, "unable to create core apiexport provider")
 			return err
 		}
+    
 		multiProv := multiprovider.New(multiprovider.Options{})
 		if err := multiProv.AddProvider(config.SystemProviderName, systemProvider); err != nil {
 			return err
@@ -109,13 +110,9 @@ var systemCmd = &cobra.Command{
 			log,
 		)
 
-		orgClient, err := iclient.NewForLogicalCluster(restCfg, scheme, logicalcluster.Name("root:orgs"))
-		if err != nil {
-			log.Error().Err(err).Msg("Failed to create org client")
-			return err
-		}
+		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr, coreProvider.Provider.Provider)
 
-		idpReconciler, err := controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, orgClient, &systemCfg, log)
+		idpReconciler, err := controller.NewIdentityProviderConfigurationReconciler(ctx, mgr, kcpClientGetter, &systemCfg, log)
 		if err != nil {
 			log.Error().Err(err).Str("controller", "identityprovider").Msg("unable to create reconciler")
 			return err
@@ -125,7 +122,11 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, &systemCfg, storeIDGetter).SetupWithManager(mgr, defaultCfg, &systemCfg); err != nil {
+		//TODO use Manager getter instead when path-aware provider is fixed
+		kcpClientGetterWithCongig := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme)
+		providerLister := iclient.NewProviderLister(coreProvider.Provider.Provider)
+
+		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, kcpClientGetterWithCongig, providerLister, &systemCfg, storeIDGetter).SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
 			return err
 		}

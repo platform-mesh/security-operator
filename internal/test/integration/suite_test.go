@@ -12,6 +12,7 @@ import (
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/stretchr/testify/require"
@@ -242,7 +243,9 @@ func (suite *IntegrationSuite) setupControllers(defaultCfg *platformeshconfig.Co
 		},
 	}
 
-	err = controller.NewAPIBindingReconciler(ctx, testLogger, mgr, operatorCfg).SetupWithManager(mgr, defaultCfg)
+	providerLister := iclient.NewProviderLister(provider.Provider)
+
+	err = controller.NewAPIBindingReconciler(testLogger, mgr, providerLister, operatorCfg).SetupWithManager(mgr, defaultCfg)
 	suite.Require().NoError(err)
 
 	managerCtx, cancel := context.WithCancel(ctx)

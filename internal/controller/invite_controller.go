@@ -3,13 +3,16 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
 	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/golang-commons/logger"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
+	"github.com/platform-mesh/security-operator/internal/metrics"
 	"github.com/platform-mesh/security-operator/internal/subroutine/invite"
 	"github.com/platform-mesh/subroutines/conditions"
 	"github.com/platform-mesh/subroutines/lifecycle"
@@ -30,8 +33,8 @@ type InviteReconciler struct {
 	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
 }
 
-func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, cfg *config.Config, log *logger.Logger) (*InviteReconciler, error) {
-	inviteSubroutine, err := invite.New(ctx, cfg, mgr)
+func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, cfg *config.Config, log *logger.Logger, kcpClientGetter iclient.KCPClientGetter) (*InviteReconciler, error) {
+	inviteSubroutine, err := invite.New(ctx, cfg, kcpClientGetter)
 	if err != nil {
 		return nil, fmt.Errorf("creating Invite subroutine: %w", err)
 	}
@@ -54,7 +57,15 @@ func NewInviteReconciler(ctx context.Context, mgr mcmanager.Manager, cfg *config
 }
 
 func (r *InviteReconciler) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	return r.lifecycle.Reconcile(ctx, req)
+	start := time.Now()
+	result, err := r.lifecycle.Reconcile(ctx, req)
+	labelResult := "success"
+	if err != nil {
+		labelResult = "error"
+	}
+	metrics.ReconcileTotal.WithLabelValues("invite", labelResult).Inc()
+	metrics.ReconcileDuration.WithLabelValues("invite").Observe(time.Since(start).Seconds())
+	return result, err
 }
 
 func (r *InviteReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, log *logger.Logger) error {

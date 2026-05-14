@@ -13,6 +13,7 @@ import (
 	"github.com/platform-mesh/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"k8s.io/apimachinery/pkg/types"
 
@@ -41,7 +42,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj client.Object) (subr
 	case *securityv1alpha1.AuthorizationModel:
 		managedTuples = o.Status.ManagedTuples
 
-		cl, err := t.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(o.Spec.StoreRef.Cluster))
+		storeCluster, err := t.mgr.GetCluster(ctx, multicluster.ClusterName(o.Spec.StoreRef.Cluster))
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("unable to create client to store cluster: %w", err)
 		}
@@ -101,7 +102,7 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj client.Object) (subro
 		specTuples = o.Spec.Tuples
 		managedTuples = o.Status.ManagedTuples
 
-		cl, err := t.kcpHelper.NewClientForLogicalCluster(logicalcluster.Name(o.Spec.StoreRef.Cluster))
+		storeCluster, err := t.mgr.GetCluster(ctx, multicluster.ClusterName(o.Spec.StoreRef.Cluster))
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("unable to create client to store cluster: %w", err)
 		}

@@ -9,6 +9,7 @@ import (
 	accountv1alpha1 "github.com/platform-mesh/account-operator/api/v1alpha1"
 	"github.com/platform-mesh/golang-commons/controller/lifecycle/ratelimiter"
 	"github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/subroutines"
 	"github.com/rs/zerolog/log"
@@ -31,14 +32,14 @@ const (
 	secretNamespace   = "default"
 )
 
-func NewIDPSubroutine(orgsClient client.Client, mgr mcmanager.Manager, cfg config.Config) (*IDPSubroutine, error) {
+func NewIDPSubroutine(mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, cfg config.Config) (*IDPSubroutine, error) {
 	limiter, err := ratelimiter.NewStaticThenExponentialRateLimiter[*v1alpha1.IdentityProviderConfiguration](ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 	return &IDPSubroutine{
-		orgsClient:                orgsClient,
 		mgr:                       mgr,
+		kcpClientGetter:           kcpClientGetter,
 		additionalRedirectURLs:    cfg.IDP.AdditionalRedirectURLs,
 		kubectlClientRedirectURLs: cfg.IDP.KubectlClientRedirectURLs,
 		baseDomain:                cfg.BaseDomain,
@@ -53,8 +54,8 @@ var (
 )
 
 type IDPSubroutine struct {
-	orgsClient                client.Client
 	mgr                       mcmanager.Manager
+	kcpClientGetter           iclient.KCPClientGetter
 	additionalRedirectURLs    []string
 	kubectlClientRedirectURLs []string
 	baseDomain                string
@@ -87,8 +88,12 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj client.Object) (subro
 		return subroutines.OK(), fmt.Errorf("failed to get cluster from context %w", err)
 	}
 
+	orgsClient, err := i.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
+	}
 	var account accountv1alpha1.Account
-	err = i.orgsClient.Get(ctx, types.NamespacedName{Name: workspaceName}, &account)
+	err = orgsClient.Get(ctx, types.NamespacedName{Name: workspaceName}, &account)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to get account resource %w", err)
 	}
@@ -121,7 +126,7 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj client.Object) (subro
 	}
 
 	idp := &v1alpha1.IdentityProviderConfiguration{ObjectMeta: metav1.ObjectMeta{Name: workspaceName}}
-	_, err = controllerutil.CreateOrPatch(ctx, i.orgsClient, idp, func() error {
+	_, err = controllerutil.CreateOrPatch(ctx, orgsClient, idp, func() error {
 		idp.Spec.RegistrationAllowed = i.registrationAllowed
 
 		for _, desired := range clients {
@@ -134,8 +139,7 @@ func (i *IDPSubroutine) reconcile(ctx context.Context, obj client.Object) (subro
 	}
 
 	log.Info().Str("workspace", workspaceName).Msg("idp configuration resource is created")
-
-	if err := i.orgsClient.Get(ctx, types.NamespacedName{Name: workspaceName}, idp); err != nil {
+	if err := orgsClient.Get(ctx, types.NamespacedName{Name: workspaceName}, idp); err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to get idp resource %w", err)
 	}
 

@@ -5,6 +5,14 @@ import (
 	"time"
 
 	"github.com/spf13/pflag"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
+)
+
+const (
+	CoreProviderName   = "core"
+	SystemProviderName = "system"
+	providerSeparator  = "#"
+	OrgsClusterPath    = "root:orgs"
 )
 
 const (
@@ -186,4 +194,10 @@ func (config Config) InitializerName() string {
 
 func (config Config) TerminatorName() string {
 	return config.WorkspacePath + ":" + config.WorkspaceTypeName
+}
+
+// MultiProviderName returns a cluster name with provider prefix and separator for multi provider.
+// The multi.Provider prefixes cluster names as "providerName#clusterName"
+func MultiProviderName(providerName, clusterName string) multicluster.ClusterName {
+	return multicluster.ClusterName(providerName + providerSeparator + clusterName)
 }

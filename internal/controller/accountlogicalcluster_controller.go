@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
 	platformeshconfig "github.com/platform-mesh/golang-commons/config"
@@ -12,6 +13,7 @@ import (
 	iclient "github.com/platform-mesh/security-operator/internal/client"
 	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/fga"
+	"github.com/platform-mesh/security-operator/internal/metrics"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -34,16 +36,15 @@ type AccountLogicalClusterController struct {
 	rateLimiter workqueue.TypedRateLimiter[mcreconcile.Request]
 }
 
-func NewAccountLogicalClusterController(log *logger.Logger, cfg config.Config, fgaClient openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, mgr mcmanager.Manager, opts ControllerOptions) (*AccountLogicalClusterController, error) {
+func NewAccountLogicalClusterController(log *logger.Logger, cfg config.Config, fgaClient openfgav1.OpenFGAServiceClient, storeIDGetter fga.StoreIDGetter, mgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, opts ControllerOptions) (*AccountLogicalClusterController, error) {
 	rl, err := ratelimiter.NewStaticThenExponentialRateLimiter[mcreconcile.Request](ratelimiter.NewConfig())
 	if err != nil {
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 
-	kcpClientHelper := iclient.NewKcpHelper(mgr.GetLocalManager().GetConfig(), mgr.GetLocalManager().GetScheme())
 	lc := lifecycle.New(mgr, opts.Name, func() client.Object {
 		return &kcpcorev1alpha1.LogicalCluster{}
-	}, subroutine.NewAccountTuplesSubroutine(mgr, fgaClient, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType, kcpClientHelper))
+	}, subroutine.NewAccountTuplesSubroutine(mgr, fgaClient, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType, kcpClientGetter))
 
 	if opts.InitializerName != "" {
 		lc = lc.WithInitializer(opts.InitializerName)
@@ -61,7 +62,15 @@ func NewAccountLogicalClusterController(log *logger.Logger, cfg config.Config, f
 }
 
 func (r *AccountLogicalClusterController) Reconcile(ctx context.Context, req mcreconcile.Request) (ctrl.Result, error) {
-	return r.lifecycle.Reconcile(ctx, req)
+	start := time.Now()
+	result, err := r.lifecycle.Reconcile(ctx, req)
+	labelResult := "success"
+	if err != nil {
+		labelResult = "error"
+	}
+	metrics.ReconcileTotal.WithLabelValues(r.name, labelResult).Inc()
+	metrics.ReconcileDuration.WithLabelValues(r.name).Observe(time.Since(start).Seconds())
+	return result, err
 }
 
 func (r *AccountLogicalClusterController) SetupWithManager(mgr mcmanager.Manager, cfg *platformeshconfig.CommonServiceConfig, evp ...predicate.Predicate) error {
