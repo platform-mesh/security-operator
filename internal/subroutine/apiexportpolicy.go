@@ -27,22 +27,20 @@ const (
 )
 
 type APIExportPolicySubroutine struct {
-	fga             openfgav1.OpenFGAServiceClient
-	mgr             mcmanager.Manager
-	cfg             *config.Config
-	storeIDGetter   fga.StoreIDGetter
-	kcpClientGetter iclient.KCPClientGetter
-	lister          iclient.Lister
+	fga           openfgav1.OpenFGAServiceClient
+	mgr           mcmanager.Manager
+	cfg           *config.Config
+	storeIDGetter fga.StoreIDGetter
+	lister        iclient.Lister
 }
 
-func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpClientGetter iclient.KCPClientGetter, lister iclient.Lister) *APIExportPolicySubroutine {
+func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, lister iclient.Lister) *APIExportPolicySubroutine {
 	return &APIExportPolicySubroutine{
-		fga:             fgaClient,
-		mgr:             mgr,
-		cfg:             cfg,
-		storeIDGetter:   storeIDGetter,
-		kcpClientGetter: kcpClientGetter,
-		lister:          lister,
+		fga:           fgaClient,
+		mgr:           mgr,
+		cfg:           cfg,
+		storeIDGetter: storeIDGetter,
+		lister:        lister,
 	}
 }
 
@@ -111,13 +109,13 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Obje
 		// for all valid expressions except of :root:orgs:*
 		// e.g :root:orgs:A:B, find store id
 		// and clusterID of logical cluster where account B lives (logical cluster A)
-		lcClient, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, workspacePath)
+		consumerCluster, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.CoreProviderName, workspacePath))
 		if err != nil {
-			return subroutines.OK(), fmt.Errorf("getting client: %w", err)
+			return subroutines.OK(), fmt.Errorf("getting cluster: %w", err)
 		}
 
 		var ai accountsv1alpha1.AccountInfo
-		if err := lcClient.Get(ctx, client.ObjectKey{Name: "account"}, &ai); err != nil {
+		if err := consumerCluster.GetClient().Get(ctx, client.ObjectKey{Name: "account"}, &ai); err != nil {
 			return subroutines.OK(), fmt.Errorf("getting AccountInfo for workspace %s: %w", workspacePath, err)
 		}
 
@@ -178,14 +176,13 @@ func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, obj client.Obj
 }
 
 func (a *APIExportPolicySubroutine) getClusterIDFromPath(ctx context.Context, clusterPath string) (string, error) {
-	// TODO use multi provider name when pathaware provider is fixed
-	cl, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, clusterPath)
+	cluster, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.CoreProviderName, clusterPath))
 	if err != nil {
-		return "", fmt.Errorf("getting client for workspace %s: %w", clusterPath, err)
+		return "", fmt.Errorf("getting cluster for workspace %s: %w", clusterPath, err)
 	}
 
 	var lc kcpcorev1alpha1.LogicalCluster
-	if err := cl.Get(ctx, client.ObjectKey{Name: "cluster"}, &lc); err != nil {
+	if err := cluster.GetClient().Get(ctx, client.ObjectKey{Name: "cluster"}, &lc); err != nil {
 		return "", fmt.Errorf("getting logical cluster for path %s: %w", clusterPath, err)
 	}
 
@@ -271,13 +268,13 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 		return nil
 	}
 
-	lcClient, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, workspacePath)
+	consumerCluster, err := a.mgr.GetCluster(ctx, config.MultiProviderName(config.CoreProviderName, workspacePath))
 	if err != nil {
 		return fmt.Errorf("getting client for workspace %s: %w", workspacePath, err)
 	}
 
 	var ai accountsv1alpha1.AccountInfo
-	if err := lcClient.Get(ctx, client.ObjectKey{Name: "account"}, &ai); err != nil {
+	if err := consumerCluster.GetClient().Get(ctx, client.ObjectKey{Name: "account"}, &ai); err != nil {
 		return fmt.Errorf("getting AccountInfo for workspace %s: %w", workspacePath, err)
 	}
 
