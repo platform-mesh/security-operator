@@ -80,7 +80,6 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 			}),
 		).
 		WithOptions(opts).
-		WithClusterNotFoundWrapper(false).
 		WithEventFilter(predicate.And(predicates...)).
 		Watches(
 			&accountsv1alpha1.Account{},

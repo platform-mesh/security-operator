@@ -136,3 +136,5 @@ require (
 	sigs.k8s.io/randfill v1.0.0 // indirect
 	sigs.k8s.io/structured-merge-diff/v6 v6.3.2 // indirect
 )
+
+replace github.com/kcp-dev/multicluster-provider => github.com/kcp-dev/multicluster-provider v0.0.0-20260513194010-4a8f83e47c41
