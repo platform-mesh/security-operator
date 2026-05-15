@@ -29,7 +29,8 @@ import (
 )
 
 const (
-	apiBindingFinalizer = "core.platform-mesh.io/apibinding-finalizer"
+	apiBindingFinalizer       = "core.platform-mesh.io/apibinding-finalizer"
+	corePlatformMeshApiExport = "core.platform-mesh.io"
 )
 
 // toK8sName creates a valid Kubernetes metadata.name from the given parts.
@@ -201,10 +202,10 @@ func (a *AuthorizationModelGenerationSubroutine) Finalize(ctx context.Context, o
 	return subroutines.OK(), nil
 }
 
-// Finalizers implements subroutines.Finalizer.
-func (a *AuthorizationModelGenerationSubroutine) Finalizers(obj client.Object) []string {
-	binding := obj.(*kcpapisv1alpha2.APIBinding)
-	if strings.Contains(binding.Name, "platform-mesh.io") || strings.Contains(binding.Name, "kcp.io") {
+// Finalizers implements lifecycle.Subroutine.
+func (a *AuthorizationModelGenerationSubroutine) Finalizers(instance lifecyclecontrollerruntime.RuntimeObject) []string {
+	binding := instance.(*kcpapisv1alpha2.APIBinding)
+	if strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
 		return []string{}
 	}
 	return []string{apiBindingFinalizer}
@@ -237,7 +238,12 @@ func (a *AuthorizationModelGenerationSubroutine) Process(ctx context.Context, ob
 		return subroutines.OK(), fmt.Errorf("getting AccountInfo: %w", err)
 	}
 
-	apiExportCluster, err := a.mgr.GetCluster(ctx, multicluster.ClusterName(binding.Status.APIExportClusterName))
+	if binding.Spec.Reference.Export.Name == corePlatformMeshApiExport || strings.HasSuffix(binding.Spec.Reference.Export.Name, "kcp.io") {
+		// If the APIExport is the core.platform-mesh.io, we can skip the model generation.
+		return ctrl.Result{}, nil
+	}
+
+	apiExportCluster, err := a.mgr.GetCluster(ctx, binding.Status.APIExportClusterName)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting APIExport cluster: %w", err)
 	}
