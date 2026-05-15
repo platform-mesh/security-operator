@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	openfgav1 "github.com/openfga/api/proto/openfga/v1"
@@ -9,15 +10,19 @@ import (
 	"github.com/platform-mesh/golang-commons/controller/filter"
 	"github.com/platform-mesh/golang-commons/logger"
 	corev1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
+	iclient "github.com/platform-mesh/security-operator/internal/client"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/metrics"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/platform-mesh/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/cluster"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	mcbuilder "sigs.k8s.io/multicluster-runtime/pkg/builder"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
+	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 	mcreconcile "sigs.k8s.io/multicluster-runtime/pkg/reconcile"
 )
 
@@ -26,11 +31,10 @@ type AuthorizationModelReconciler struct {
 	lifecycle *lifecycle.Lifecycle
 }
 
-func NewAuthorizationModelReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager) *AuthorizationModelReconciler {
-	kcpClientHelper := iclient.NewKcpHelper(mcMgr.GetLocalManager().GetConfig(), mcMgr.GetLocalManager().GetScheme())
+func NewAuthorizationModelReconciler(log *logger.Logger, fga openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter) *AuthorizationModelReconciler {
 	lc := lifecycle.New(mcMgr, "AuthorizationModelReconciler", func() client.Object {
 		return &corev1alpha1.AuthorizationModel{}
-	}, subroutine.NewTupleSubroutine(fga, mcMgr, kcpClientHelper))
+	}, subroutine.NewTupleSubroutine(fga, kcpClientGetter))
 
 	return &AuthorizationModelReconciler{
 		log:       log,
@@ -57,7 +61,9 @@ func (r *AuthorizationModelReconciler) SetupWithManager(mgr mcmanager.Manager, c
 	predicates := append([]predicate.Predicate{filter.DebugResourcesBehaviourPredicate(cfg.DebugLabelValue)}, evp...)
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("authorizationmodel").
-		For(&corev1alpha1.AuthorizationModel{}).
+		For(&corev1alpha1.AuthorizationModel{}, mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
+			return strings.HasPrefix(string(clusterName), config.CoreProviderName)
+		})).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
 		Complete(r)

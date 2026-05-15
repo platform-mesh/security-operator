@@ -149,14 +149,6 @@ var operatorCmd = &cobra.Command{
 			log.Error().Err(err).Msg("Failed to create in cluster client")
 			return err
 		}
-		providerLister := iclient.NewProviderLister(provider.Provider.Provider)
-
-		if err = controller.
-			NewAuthorizationModelReconciler(log, fga, mgr).
-			SetupWithManager(mgr, defaultCfg); err != nil {
-			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
-			return err
-		}
 
 		kcpClientGetter := iclient.NewManagerKCPClientGetter(mgr, provider.Provider.Provider)
 		kcpClientGetterWithConfig := iclient.NewConfigSchemeKCPClientGetter(restCfg, scheme)
