@@ -15,12 +15,6 @@ const (
 	OrgsClusterPath    = "root:orgs"
 )
 
-const (
-	CoreProviderName   = "core"
-	SystemProviderName = "system"
-	ProviderSeparator  = "#"
-)
-
 type KeycloakConfig struct {
 	BaseURL      string
 	ClientID     string

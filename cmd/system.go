@@ -65,7 +65,7 @@ var systemCmd = &cobra.Command{
 			opts.LeaderElectionConfig = inClusterCfg
 		}
 
-		systemProvider, err := apiexport.New(restCfg, systemCfg.APIExportEndpointSlices.SystemPlatformMeshIO, apiexport.Options{
+		systemProvider, err := pathaware.New(restCfg, systemCfg.APIExportEndpointSlices.SystemPlatformMeshIO, apiexport.Options{
 			Scheme: scheme,
 		})
 		if err != nil {
@@ -73,7 +73,7 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
-		coreProvider, err := apiexport.New(restCfg, systemCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
+		coreProvider, err := pathaware.New(restCfg, systemCfg.APIExportEndpointSlices.CorePlatformMeshIO, apiexport.Options{
 			Scheme: scheme,
 		})
 		if err != nil {
@@ -130,9 +130,16 @@ var systemCmd = &cobra.Command{
 			return err
 		}
 
-		if err = controller.NewStoreReconciler(ctx, log, fgaClient, mgr, &operatorCfg).
+		if err = controller.NewStoreReconciler(ctx, log, fgaClient, mgr, &operatorCfg, providerLister, kcpClientGetter).
 			SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
+			return err
+		}
+
+		if err = controller.
+			NewAuthorizationModelReconciler(log, fgaClient, mgr, kcpClientGetter).
+			SetupWithManager(mgr, defaultCfg); err != nil {
+			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
 			return err
 		}
 

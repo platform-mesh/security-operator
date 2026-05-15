@@ -12,18 +12,13 @@ import (
 	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
-	"sigs.k8s.io/multicluster-runtime/pkg/multicluster"
 
 	"k8s.io/apimachinery/pkg/types"
-
-	"github.com/kcp-dev/logicalcluster/v3"
 )
 
 type tupleSubroutine struct {
-	fga       openfgav1.OpenFGAServiceClient
-	mgr       mcmanager.Manager
-	kcpHelper iclient.KcpClientHelper
+	fga             openfgav1.OpenFGAServiceClient
+	kcpClientGetter iclient.KCPClientGetter
 }
 
 // Finalize implements subroutines.Finalizer.
@@ -42,13 +37,13 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj client.Object) (subr
 	case *securityv1alpha1.AuthorizationModel:
 		managedTuples = o.Status.ManagedTuples
 
-		storeCluster, err := t.mgr.GetCluster(ctx, multicluster.ClusterName(o.Spec.StoreRef.Cluster))
+		storeClient, err := t.kcpClientGetter.NewClientForLogicalCluster(ctx, o.Spec.StoreRef.Cluster)
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("unable to create client to store cluster: %w", err)
 		}
 
 		var store securityv1alpha1.Store
-		err = cl.Get(ctx, types.NamespacedName{
+		err = storeClient.Get(ctx, types.NamespacedName{
 			Name: o.Spec.StoreRef.Name,
 		}, &store)
 		if err != nil {
@@ -102,13 +97,13 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj client.Object) (subro
 		specTuples = o.Spec.Tuples
 		managedTuples = o.Status.ManagedTuples
 
-		storeCluster, err := t.mgr.GetCluster(ctx, multicluster.ClusterName(o.Spec.StoreRef.Cluster))
+		storeClient, err := t.kcpClientGetter.NewClientForLogicalCluster(ctx, o.Spec.StoreRef.Cluster)
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("unable to create client to store cluster: %w", err)
 		}
 
 		var store securityv1alpha1.Store
-		err = cl.Get(ctx, types.NamespacedName{
+		err = storeClient.Get(ctx, types.NamespacedName{
 			Name: o.Spec.StoreRef.Name,
 		}, &store)
 		if err != nil {
@@ -146,11 +141,10 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj client.Object) (subro
 	return subroutines.OK(), nil
 }
 
-func NewTupleSubroutine(fga openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, kcpHelper iclient.KcpClientHelper) *tupleSubroutine {
+func NewTupleSubroutine(fga openfgav1.OpenFGAServiceClient, kcpClientGetter iclient.KCPClientGetter) *tupleSubroutine {
 	return &tupleSubroutine{
-		fga:       fga,
-		mgr:       mgr,
-		kcpHelper: kcpHelper,
+		fga:             fga,
+		kcpClientGetter: kcpClientGetter,
 	}
 }
 
