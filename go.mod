@@ -15,8 +15,8 @@ require (
 	github.com/kcp-dev/sdk v0.31.1
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
 	github.com/openfga/language/pkg/go v0.2.1
-	github.com/platform-mesh/account-operator v0.14.30
-	github.com/platform-mesh/golang-commons v0.16.12
+	github.com/platform-mesh/account-operator v0.14.33
+	github.com/platform-mesh/golang-commons v0.16.14
 	github.com/platform-mesh/subroutines v0.4.3
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/zerolog v1.35.1
@@ -31,7 +31,7 @@ require (
 	k8s.io/apiextensions-apiserver v0.35.4
 	k8s.io/apimachinery v0.36.0
 	k8s.io/client-go v0.35.4
-	k8s.io/utils v0.0.0-20260319190234-28399d86e0b5
+	k8s.io/utils v0.0.0-20260507154919-ff6756f316d2
 	sigs.k8s.io/controller-runtime v0.23.3
 	sigs.k8s.io/multicluster-runtime v0.23.3
 	sigs.k8s.io/yaml v1.6.0
@@ -52,7 +52,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.25.1 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
-	github.com/getsentry/sentry-go v0.46.0 // indirect
+	github.com/getsentry/sentry-go v0.46.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zerologr v1.2.3 // indirect
