@@ -231,7 +231,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 			},
 			kcpClientGetterMocks: func(kcpClientGetter *mocks.MockKCPClientGetter) {
 				storeClient := mocks.NewMockClient(t)
-				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, "store-cluster").Return(storeClient, nil)
+				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, "system#store-cluster").Return(storeClient, nil)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*securityv1alpha1.Store)
 					*store = securityv1alpha1.Store{
@@ -291,7 +291,7 @@ func TestTupleProcessWithAuthorizationModel(t *testing.T) {
 			},
 			kcpClientGetterMocks: func(kcpClientGetter *mocks.MockKCPClientGetter) {
 				storeClient := mocks.NewMockClient(t)
-				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, "store-cluster").Return(storeClient, nil)
+				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, "system#store-cluster").Return(storeClient, nil)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*securityv1alpha1.Store)
 					*store = securityv1alpha1.Store{
@@ -371,7 +371,7 @@ func TestTupleFinalizationWithAuthorizationModel(t *testing.T) {
 			},
 			kcpClientGetterMocks: func(kcpClientGetter *mocks.MockKCPClientGetter) {
 				storeClient := mocks.NewMockClient(t)
-				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, "store-cluster").Return(storeClient, nil)
+				kcpClientGetter.EXPECT().NewClientForLogicalCluster(mock.Anything, "system#store-cluster").Return(storeClient, nil)
 				storeClient.EXPECT().Get(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(func(ctx context.Context, nn types.NamespacedName, o client.Object, opts ...client.GetOption) error {
 					store := o.(*securityv1alpha1.Store)
 					*store = securityv1alpha1.Store{
