@@ -3,7 +3,7 @@
 
 # platform-mesh - security-operator
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/platform-mesh/security-operator/badge)](https://scorecard.dev/viewer/?uri=github.com/platform-mesh/security-operator)
-![build status](https://github.com/platform-mesh/security-operator/actions/workflows/pipeline.yaml/badge.svg)
+![build status](https://github.com/platform-mesh/security-operator/actions/workflows/ci.yml/badge.svg)
 
 ## Description
 Security-operator is responsible for security related configuration in Platform-mesh. 
