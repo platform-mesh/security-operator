@@ -9,6 +9,7 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,7 +38,7 @@ func (t *tupleSubroutine) Finalize(ctx context.Context, obj client.Object) (subr
 	case *securityv1alpha1.AuthorizationModel:
 		managedTuples = o.Status.ManagedTuples
 
-		storeClient, err := t.kcpClientGetter.NewClientForLogicalCluster(ctx, o.Spec.StoreRef.Cluster)
+		storeClient, err := t.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.SystemProviderName, o.Spec.StoreRef.Cluster)))
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("unable to create client to store cluster: %w", err)
 		}
@@ -97,7 +98,7 @@ func (t *tupleSubroutine) Process(ctx context.Context, obj client.Object) (subro
 		specTuples = o.Spec.Tuples
 		managedTuples = o.Status.ManagedTuples
 
-		storeClient, err := t.kcpClientGetter.NewClientForLogicalCluster(ctx, o.Spec.StoreRef.Cluster)
+		storeClient, err := t.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.SystemProviderName, o.Spec.StoreRef.Cluster)))
 		if err != nil {
 			return subroutines.OK(), fmt.Errorf("unable to create client to store cluster: %w", err)
 		}

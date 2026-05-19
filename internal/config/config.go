@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"strings"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -194,4 +195,13 @@ func (config Config) TerminatorName() string {
 // The multi.Provider prefixes cluster names as "providerName#clusterName"
 func MultiProviderName(providerName, clusterName string) multicluster.ClusterName {
 	return multicluster.ClusterName(providerName + providerSeparator + clusterName)
+}
+
+// Strip provider prefix from cluster name ("core#1kar1u6c65ykt4ea" -> "1kar1u6c65ykt4ea")
+func StripProviderPrefix(clusterName multicluster.ClusterName) string {
+	prefixedClusterName := string(clusterName)
+	if _, ClusteName, found := strings.Cut(prefixedClusterName, providerSeparator); found {
+		return ClusteName
+	}
+	return prefixedClusterName
 }
