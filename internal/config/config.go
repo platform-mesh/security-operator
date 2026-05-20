@@ -199,7 +199,7 @@ func MultiProviderName(providerName, clusterName string) multicluster.ClusterNam
 
 // Strip provider prefix from cluster name ("core#1kar1u6c65ykt4ea" -> "1kar1u6c65ykt4ea")
 func StripProviderPrefix(clusterName multicluster.ClusterName) string {
-	prefixedClusterName := string(clusterName)
+	prefixedClusterName := clusterName.String()
 	if _, ClusteName, found := strings.Cut(prefixedClusterName, providerSeparator); found {
 		return ClusteName
 	}

@@ -78,7 +78,7 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 		Named("store").
 		For(&corev1alpha1.Store{},
 			mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
-				return strings.HasPrefix(string(clusterName), config.SystemProviderName)
+				return strings.HasPrefix(clusterName.String(), config.SystemProviderName)
 			}),
 		).
 		WithOptions(controller.TypedOptions[mcreconcile.Request]{MaxConcurrentReconciles: cfg.MaxConcurrentReconciles}).
@@ -111,7 +111,7 @@ func (r *StoreReconciler) SetupWithManager(mgr mcmanager.Manager, cfg *platforme
 			},
 			mcbuilder.WithPredicates(predicate.GenerationChangedPredicate{}),
 			mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
-				return strings.HasPrefix(string(clusterName), config.CoreProviderName)
+				return strings.HasPrefix(clusterName.String(), config.CoreProviderName)
 			}),
 		).Complete(r)
 }

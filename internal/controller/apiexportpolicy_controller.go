@@ -78,7 +78,7 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 		Named("apiexportpolicy").
 		For(&corev1alpha1.APIExportPolicy{},
 			mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
-				return strings.HasPrefix(string(clusterName), config.SystemProviderName)
+				return strings.HasPrefix(clusterName.String(), config.SystemProviderName)
 			}),
 		).
 		WithOptions(opts).
@@ -102,7 +102,7 @@ func (r *APIExportPolicyReconciler) SetupWithManager(mgr mcmanager.Manager, cfg 
 				})
 			},
 			mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
-				return strings.HasPrefix(string(clusterName), config.CoreProviderName)
+				return strings.HasPrefix(clusterName.String(), config.CoreProviderName)
 			}),
 		).Complete(r)
 }

@@ -62,7 +62,7 @@ func (r *AuthorizationModelReconciler) SetupWithManager(mgr mcmanager.Manager, c
 	return mcbuilder.ControllerManagedBy(mgr).
 		Named("authorizationmodel").
 		For(&corev1alpha1.AuthorizationModel{}, mcbuilder.WithClusterFilter(func(clusterName multicluster.ClusterName, _ cluster.Cluster) bool {
-			return strings.HasPrefix(string(clusterName), config.CoreProviderName)
+			return strings.HasPrefix(clusterName.String(), config.CoreProviderName)
 		})).
 		WithOptions(opts).
 		WithEventFilter(predicate.And(predicates...)).
