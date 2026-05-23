@@ -11,7 +11,7 @@ require (
 	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.7.1
-	github.com/kcp-dev/multicluster-provider/client v0.7.0
+	github.com/kcp-dev/multicluster-provider/client v0.7.1
 	github.com/kcp-dev/sdk v0.31.1
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
 	github.com/openfga/language/pkg/go v0.2.1
