@@ -5,18 +5,18 @@ go 1.26.0
 require (
 	github.com/coreos/go-oidc v2.5.0+incompatible
 	github.com/fluxcd/helm-controller/api v1.5.4
-	github.com/fluxcd/source-controller/api v1.8.3
+	github.com/fluxcd/source-controller/api v1.8.4
 	github.com/go-logr/logr v1.4.3
 	github.com/google/gnostic-models v0.7.1
 	github.com/jellydator/ttlcache/v3 v3.4.0
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
-	github.com/kcp-dev/multicluster-provider v0.7.0
-	github.com/kcp-dev/multicluster-provider/client v0.7.0
+	github.com/kcp-dev/multicluster-provider v0.7.1
+	github.com/kcp-dev/multicluster-provider/client v0.7.1
 	github.com/kcp-dev/sdk v0.31.1
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
 	github.com/openfga/language/pkg/go v0.2.1
-	github.com/platform-mesh/account-operator v0.14.30
-	github.com/platform-mesh/golang-commons v0.16.12
+	github.com/platform-mesh/account-operator v0.14.37
+	github.com/platform-mesh/golang-commons v0.17.0
 	github.com/platform-mesh/subroutines v0.4.3
 	github.com/prometheus/client_golang v1.23.2
 	github.com/rs/zerolog v1.35.1
@@ -25,7 +25,7 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/oauth2 v0.36.0
-	google.golang.org/grpc v1.81.0
+	google.golang.org/grpc v1.81.1
 	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af
 	k8s.io/api v0.35.4
 	k8s.io/apiextensions-apiserver v0.35.4
@@ -52,7 +52,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.25.1 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
-	github.com/getsentry/sentry-go v0.46.0 // indirect
+	github.com/getsentry/sentry-go v0.46.2 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-logr/zerologr v1.2.3 // indirect
@@ -95,7 +95,7 @@ require (
 	github.com/pquerna/cachecontrol v0.2.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.67.5 // indirect
-	github.com/prometheus/procfs v0.19.2 // indirect
+	github.com/prometheus/procfs v0.20.1 // indirect
 	github.com/sagikazarmark/locafero v0.12.0 // indirect
 	github.com/sosodev/duration v1.4.0 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
@@ -115,17 +115,17 @@ require (
 	go.opentelemetry.io/proto/otlp v1.10.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/crypto v0.50.0 // indirect
-	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90 // indirect
-	golang.org/x/net v0.53.0 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
+	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f // indirect
+	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.43.0 // indirect
-	golang.org/x/term v0.42.0 // indirect
-	golang.org/x/text v0.36.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/term v0.43.0 // indirect
+	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/time v0.14.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.5.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260414002931-afd174a4e478 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260414002931-afd174a4e478 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260420184626-e10c466a9529 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.13.0 // indirect
 	gopkg.in/go-jose/go-jose.v2 v2.6.3 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
