@@ -15,7 +15,6 @@ import (
 	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/subroutines"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
@@ -28,21 +27,19 @@ const (
 
 type APIExportPolicySubroutine struct {
 	fga             openfgav1.OpenFGAServiceClient
-	mgr             mcmanager.Manager
 	cfg             *config.Config
 	storeIDGetter   fga.StoreIDGetter
-	kcpClientGetter iclient.KCPClientGetter
 	lister          iclient.Lister
+	kcpClientGetter iclient.KCPClientGetter
 }
 
-func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, mgr mcmanager.Manager, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpClientGetter iclient.KCPClientGetter, lister iclient.Lister) *APIExportPolicySubroutine {
+func NewAPIExportPolicySubroutine(fgaClient openfgav1.OpenFGAServiceClient, cfg *config.Config, storeIDGetter fga.StoreIDGetter, lister iclient.Lister, kcpClientGetter iclient.KCPClientGetter) *APIExportPolicySubroutine {
 	return &APIExportPolicySubroutine{
 		fga:             fgaClient,
-		mgr:             mgr,
 		cfg:             cfg,
 		storeIDGetter:   storeIDGetter,
-		kcpClientGetter: kcpClientGetter,
 		lister:          lister,
+		kcpClientGetter: kcpClientGetter,
 	}
 }
 
@@ -111,13 +108,13 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Obje
 		// for all valid expressions except of :root:orgs:*
 		// e.g :root:orgs:A:B, find store id
 		// and clusterID of logical cluster where account B lives (logical cluster A)
-		lcClient, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, workspacePath)
+		cl, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.CoreProviderName, workspacePath)))
 		if err != nil {
-			return subroutines.OK(), fmt.Errorf("getting client: %w", err)
+			return subroutines.OK(), fmt.Errorf("getting client for workspace %s: %w", workspacePath, err)
 		}
 
 		var ai accountsv1alpha1.AccountInfo
-		if err := lcClient.Get(ctx, client.ObjectKey{Name: "account"}, &ai); err != nil {
+		if err := cl.Get(ctx, client.ObjectKey{Name: "account"}, &ai); err != nil {
 			return subroutines.OK(), fmt.Errorf("getting AccountInfo for workspace %s: %w", workspacePath, err)
 		}
 
@@ -138,7 +135,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Obje
 		}
 	}
 
-	cluster, err := a.mgr.ClusterFromContext(ctx)
+	cl, err := a.kcpClientGetter.NewClientFromContext(ctx)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to get cluster from context %w", err)
 	}
@@ -147,7 +144,7 @@ func (a *APIExportPolicySubroutine) Process(ctx context.Context, obj client.Obje
 	original := policy.DeepCopy()
 	policy.Status.ManagedAllowExpressions = policy.Spec.AllowPathExpressions
 
-	if err := cluster.GetClient().Status().Patch(ctx, policy, client.MergeFrom(original)); err != nil {
+	if err := cl.Status().Patch(ctx, policy, client.MergeFrom(original)); err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to patch APIExportPolicy status: %w", err)
 	}
 
@@ -178,8 +175,7 @@ func (a *APIExportPolicySubroutine) Finalize(ctx context.Context, obj client.Obj
 }
 
 func (a *APIExportPolicySubroutine) getClusterIDFromPath(ctx context.Context, clusterPath string) (string, error) {
-	// TODO use multi provider name when pathaware provider is fixed
-	cl, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, clusterPath)
+	cl, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.CoreProviderName, clusterPath)))
 	if err != nil {
 		return "", fmt.Errorf("getting client for workspace %s: %w", clusterPath, err)
 	}
@@ -271,13 +267,13 @@ func (a *APIExportPolicySubroutine) deleteTuplesForExpression(ctx context.Contex
 		return nil
 	}
 
-	lcClient, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, workspacePath)
+	cl, err := a.kcpClientGetter.NewClientForLogicalCluster(ctx, string(config.MultiProviderName(config.CoreProviderName, workspacePath)))
 	if err != nil {
 		return fmt.Errorf("getting client for workspace %s: %w", workspacePath, err)
 	}
 
 	var ai accountsv1alpha1.AccountInfo
-	if err := lcClient.Get(ctx, client.ObjectKey{Name: "account"}, &ai); err != nil {
+	if err := cl.Get(ctx, client.ObjectKey{Name: "account"}, &ai); err != nil {
 		return fmt.Errorf("getting AccountInfo for workspace %s: %w", workspacePath, err)
 	}
 
