@@ -16,7 +16,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	mcmanager "sigs.k8s.io/multicluster-runtime/pkg/manager"
 
-	"github.com/kcp-dev/logicalcluster/v3"
 	kcpcorev1alpha1 "github.com/kcp-dev/sdk/apis/core/v1alpha1"
 )
 
@@ -45,50 +44,36 @@ func (s *AccountTuplesSubroutine) Initialize(ctx context.Context, obj client.Obj
 func (s *AccountTuplesSubroutine) reconcile(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	lc := obj.(*kcpcorev1alpha1.LogicalCluster)
 
-	accountPath, err := platformmeshpath.NewAccountPathFromLogicalCluster(lc)
-	if err != nil {
+	if _, err := platformmeshpath.NewAccountPathFromLogicalCluster(lc); err != nil {
 		return subroutines.OK(), fmt.Errorf("getting AccountPath from LogicalCluster: %w", err)
 	}
 
-	storeID, err := s.storeIDGetter.Get(ctx, accountPath.Org().Base())
+	accountInfo, err := s.getLocalAccountInfo(ctx)
+	if err != nil {
+		return subroutines.OK(), err
+	}
+	if accountInfo.Spec.ParentAccount == nil {
+		return subroutines.OK(), fmt.Errorf("parent account is not set on AccountInfo")
+	}
+	if accountInfo.Spec.Account.Creator == nil || *accountInfo.Spec.Account.Creator == "" {
+		return subroutines.OK(), fmt.Errorf("account creator is nil or empty")
+	}
+
+	storeID, err := s.storeIDGetter.Get(ctx, accountInfo.Spec.Organization.Name)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting store ID: %w", err)
 	}
 
-	// Determine the parent's and grandParent's LogicalCluster ID
-	parentPath, _ := accountPath.Parent()
-	parentAccountClusterID, parentAccountLC, err := s.clusterAndIDFromLogicalClusterForPath(ctx, parentPath)
-	if err != nil {
-		return subroutines.OK(), fmt.Errorf("getting parent account's LogicalCluster: %w", err)
-	}
-	grandParentAccountClusterID := parentAccountLC.Spec.Owner.Cluster
-
-	// Retrieve the Account resource out of the parent workspace to determine
-	// the creator
-	parentAccountClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, parentPath.String())
-	if err != nil {
-		return subroutines.OK(), fmt.Errorf("getting client for parent account cluster: %w", err)
-	}
-	var acc accountsv1alpha1.Account
-	if err := parentAccountClient.Get(ctx, client.ObjectKey{
-		Name: accountPath.Base(),
-	}, &acc); err != nil {
-		return subroutines.OK(), fmt.Errorf("getting Account in parent account cluster: %w", err)
-	}
-	if acc.Spec.Creator == nil || *acc.Spec.Creator == "" {
-		return subroutines.OK(), fmt.Errorf("account creator is nil or empty")
-	}
-
 	tuples, err := fga.InitialTuplesForAccount(fga.InitialTuplesForAccountInput{
 		BaseTuplesInput: fga.BaseTuplesInput{
-			Creator:                *acc.Spec.Creator,
-			AccountOriginClusterID: parentAccountClusterID,
-			AccountName:            accountPath.Base(),
+			Creator:                *accountInfo.Spec.Account.Creator,
+			AccountOriginClusterID: accountInfo.Spec.ParentAccount.GeneratedClusterId,
+			AccountName:            accountInfo.Spec.Account.Name,
 			CreatorRelation:        s.creatorRelation,
 			ObjectType:             s.objectType,
 		},
-		ParentOriginClusterID: grandParentAccountClusterID,
-		ParentName:            parentPath.Base(),
+		ParentOriginClusterID: accountInfo.Spec.ParentAccount.OriginClusterId,
+		ParentName:            accountInfo.Spec.ParentAccount.Name,
 		ParentRelation:        s.parentRelation,
 	})
 	if err != nil {
@@ -109,15 +94,16 @@ func (s *AccountTuplesSubroutine) Terminate(ctx context.Context, obj client.Obje
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting AccountPath from LogicalCluster: %w", err)
 	}
-	parentPath, _ := accountPath.Parent()
-
-	// Determine the parent's LogicalClusterID
-	parentClusterID, _, err := s.clusterAndIDFromLogicalClusterForPath(ctx, parentPath)
+	accountInfo, err := s.getLocalAccountInfo(ctx)
 	if err != nil {
-		return subroutines.OK(), fmt.Errorf("getting parent account's LogicalCluster: %w", err)
+		return subroutines.OK(), err
+	}
+	if accountInfo.Spec.ParentAccount == nil {
+		return subroutines.OK(), fmt.Errorf("parent account is not set on AccountInfo")
 	}
 
-	storeID, err := s.storeIDGetter.Get(ctx, accountPath.Org().Base())
+	parentClusterID := accountInfo.Spec.ParentAccount.GeneratedClusterId
+	storeID, err := s.storeIDGetter.Get(ctx, accountInfo.Spec.Organization.Name)
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("getting store ID: %w", err)
 	}
@@ -173,25 +159,16 @@ var (
 	_ subroutines.Terminator  = &AccountTuplesSubroutine{}
 )
 
-// clusterAndIDFromLogicalClusterForPath retrieves the LogicalCluster of a given
-// path and returns its cluster ID and the LogicalCluster object.
-func (s *AccountTuplesSubroutine) clusterAndIDFromLogicalClusterForPath(ctx context.Context, p logicalcluster.Path) (string, kcpcorev1alpha1.LogicalCluster, error) {
-	var lc kcpcorev1alpha1.LogicalCluster
-
-	clusterClient, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, p.String())
+func (s *AccountTuplesSubroutine) getLocalAccountInfo(ctx context.Context) (*accountsv1alpha1.AccountInfo, error) {
+	cluster, err := s.mgr.ClusterFromContext(ctx)
 	if err != nil {
-		return "", lc, fmt.Errorf("getting account cluster client: %w", err)
-	}
-	if err := clusterClient.Get(ctx, client.ObjectKey{
-		Name: "cluster",
-	}, &lc); err != nil {
-		return "", lc, fmt.Errorf("getting account's LogicalCluster: %w", err)
+		return nil, fmt.Errorf("failed to get cluster from context: %w", err)
 	}
 
-	clusterID, ok := lc.Annotations["kcp.io/cluster"]
-	if !ok || clusterID == "" {
-		return "", lc, fmt.Errorf("cluster-annotation kcp.io/cluster on LogicalCluster is not set")
+	var accountInfo accountsv1alpha1.AccountInfo
+	if err := cluster.GetClient().Get(ctx, client.ObjectKey{Name: "account"}, &accountInfo); err != nil {
+		return nil, fmt.Errorf("getting local AccountInfo: %w", err)
 	}
 
-	return clusterID, lc, nil
+	return &accountInfo, nil
 }

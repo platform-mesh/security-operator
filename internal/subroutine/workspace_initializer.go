@@ -87,27 +87,16 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object)
 		return subroutines.StopWithRequeue(5*time.Second, "AccountInfo not found yet, requeueing"), nil
 	}
 
-	orgsClient, err := w.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
-	if err != nil {
-		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
-	}
-	var acc accountsv1alpha1.Account
-	if err := orgsClient.Get(ctx, client.ObjectKey{
-		Name: ai.Spec.Account.Name,
-	}, &acc); err != nil {
-		return subroutines.OK(), fmt.Errorf("getting Account in platform-mesh-system: %w", err)
-	}
-
 	store := v1alpha1.Store{
 		ObjectMeta: metav1.ObjectMeta{Name: generateStoreName(lc)},
 	}
 
-	if acc.Spec.Creator == nil || *acc.Spec.Creator == "" {
+	if ai.Spec.Account.Creator == nil || *ai.Spec.Account.Creator == "" {
 		return subroutines.OK(), fmt.Errorf("account creator is nil or empty")
 	}
 	tuples, err := fga.TuplesForOrganization(fga.TuplesForOrganizationInput{
 		BaseTuplesInput: fga.BaseTuplesInput{
-			Creator:                *acc.Spec.Creator,
+			Creator:                *ai.Spec.Account.Creator,
 			AccountOriginClusterID: ai.Spec.Account.OriginClusterId,
 			AccountName:            ai.Spec.Account.Name,
 			CreatorRelation:        w.creatorRelation,
@@ -130,6 +119,11 @@ func (w *workspaceInitializer) reconcile(ctx context.Context, obj client.Object)
 				User:     "role:authenticated#assignee",
 			},
 		}...)
+	}
+
+	orgsClient, err := w.kcpClientGetter.NewClientForLogicalCluster(ctx, "root:orgs")
+	if err != nil {
+		return subroutines.OK(), fmt.Errorf("getting orgs client: %w", err)
 	}
 
 	if result, err := controllerutil.CreateOrUpdate(ctx, orgsClient, &store, func() error {
