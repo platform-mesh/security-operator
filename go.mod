@@ -12,7 +12,7 @@ require (
 	github.com/kcp-dev/logicalcluster/v3 v3.0.5
 	github.com/kcp-dev/multicluster-provider v0.7.1
 	github.com/kcp-dev/multicluster-provider/client v0.7.1
-	github.com/kcp-dev/sdk v0.31.1
+	github.com/kcp-dev/sdk v0.31.2
 	github.com/openfga/api/proto v0.0.0-20260319214821-f153694bfc20
 	github.com/openfga/language/pkg/go v0.2.1
 	github.com/platform-mesh/account-operator v0.14.42
@@ -79,7 +79,7 @@ require (
 	github.com/hashicorp/go-multierror v1.1.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kcp-dev/apimachinery/v2 v2.31.1 // indirect
+	github.com/kcp-dev/apimachinery/v2 v2.31.2 // indirect
 	github.com/klauspost/compress v1.18.5 // indirect
 	github.com/kylelemons/godebug v1.1.0 // indirect
 	github.com/martinlindhe/base36 v1.1.1 // indirect
