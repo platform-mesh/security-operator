@@ -60,6 +60,19 @@ var (
 
 func (r *tokenReviewRBACSubroutine) GetName() string { return "TokenReviewRBAC" }
 
+// EnsureGatewayTokenReviewRBACInOrgsParent installs cross-workspace TokenReview RBAC in
+// root:orgs so the portal can authenticate GraphQL there before any child org workspace exists.
+func (r *tokenReviewRBACSubroutine) EnsureGatewayTokenReviewRBACInOrgsParent(ctx context.Context) error {
+	gatewayHomeClusterID, err := r.gatewayHomeClusterID(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to resolve gateway home cluster ID: %w", err)
+	}
+	if err := r.ensureCrossWorkspaceTokenReviewRBAC(ctx, config.OrgsClusterPath, nil, gatewayHomeClusterID); err != nil {
+		return fmt.Errorf("failed to ensure gateway TokenReview RBAC in %s: %w", config.OrgsClusterPath, err)
+	}
+	return nil
+}
+
 func (r *tokenReviewRBACSubroutine) Initialize(ctx context.Context, obj client.Object) (subroutines.Result, error) {
 	return r.reconcile(ctx, obj)
 }

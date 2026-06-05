@@ -11,6 +11,7 @@ import (
 	"github.com/platform-mesh/security-operator/internal/controller"
 	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/security-operator/internal/predicates"
+	"github.com/platform-mesh/security-operator/internal/subroutine"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -134,6 +135,15 @@ var initializerCmd = &cobra.Command{
 		if err := alcReconciler.SetupWithManager(mgr, defaultCfg, predicate.Not(predicates.LogicalClusterIsAccountTypeOrg())); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "AccountLogicalCluster")
 			os.Exit(1)
+		}
+
+		if initializerCfg.Initializer.TokenReviewRBACEnabled {
+			tokenReviewRBAC := subroutine.NewTokenReviewRBACSubroutine(kcpClientGetter)
+			if err := tokenReviewRBAC.EnsureGatewayTokenReviewRBACInOrgsParent(cmd.Context()); err != nil {
+				log.Error().Err(err).Msg("failed to ensure gateway TokenReview RBAC in root:orgs")
+				os.Exit(1)
+			}
+			log.Info().Msg("ensured gateway TokenReview RBAC in root:orgs")
 		}
 
 		if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {

@@ -105,6 +105,18 @@ func TestTokenReviewRBACSubroutine_reconcile_atOrgsPath_skipsParentBindings(t *t
 	assertGatewayTokenReviewRBAC(t, wsClient, testGatewayHomeClusterID)
 }
 
+func TestTokenReviewRBACSubroutine_EnsureGatewayTokenReviewRBACInOrgsParent(t *testing.T) {
+	wsClient := newRBACFakeClient(t)
+
+	kcpHelper := mocks.NewMockKCPClientGetter(t)
+	expectGatewayHomeClusterLookup(t, kcpHelper)
+	kcpHelper.EXPECT().NewClientForLogicalCluster(mock.Anything, config.OrgsClusterPath).Return(wsClient, nil).Once()
+
+	sub := NewTokenReviewRBACSubroutine(kcpHelper)
+	require.NoError(t, sub.EnsureGatewayTokenReviewRBACInOrgsParent(context.Background()))
+	assertGatewayTokenReviewRBAC(t, wsClient, testGatewayHomeClusterID)
+}
+
 func TestTokenReviewRBACSubroutine_reconcile_missingPath(t *testing.T) {
 	lc := &kcpcorev1alpha1.LogicalCluster{ObjectMeta: metav1.ObjectMeta{Name: "cluster"}}
 	sub := NewTokenReviewRBACSubroutine(nil)
