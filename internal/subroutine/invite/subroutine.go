@@ -111,7 +111,7 @@ func (s *subroutine) Process(ctx context.Context, obj k8sclient.Object) (subrout
 		return subroutines.OK(), fmt.Errorf("failed to get cluster from context")
 	}
 
-	cl, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, string(clusterName))
+	cl, err := s.kcpClientGetter.NewClientForLogicalCluster(ctx, clusterName.String())
 	if err != nil {
 		return subroutines.OK(), fmt.Errorf("failed to get client for cluster %q: %w", clusterName, err)
 	}

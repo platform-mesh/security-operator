@@ -69,7 +69,7 @@ var systemCmd = &cobra.Command{
 			Scheme: scheme,
 		})
 		if err != nil {
-			setupLog.Error(err, "unable to create apiexport provider")
+			setupLog.Error(err, "unable to create system apiexport provider")
 			return err
 		}
 
@@ -80,7 +80,6 @@ var systemCmd = &cobra.Command{
 			setupLog.Error(err, "unable to create core apiexport provider")
 			return err
 		}
-
 		multiProv := multiprovider.New(multiprovider.Options{})
 		if err := multiProv.AddProvider(config.SystemProviderName, systemProvider); err != nil {
 			return err
@@ -126,6 +125,19 @@ var systemCmd = &cobra.Command{
 
 		if err = controller.NewAPIExportPolicyReconciler(log, fgaClient, mgr, providerLister, &systemCfg, storeIDGetter, kcpClientGetter).SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "apiexportpolicy").Msg("unable to create controller")
+			return err
+		}
+
+		if err = controller.NewStoreReconciler(ctx, log, fgaClient, mgr, &operatorCfg, providerLister, kcpClientGetter).
+			SetupWithManager(mgr, defaultCfg); err != nil {
+			log.Error().Err(err).Str("controller", "store").Msg("unable to create controller")
+			return err
+		}
+
+		if err = controller.
+			NewAuthorizationModelReconciler(log, fgaClient, mgr, kcpClientGetter).
+			SetupWithManager(mgr, defaultCfg); err != nil {
+			log.Error().Err(err).Str("controller", "authorizationmodel").Msg("unable to create controller")
 			return err
 		}
 
