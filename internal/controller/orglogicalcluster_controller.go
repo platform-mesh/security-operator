@@ -70,6 +70,11 @@ func NewOrgLogicalClusterController(log *logger.Logger, kcpClientGetter iclient.
 	if cfg.Initializer.WorkspaceAuthEnabled {
 		subs = append(subs, subroutine.NewWorkspaceAuthConfigurationSubroutine(inClusterClient, mgr, kcpClientGetter, cfg))
 	}
+	// Org workspaces (root:orgs:<org>) and the shared parent root:orgs need
+	// gateway TokenReview RBAC; see internal/subroutine/tokenreview_rbac.go.
+	if cfg.Initializer.TokenReviewRBACEnabled {
+		subs = append(subs, subroutine.NewTokenReviewRBACSubroutine(kcpClientGetter))
+	}
 
 	lc := lifecycle.New(mgr, opts.Name, func() client.Object {
 		return &kcpcorev1alpha1.LogicalCluster{}

@@ -32,6 +32,7 @@ type InitializerConfig struct {
 	IDPEnabled                  bool
 	InviteEnabled               bool
 	WorkspaceAuthEnabled        bool
+	TokenReviewRBACEnabled      bool
 }
 
 type FGAConfig struct {
@@ -129,6 +130,7 @@ func NewConfig() Config {
 			IDPEnabled:                  true,
 			InviteEnabled:               true,
 			WorkspaceAuthEnabled:        true,
+			TokenReviewRBACEnabled:      true,
 		},
 		Webhooks: WebhooksConfig{
 			Port:    9443,
@@ -176,6 +178,7 @@ func (c *Config) AddFlags(fs *pflag.FlagSet) {
 	fs.BoolVar(&c.Initializer.IDPEnabled, "initializer-idp-enabled", c.Initializer.IDPEnabled, "Enable IDP initialization")
 	fs.BoolVar(&c.Initializer.InviteEnabled, "initializer-invite-enabled", c.Initializer.InviteEnabled, "Enable invite initialization")
 	fs.BoolVar(&c.Initializer.WorkspaceAuthEnabled, "initializer-workspace-auth-enabled", c.Initializer.WorkspaceAuthEnabled, "Enable workspace auth initialization")
+	fs.BoolVar(&c.Initializer.TokenReviewRBACEnabled, "initializer-tokenreview-rbac-enabled", c.Initializer.TokenReviewRBACEnabled, "Enable gateway TokenReview RBAC bindings in org and account workspaces")
 	fs.StringSliceVar(&c.AdditionalAudiences, "additional-audiences", c.AdditionalAudiences, "Additional audiences to trust in workspace JWT authentication configurations")
 	fs.BoolVar(&c.Webhooks.Enabled, "webhooks-enabled", c.Webhooks.Enabled, "Enable validating webhooks")
 	fs.IntVar(&c.Webhooks.Port, "webhooks-port", c.Webhooks.Port, "Set webhook server port")
