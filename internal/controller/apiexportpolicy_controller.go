@@ -40,19 +40,17 @@ import (
 type APIExportPolicyReconciler struct {
 	log             *logger.Logger
 	lifecycle       *lifecycle.Lifecycle
-	kcpClientGetter iclient.KCPClientGetter
 }
 
-func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, kcpClientGetter iclient.KCPClientGetter, lister iclient.Lister, cfg *config.Config, storeIDGetter fga.StoreIDGetter) *APIExportPolicyReconciler {
+func NewAPIExportPolicyReconciler(log *logger.Logger, fgaClient openfgav1.OpenFGAServiceClient, mcMgr mcmanager.Manager, lister iclient.Lister, cfg *config.Config, storeIDGetter fga.StoreIDGetter, kcpClientGetter iclient.KCPClientGetter) *APIExportPolicyReconciler {
 	lc := lifecycle.New(mcMgr, "APIExportPolicyReconciler", func() client.Object {
 		return &corev1alpha1.APIExportPolicy{}
-	}, subroutine.NewAPIExportPolicySubroutine(fgaClient, mcMgr, cfg, storeIDGetter, kcpClientGetter, lister)).
+	}, subroutine.NewAPIExportPolicySubroutine(fgaClient, cfg, storeIDGetter, lister, kcpClientGetter)).
 		WithConditions(conditions.NewManager())
 
 	return &APIExportPolicyReconciler{
-		log:             log,
-		lifecycle:       lc,
-		kcpClientGetter: kcpClientGetter,
+		log:       log,
+		lifecycle: lc,
 	}
 }
 
