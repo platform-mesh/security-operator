@@ -1,5 +1,5 @@
 > [!WARNING]
-> This Repository is under development and not ready for productive use. It is in an alpha stage. That means APIs and concepts may change on short notice including breaking changes or complete removal of apis.
+> This Repository code was migrated to [platform-mesh/platform-mesh](https://github.com/platform-mesh/platform-mesh/). 
 
 # platform-mesh - security-operator
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/platform-mesh/security-operator/badge)](https://scorecard.dev/viewer/?uri=github.com/platform-mesh/security-operator)
