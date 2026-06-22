@@ -13,6 +13,7 @@ import (
 	"github.com/platform-mesh/golang-commons/logger"
 	securityv1alpha1 "github.com/platform-mesh/security-operator/api/v1alpha1"
 	iclient "github.com/platform-mesh/security-operator/internal/client"
+	"github.com/platform-mesh/security-operator/internal/config"
 	"github.com/platform-mesh/security-operator/internal/util"
 	"github.com/platform-mesh/subroutines"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -108,7 +109,7 @@ func getRelatedAuthorizationModels(ctx context.Context, lister iclient.Lister, s
 
 	var extendingModules securityv1alpha1.AuthorizationModelList
 	for _, model := range allAuthorizationModels.Items {
-		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Cluster != string(storeClusterKey) {
+		if model.Spec.StoreRef.Name != store.Name || model.Spec.StoreRef.Cluster != config.StripProviderPrefix(storeClusterKey) {
 			continue
 		}
 
@@ -203,7 +204,6 @@ func (a *authorizationModelSubroutine) Process(ctx context.Context, obj client.O
 		if string(currentRaw) == string(desiredRaw) {
 			return subroutines.OK(), nil
 		}
-
 	}
 
 	res, err := a.fga.WriteAuthorizationModel(ctx, &openfgav1.WriteAuthorizationModelRequest{
