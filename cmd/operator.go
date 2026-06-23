@@ -14,6 +14,7 @@ import (
 	"github.com/platform-mesh/security-operator/internal/controller"
 	fga2 "github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/security-operator/internal/predicates"
+	"github.com/platform-mesh/security-operator/internal/subroutine"
 	internalwebhook "github.com/platform-mesh/security-operator/internal/webhook"
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
@@ -207,6 +208,15 @@ var operatorCmd = &cobra.Command{
 		if err = controller.NewAccountInfoReconciler(log, mgr).SetupWithManager(mgr, defaultCfg); err != nil {
 			log.Error().Err(err).Str("controller", "accountinfo").Msg("unable to create controller")
 			return err
+		}
+
+		if operatorCfg.Initializer.TokenReviewRBACEnabled {
+			tokenReviewRBAC := subroutine.NewTokenReviewRBACSubroutine(kcpClientGetterWithConfig)
+			if err := tokenReviewRBAC.EnsureGatewayTokenReviewRBACInOrgsParent(ctx); err != nil {
+				log.Error().Err(err).Msg("failed to ensure gateway TokenReview RBAC in root:orgs")
+				return err
+			}
+			log.Info().Msg("ensured gateway TokenReview RBAC in root:orgs")
 		}
 
 		if operatorCfg.Webhooks.Enabled {

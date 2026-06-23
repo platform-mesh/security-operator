@@ -15,6 +15,7 @@ import (
 	"github.com/platform-mesh/security-operator/internal/fga"
 	"github.com/platform-mesh/security-operator/internal/metrics"
 	"github.com/platform-mesh/security-operator/internal/subroutine"
+	"github.com/platform-mesh/subroutines"
 	"github.com/platform-mesh/subroutines/lifecycle"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -42,9 +43,18 @@ func NewAccountLogicalClusterController(log *logger.Logger, cfg config.Config, f
 		return nil, fmt.Errorf("creating RateLimiter: %w", err)
 	}
 
+	var subs []subroutines.Subroutine
+	subs = append(subs, subroutine.NewAccountTuplesSubroutine(mgr, fgaClient, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType, kcpClientGetter))
+	// Account workspaces (root:orgs:<org>:<account>, nested accounts, etc.) are
+	// where the portal often queries GraphQL. The gateway must TokenReview in
+	// those paths, so the same RBAC bindings as org workspaces are required here.
+	if cfg.Initializer.TokenReviewRBACEnabled {
+		subs = append(subs, subroutine.NewTokenReviewRBACSubroutine(kcpClientGetter))
+	}
+
 	lc := lifecycle.New(mgr, opts.Name, func() client.Object {
 		return &kcpcorev1alpha1.LogicalCluster{}
-	}, subroutine.NewAccountTuplesSubroutine(mgr, fgaClient, storeIDGetter, cfg.FGA.CreatorRelation, cfg.FGA.ParentRelation, cfg.FGA.ObjectType, kcpClientGetter))
+	}, subs...)
 
 	if opts.InitializerName != "" {
 		lc = lc.WithInitializer(opts.InitializerName)
